@@ -222,8 +222,12 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         uiErrorMessage(
           e,
           t(
-            '暂时无法取得结果。你的输入仍在，请联网后重试。',
-            'We couldn’t get a result. Your input is still here; reconnect and try again.',
+            kind === 'tarot'
+              ? '抽牌暂未完成，问题和设置仍保留。请联网后重新选牌或随机抽取。'
+              : '暂时无法取得结果。你的输入仍在，请联网后重试。',
+            kind === 'tarot'
+              ? 'The draw did not finish. Your question and settings are retained; reconnect and pick again or draw at random.'
+              : 'We couldn’t get a result. Your input is still here; reconnect and try again.',
           ),
         ),
       );
