@@ -1,5 +1,5 @@
 {
-  "phase": "validated_not_deployed",
+  "phase": "deployed_live_checks_passed_external_validation_pending",
   "date": "2026-10-05",
   "base": "ce2fe06e4645906fc46511ca93a18a1ea831ce1b",
   "local": {
@@ -9,7 +9,8 @@
     "browser": "guest result -> email code -> original conversation -> follow-up -> reload; zh desktop and en 375 px mobile",
     "audit": "site, tarot assets, knowledge editions, IndexNow",
     "lint": "passed",
-    "production_dependency_audit": "0 vulnerabilities"
+    "production_dependency_audit": "0 vulnerabilities",
+    "browser_export": "Downloaded complete JSON with original synthetic conversation, one cloud record, no pending or browser-only records"
   },
   "mail": {
     "domain_configuration": "Cloudflare enabled/configured",
@@ -20,5 +21,54 @@
     "status": 402,
     "verdict": null
   },
-  "remote_restore_drill": "not performed; local restored-data masking and maintenance replay tested"
+  "remote_restore_drill": "not performed; local restored-data masking and maintenance replay tested",
+  "commit": "9c50a24916d7c127b0e51f71b7bba8a6ca2d839b",
+  "pull_request": "https://github.com/wenbu-app/wenbu/pull/11",
+  "ci": {
+    "status": "passed",
+    "url": "https://github.com/wenbu-app/wenbu/actions/runs/37264802858",
+    "commit": "9c50a24916d7c127b0e51f71b7bba8a6ca2d839b"
+  },
+  "deployment": {
+    "provider": "Cloudflare Workers",
+    "version": "88afa74c-55c9-4c7d-b564-3950154cbf2f",
+    "domains": [
+      "wenbu.app",
+      "www.wenbu.app",
+      "wenbu.genedai.me"
+    ],
+    "private_migrations_applied": 4
+  },
+  "live": {
+    "public_routes": 96,
+    "public_tools_and_mcp": "passed",
+    "private_account_checks": 14,
+    "account_report_ranges": [
+      1,
+      3,
+      7,
+      14,
+      30
+    ],
+    "traffic_report_ranges": [
+      1,
+      3,
+      7,
+      14,
+      30,
+      90
+    ],
+    "browser": "Chinese email entry and protected account Insights rendered; independent 30-day filter verified",
+    "mail_sent": false,
+    "account_created": false,
+    "paid_model_called": false
+  },
+  "indexnow": {
+    "live_manifest_matches": true,
+    "status": "backoff",
+    "last_error": "http_429",
+    "retry_at": "2026-10-05T13:15:12.535Z",
+    "new_submission_receipt": false,
+    "indexing_confirmed": false
+  }
 }

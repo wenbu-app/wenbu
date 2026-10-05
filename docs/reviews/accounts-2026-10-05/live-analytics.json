@@ -1,0 +1,19 @@
+{
+  "base": "https://wenbu.app",
+  "checkedAt": "2026-10-05T04:44:59.184Z",
+  "readOnly": true,
+  "checks": [
+    "unauthenticated requests rejected",
+    "1-day range, dense buckets and reconciled totals",
+    "3-day range, dense buckets and reconciled totals",
+    "7-day range, dense buckets and reconciled totals",
+    "14-day range, dense buckets and reconciled totals",
+    "30-day range, dense buckets and reconciled totals",
+    "90-day range, dense buckets and reconciled totals",
+    "UTC midnight boundaries and manual hourly detail",
+    "inclusive custom date range",
+    "all dimension filters accepted and retained",
+    "invalid ranges, timezone, dates and dimensions rejected"
+  ],
+  "result": "passed"
+}
