@@ -20,7 +20,9 @@ export default function CloudSaveStatus({
     <button
       type="button"
       className="cloud-save-status"
-      onClick={() => openAccount(!state.user ? intent : undefined)}
+      onClick={() =>
+        openAccount(!state.user ? intent : undefined, intent ? 'account-save' : 'account-history')
+      }
       aria-live="polite"
     >
       <Icon size={15} className={state.syncing ? 'account-spin' : ''} />
@@ -50,8 +52,12 @@ export default function CloudSaveStatus({
                       ? '仅保存于此浏览器'
                       : 'Saved in this browser only'
             : zh
-              ? '试用记录在此浏览器 · 登录可保存到云端'
-              : 'Trial history stays here · Sign in to save to the cloud'}
+              ? intent
+                ? '这次对话在此浏览器 · 保存到账号'
+                : '登录查看云端记录'
+              : intent
+                ? 'Conversation saved here · Save to your account'
+                : 'Sign in for cloud history'}
       </span>
     </button>
   );

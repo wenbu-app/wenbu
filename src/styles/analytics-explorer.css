@@ -16,7 +16,7 @@
   cursor: pointer;
   border-radius: 3px;
 }
-.insights-tabs button[aria-selected='true'] {
+.insights-tabs button[aria-pressed='true'] {
   border-color: #cad2bd;
   background: #e9eddc;
   color: #354d31;

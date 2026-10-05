@@ -41,13 +41,14 @@ const mf = new Miniflare({
         modules: true,
         compatibilityDate: '2026-09-28',
         compatibilityFlags: ['nodejs_compat'],
-        d1Databases: ['USERDATA'],
+        d1Databases: ['USERDATA', 'ANALYTICS'],
         durableObjects: {
           QUOTA: { className: 'UsageGate', useSQLite: true },
           PRIVACY_LEDGER: { className: 'DeletionLedger', useSQLite: true },
         },
         bindings: {
           SITE_URL: 'http://127.0.0.1:8788',
+          ANALYTICS_ADMIN_TOKEN: 'local-preview-only',
           ACCOUNTS_ENABLED: 'true',
           AUTH_SECRET: randomBytes(48).toString('hex'),
           ACCOUNT_DATA_KEY: randomBytes(48).toString('hex'),
@@ -67,6 +68,7 @@ const mf = new Miniflare({
             const zh = /[\u4e00-\u9fff]/.test(last);
             const first = users.length === 1;
             const birth = /命盘|birth chart/.test(last);
+            const reporting = !first && input.messages.at(-1)?.role !== 'tool';
             const delta = first
               ? {
                   tool_calls: [
@@ -99,11 +101,40 @@ const mf = new Miniflare({
                     },
                   ],
                 }
-              : {
-                  content: zh
-                    ? '这是本地交互测试，未调用真实模型。可以先写下两个选择各自最吸引你的地方，再看看哪一点最符合你现在的需要。'
-                    : 'This is a local interaction test; no real model was called. Start by naming what appeals to you about each option, then consider which matters most right now.',
-                };
+              : reporting
+                ? {
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: 'preview-report',
+                        type: 'function',
+                        function: {
+                          name: 'write_report',
+                          arguments: JSON.stringify({
+                            title: zh ? '把选择想清楚' : 'Thinking through a choice',
+                            summary: zh
+                              ? '本地演示报告，用来检查界面与保存流程。'
+                              : 'A synthetic local report for checking the interface and save flow.',
+                            sections: [
+                              {
+                                heading: zh ? '下一步' : 'Next step',
+                                body: zh
+                                  ? '写下两个选择各自吸引你的地方，再标记一项需要核实的条件。这不是对结果的预测。'
+                                  : 'Write down what appeals to you about each option, then identify one condition to check. This is not a prediction.',
+                                sourceIds: [],
+                              },
+                            ],
+                            questions: [],
+                          }),
+                        },
+                      },
+                    ],
+                  }
+                : {
+                    content: zh
+                      ? '这是本地交互测试，未调用真实模型。可以先写下两个选择各自最吸引你的地方，再看看哪一点最符合你现在的需要。'
+                      : 'This is a local interaction test; no real model was called. Start by naming what appeals to you about each option, then consider which matters most right now.',
+                  };
             console.log(
               'LOCAL GUIDANCE TURN',
               JSON.stringify({
@@ -113,7 +144,7 @@ const mf = new Miniflare({
               }),
             );
             return new Response(
-              `data: ${JSON.stringify({ model: 'local-fixture', choices: [{ delta, finish_reason: first ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n`,
+              `data: ${JSON.stringify({ model: 'local-fixture', choices: [{ delta, finish_reason: first || reporting ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n`,
               { headers: { 'Content-Type': 'text/event-stream' } },
             );
           }
@@ -151,16 +182,66 @@ const mf = new Miniflare({
   telemetry: { enabled: false },
   logRequests: false,
 });
-const db = await mf.getD1Database('USERDATA');
-for (const file of (await readdir(path.join(root, 'migrations-userdata')))
-  .filter((f) => f.endsWith('.sql'))
-  .sort())
-  for (const s of (await readFile(path.join(root, 'migrations-userdata', file), 'utf8'))
-    .replace(/^--.*$/gm, '')
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean))
-    await db.prepare(s).run();
+for (const [binding, directory] of [
+  ['USERDATA', 'migrations-userdata'],
+  ['ANALYTICS', 'migrations'],
+]) {
+  const db = await mf.getD1Database(binding);
+  for (const file of (await readdir(path.join(root, directory))).filter((f) => f.endsWith('.sql')).sort()) {
+    for (const sql of (await readFile(path.join(root, directory, file), 'utf8'))
+      .replace(/^--.*$/gm, '')
+      .split(';')
+      .map((s) => s.trim())
+      .filter(Boolean))
+      await db.prepare(sql).run();
+  }
+}
+// Synthetic, explicitly marked test traffic in this disposable database only.
+const analytics = await mf.getD1Database('ANALYTICS');
+for (let i = 0; i < 120; i++) {
+  const row = {
+    id: 'preview-event-' + i,
+    occurred_at: Date.now() - i * 3600000,
+    received_at: Date.now() - i * 3600000,
+    event: i % 3 ? 'page_view' : 'calculation_succeeded',
+    origin: i % 3 ? 'client' : 'server',
+    session_id: 'preview-session-' + Math.floor(i / 3),
+    visitor_id: 'preview-visitor-' + (i % 8),
+    page: '/tarot/',
+    entry_page: '/',
+    locale: i % 2 ? 'en' : 'zh',
+    source: 'direct',
+    medium: 'none',
+    campaign: 'none',
+    device: 'mobile',
+    browser: 'safari',
+    os: 'ios',
+    country: 'CN',
+    channel: 'web',
+    tool: i % 3 ? 'none' : 'tarot',
+    mode: 'none',
+    action: 'none',
+    status: i % 3 ? 'none' : 'complete',
+    is_test: 1,
+    actor_type: 'browser',
+    actor_name: 'safari',
+    actor_purpose: 'browse',
+    classification_evidence: 'browser_hint',
+    classification_version: 1,
+  };
+  await analytics
+    .prepare(
+      'INSERT INTO events (' +
+        Object.keys(row).join(',') +
+        ') VALUES (' +
+        Object.keys(row)
+          .map(() => '?')
+          .join(',') +
+        ')',
+    )
+    .bind(...Object.values(row))
+    .run();
+}
 console.log('Disposable account preview: http://127.0.0.1:8788 · synthetic mail and model only');
 for (const signal of ['SIGINT', 'SIGTERM'])
   process.once(signal, async () => {

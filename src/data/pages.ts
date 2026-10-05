@@ -37,7 +37,7 @@ export const pages: Record<string, Page> = {
           heading: 'Start with something on your mind',
           paragraphs: [
             'Wenbu, pronounced wen-boo, comes from 问卜, Chinese for consulting an oracle. Bring a question about work, a relationship or an everyday choice. You can also come simply to learn how a chart works. You do not need to know the terminology first.',
-            'Built by Gene Dai, Wenbu offers an Agent that helps frame your question, uses one of four tools when needed, reads references and brings the results together. You can also use each tool directly. Save readings in your browser and export them for later. You can start without an account or your name.',
+            'Built by Gene Dai, Wenbu offers an Agent that helps frame your question, uses one of four tools when needed, reads references and brings the results together. You can also use each tool directly. Keep readings in your browser, or sign in by email to save them to your account. You can also export them for later. You can start without an account or your name.',
           ],
         },
         {

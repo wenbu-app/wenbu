@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   SlidersHorizontal,
   Feather,
+  Cloud,
 } from 'lucide-react';
 import type { Locale, ToolKind } from '../lib/schema';
 import type { Reading } from '../lib/tools';
@@ -25,8 +26,8 @@ import {
   subscribeAccount,
   initializeAccount,
   openAccount,
+  recordSaveState,
 } from '../lib/account-client';
-import CloudSaveStatus from './CloudSaveStatus';
 import { accountError } from './AccountPanel';
 
 async function post<T>(
@@ -77,6 +78,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
   const [castMode, setCastMode] = useState<'random' | 'manual'>('random');
   const [lines, setLines] = useState([7, 8, 7, 8, 7, 8]);
   const [result, setResult] = useState<Reading | null>(null);
+  const [exampleResult, setExampleResult] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [question, setQuestion] = useState('');
@@ -109,7 +111,15 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
       receipt.current = undefined;
     };
     window.addEventListener('wenbu:account-changing', reset);
-    return () => window.removeEventListener('wenbu:account-changing', reset);
+    const savedToAccount = (event: Event) => {
+      const detail = (event as CustomEvent<{ kind: string; id: string }>).detail;
+      if (detail.kind === 'journal' && detail.id === entryId.current) setSaved(true);
+    };
+    window.addEventListener('wenbu:record-saved', savedToAccount);
+    return () => {
+      window.removeEventListener('wenbu:account-changing', reset);
+      window.removeEventListener('wenbu:record-saved', savedToAccount);
+    };
   }, []);
   useEffect(() => () => aiAbort.current?.abort(), []);
   function invalidateAnswer() {
@@ -197,6 +207,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         },
       );
       setResult(data);
+      setExampleResult(demo);
       track('result_viewed', { tool: kind, operation: operationId, status: 'complete' });
       entryId.current = crypto.randomUUID();
       setSelected([]);
@@ -267,8 +278,8 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
       if (aiAbort.current === controller) setAiBusy(false);
     }
   }
-  function save() {
-    if (!result || saved) return;
+  function save(destination: 'browser' | 'account' = 'browser') {
+    if (!result || (saved && destination !== 'account')) return;
     try {
       const entries = readJournal();
       const id = entryId.current ?? crypto.randomUUID();
@@ -290,9 +301,27 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         ...entries.filter((e) => e.id !== id),
       ]);
       setSaved(true);
-      if (!accountSnapshot().user && accountSnapshot().enabled) {
+      if (destination === 'account' && !accountSnapshot().user && accountSnapshot().enabled) {
         const current = readJournal().find((e) => e.id === id);
-        if (current) openAccount({ kind: 'journal', content: current });
+        if (current)
+          openAccount(
+            {
+              kind: 'journal',
+              content: current,
+              label:
+                question ||
+                t(
+                  { bazi: '八字命盘', iching: '易经卦象', tarot: '塔罗牌阵', ziwei: '紫微星盘' }[kind],
+                  {
+                    bazi: 'BaZi chart',
+                    iching: 'I Ching reading',
+                    tarot: 'Tarot reading',
+                    ziwei: 'Zi Wei chart',
+                  }[kind],
+                ),
+            },
+            'account-save',
+          );
       }
       track('journal_saved', {
         tool: kind,
@@ -304,6 +333,34 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         t('浏览器无法保存，请使用导出备份。', 'Browser storage is unavailable. Please export a backup.'),
       );
     }
+  }
+  const savedEntry = saved ? readJournal().find((e) => e.id === entryId.current) : undefined;
+  const saveState = savedEntry ? recordSaveState('journal', savedEntry) : 'unsaved';
+  function saveControls() {
+    return (
+      <>
+        {!account.user && account.enabled && (
+          <button type="button" className="button primary" onClick={() => save('account')} disabled={aiBusy}>
+            <Cloud size={16} />
+            {t('免费保存到账号', 'Save to a free account')}
+          </button>
+        )}
+        <button
+          type="button"
+          className="button secondary"
+          onClick={() => save()}
+          disabled={saved || aiBusy || !account.ready}
+        >
+          {saved ? <Check size={15} /> : <Bookmark size={15} />}
+          {account.user
+            ? t(saved ? '已留存' : '保存到手记', saved ? 'Reading retained' : 'Save to journal')
+            : t(
+                saved ? '已保存在此浏览器' : '保存在此浏览器',
+                saved ? 'Saved in this browser' : 'Save in this browser',
+              )}
+        </button>
+      </>
+    );
   }
   return (
     <div className={`tool-desk tool-${kind}`}>
@@ -630,7 +687,9 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                       <LoaderCircle className="spin" size={18} />
                     ) : (
                       <>
-                        {t('静心，起一卦', 'Pause. Cast a hexagram.')}
+                        {castMode === 'manual'
+                          ? t('读取这组六爻', 'Read these lines')
+                          : t('静心，起一卦', 'Pause. Cast a hexagram.')}
                         <ArrowRight size={18} />
                       </>
                     )}
@@ -652,13 +711,19 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
           <span>◌</span>
           <p>
             {t(
-              '不需要姓名，也不需要注册。记录仅在你主动保存时留在这台设备。',
-              'No name or account needed. Readings stay on this device only when you save them.',
+              '无需姓名或注册即可查看完整结果。结果生成后，可选择保存在此浏览器或登录保存到账号。',
+              'Get a complete result without a name or account. Then choose browser storage or sign in for cloud history.',
             )}
           </p>
         </div>
       </div>
-      <div className="tool-result-panel" ref={resultRef} aria-busy={busy}>
+      <div
+        className="tool-result-panel"
+        ref={resultRef}
+        aria-busy={busy}
+        tabIndex={-1}
+        data-account-return-focus
+      >
         <p className="tool-status" role="status" aria-atomic="true">
           {busy
             ? t('正在生成图景。', 'Preparing your reading.')
@@ -707,28 +772,14 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                 <RefreshCw size={16} />
               </button>
             </div>
-            <CloudSaveStatus
-              locale={locale}
-              intent={
-                result && entryId.current
-                  ? {
-                      kind: 'journal',
-                      content: {
-                        id: entryId.current,
-                        createdAt: new Date().toISOString(),
-                        kind,
-                        result,
-                        question,
-                        context,
-                        note,
-                        answer,
-                        provenance,
-                        receipt: receipt.current,
-                      } as { id: string },
-                    }
-                  : undefined
-              }
-            />
+            {exampleResult && (
+              <p className="reading-example-note">
+                {t(
+                  '示例命盘 · 使用示例出生资料，帮助你熟悉界面。',
+                  'Example chart · These sample birth details help you explore the interface.',
+                )}
+              </p>
+            )}
             <ReadingView result={result} locale={locale} />
             <FeedbackTrigger
               locale={locale}
@@ -738,10 +789,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
               excerpt={readingExcerpt(result, question, locale)}
             />
             <div className="reading-actions" data-saved={saved}>
-              <button className="button secondary" type="button" onClick={save} disabled={saved}>
-                {saved ? <Check size={15} /> : <Bookmark size={15} />}{' '}
-                {t(saved ? '已保存到手记' : '保存到手记', saved ? 'Saved to journal' : 'Save reading')}
-              </button>
+              {saveControls()}
               <button className="text-button" type="button" onClick={() => setExportOpen(!exportOpen)}>
                 <Download size={15} />
                 {t('导出给 Agent', 'Export for an agent')}
@@ -750,16 +798,20 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
             <p className="reading-saved-note" role="status">
               {saved &&
                 t(
-                  account.user && account.cloudHistory
-                    ? account.pending
-                      ? '已留存，正在同步到云端。'
-                      : '已保存到云端手记，可在其他设备继续。'
-                    : '已留在本机手记，随时回来续写。',
-                  account.user && account.cloudHistory
-                    ? account.pending
-                      ? 'Saved here. Cloud sync is pending.'
-                      : 'Saved to your cloud journal. Continue on another device.'
-                    : 'Saved in this browser’s journal. Return whenever you like.',
+                  saveState === 'cloud'
+                    ? '已保存到账号，可在其他设备继续。'
+                    : saveState === 'pending'
+                      ? '已在此浏览器留存，正在等待云端确认。'
+                      : saveState === 'error'
+                        ? '云端保存未完成。本机副本仍保留，请在账号中重试。'
+                        : '已保存在此浏览器，可继续保存到账号。',
+                  saveState === 'cloud'
+                    ? 'Saved to your account. Continue on another device.'
+                    : saveState === 'pending'
+                      ? 'Retained here. Waiting for cloud confirmation.'
+                      : saveState === 'error'
+                        ? 'Cloud save did not finish. Your browser copy is retained; retry in your account.'
+                        : 'Saved in this browser. You can also save it to your account.',
                 )}
             </p>
             {exportOpen && (
@@ -875,8 +927,8 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
               </p>
               <p className="form-note">
                 {t(
-                  '每个网络每日 5 次；全站有免费总额度。额度用完仍可排盘、抽牌与保存。',
-                  'Five free AI requests per network daily, subject to a site-wide budget. Charts, draws and your journal remain available.',
+                  '访客或账号每日 5 次解读，登录会合并当天用量；另受共享网络和全站额度限制。工具与保存仍可使用。',
+                  'Five AI readings per guest or account daily. Signing in carries over trial usage. Network and site limits also apply; tools and saving remain available.',
                 )}
               </p>
               {aiError && (
@@ -928,10 +980,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                       }}
                     />
                   </label>
-                  <button type="button" className="button secondary" disabled={saved} onClick={save}>
-                    {saved ? <Check size={16} /> : <Bookmark size={16} />}{' '}
-                    {t(saved ? '解读已保存' : '保存这份解读', saved ? 'Reading saved' : 'Save this reading')}
-                  </button>
+                  <div className="reading-actions">{saveControls()}</div>
                 </article>
               )}
             </section>

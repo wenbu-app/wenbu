@@ -1,0 +1,44 @@
+[
+  {
+    "h1": "把心里的问题，看得更清楚。",
+    "path": "/",
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "h1": "Bring your question.See it more clearly.",
+    "path": "/en/",
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "h1": "知识手册",
+    "path": "/learn/",
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "h1": "Your first visit: start with one small question",
+    "path": "/en/learn/first-reading/",
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "h1": "One deck. Seventy-eight perspectives.",
+    "path": "/en/tarot/deck/",
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "h1": "Wenbu for agents · MCP, CLI & Skills",
+    "path": "/en/agents/",
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "h1": "Wenbu or FateTell: what do you want to do?",
+    "path": "/en/compare/fatetell/",
+    "scrollWidth": 1280,
+    "width": 1280
+  }
+]

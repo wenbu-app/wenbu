@@ -43,7 +43,7 @@ export function knowledgeDocument(article: Article, locale: Locale) {
     slug: article.slug,
     language: locale === 'zh' ? 'zh-Hans' : 'en',
     ...article[locale],
-    updated: depth ? handbookUpdated : '2026-09-29',
+    updated: article.updated ?? (depth ? handbookUpdated : '2026-09-29'),
     authorship: 'Wenbu · AI-assisted editorial; no independent expert review claimed',
     evidenceType: 'editorial',
     links: knowledgeLinks(article.slug, locale),
@@ -123,7 +123,9 @@ export function guideMinutes(article: Article, locale: Locale) {
 export function knowledgeIndex() {
   return {
     schemaVersion: 'wenbu-knowledge-index-v1',
-    updated: handbookUpdated,
+    updated: articles
+      .filter((a) => a.category === 'learn')
+      .reduce((latest, a) => (a.updated && a.updated > latest ? a.updated : latest), handbookUpdated),
     description:
       'Public editorial guides, not personal context. Each translation has complete Markdown and JSON. Sources distinguish calculation, tradition and editorial guidance.',
     guides: articles

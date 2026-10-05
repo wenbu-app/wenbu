@@ -27,13 +27,13 @@ export const comparisons = [
         ],
         [
           '免费范围',
-          '工具与手记免费；每网络每日最多 5 次 AI 解读、12 回合 Agent，另受全站额度限制',
+          '工具与手记免费；访客试用或账号每日最多 5 次 AI 解读、12 回合 Agent，登录不重置，另受网络和全站额度限制',
           '简版和专业版八字排盘免费免注册；AI 解读与 FateBook 为另外的产品',
         ],
         ['计算规则', '公开引擎版本、时区、换日与随机抽取规则', '计算器公开节气、时区、太阳时与换日等约定'],
         [
           '资料与记录',
-          '出生资料发送到服务器计算；会话与手记保存在浏览器，可导出 JSON',
+          '出生资料发送到服务器计算；游客记录在浏览器，可邮箱登录选择云端保存，也可导出 JSON',
           '计算器说明在浏览器本地计算与保存；应用内记录与导出未作账户测试',
         ],
         [
@@ -59,7 +59,7 @@ export const comparisons = [
         ],
         [
           'Free access',
-          'Free tools and journal; up to five AI readings and 12 Agent turns per network daily, within a site budget',
+          'Free tools and journal; up to five AI readings and 12 Agent turns per guest or account daily, with network abuse controls and a site budget',
           'Simple and Professional BaZi charts are free without an account; AI readings and FateBook are separate products',
         ],
         [
@@ -69,7 +69,7 @@ export const comparisons = [
         ],
         [
           'Data and records',
-          'Birth details go to the server for calculation; conversations and journal records save in the browser and export as JSON',
+          'Birth details go to the server for calculation; guest records stay in the browser, with optional email sign-in for cloud history and JSON export',
           'Calculator describes browser-based calculation and storage; app records and exports were not tested in an account',
         ],
         [
@@ -141,7 +141,7 @@ export const comparisons = [
         ],
         [
           'Journal and cost',
-          'Latest 100 entries in browser storage, JSON export and a limited free AI allowance',
+          'Free browser journal, optional account history, JSON export and published AI allowances',
           'Official site lists free basic readings and 100 saved readings per free account; check current subscription terms for extras',
         ],
         [
@@ -166,7 +166,10 @@ export const comparisons = [
         title: 'DeepSeek · how external tool calls work',
         url: 'https://api-docs.deepseek.com/guides/tool_calls/',
       },
-      { title: 'Wenbu · calculation source code', url: 'https://github.com/wenbu-app/wenbu/tree/main/src/lib' },
+      {
+        title: 'Wenbu · calculation source code',
+        url: 'https://github.com/wenbu-app/wenbu/tree/main/src/lib',
+      },
     ],
     zh: {
       title: '直接问 AI，还是先用工具计算？',

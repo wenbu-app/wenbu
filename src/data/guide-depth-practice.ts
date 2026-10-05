@@ -20,9 +20,9 @@ export const practiceDepth: Record<string, GuideExpansion> = {
   'first-reading': {
     zh: {
       answer:
-        '第一次使用问卜，可以只完成三个小目标：把困惑写成一个问题，核对回答是否理解了你的条件，带走一个能实际执行的下一步。先选“先聊聊”就能开始；不需要先填写生日，也不需要先抽牌。',
+        '第一次使用问卜，可以只完成三个小目标：把困惑写成一个问题，核对回答是否理解了你的条件，带走一个能实际执行的下一步。选择一个贴近当下的示例，或直接发送问题即可开始；不需要先填写生日，也不需要先抽牌。',
       takeaways: [
-        '引导生成的是待确认草稿，选项可以返回修改，也可以直接输入自己的问题。',
+        '示例会直接开始对话。Agent 会在对话中询问缺少的信息；选择回答或输入自己的说法即可继续。',
         '一轮只处理一件事，先说明已知事实与限制，再决定是否使用象征工具。',
         '结束前留下原问题、一个待核实信息和一个行动；重要记录另外导出。',
       ],
@@ -63,8 +63,8 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         intro:
           '这是虚构的练习场景。你想改善晚上的休息，却还不知道该如何开始谈。此时，对话整理比先判断对方性格更贴近任务。',
         steps: [
-          '在 Agent 引导中选择“关系与沟通”，目标选准备沟通，方法选“先聊聊”。如果已经知道怎么表达，也可以直接在输入框写下问题。',
-          '检查草稿并补上：“室友最近常在午夜回来，开门和收拾东西会吵醒我。我七点要起床，还没和对方认真讨论。请帮我写一个不指责人的开场白，再列两个可以协商的安排。”这比“他是不是根本不在乎我”多了事实和可完成的任务。',
+          '在 Agent 中直接说“我想和室友讨论晚上的噪声，帮我准备沟通”。也可以从相关示例开始，再回答 Agent 的补充问题。',
+          '接着补充具体情况：“室友最近常在午夜回来，开门和收拾东西会吵醒我。我七点要起床，还没和对方认真讨论。请帮我写一个不指责人的开场白，再列两个可以协商的安排。”这比“他是不是根本不在乎我”多了事实和可完成的任务。',
           '读回答时，检查它是否替你声称“你总是很生气”，或替室友断言“对方故意打扰”。出现这些句子就纠正：“我没有提供这些信息，请改成可观察的行为。”',
           '从建议中挑一个符合实际情况的版本，例如：“最近我几次被夜里的声音吵醒，第二天有点累。周末我们能聊十分钟，看看怎样让晚归和休息都方便一些吗？”你可以修改后自己去沟通；Agent 不会代你发消息。',
           '导出这段会话，或自行记录原问题与准备采用的表达。约定一周后查看是否谈成、哪些安排有效。若另外抽过牌或排过盘，想放进工具手记，需要对那份结果使用保存操作。',
@@ -86,13 +86,14 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         {
           question: '关掉页面，Agent 还会继续生成吗？',
           answer:
-            '不会在后台持续工作。页面关闭会中断任务；已成功保存在浏览器里的内容可以回看。若状态提示未完成，可围绕已得到的内容再发一个具体追问。',
+            '不会在后台持续工作。页面关闭会中断任务；已成功保存在浏览器或账号中的内容可以回看。若状态提示未完成，可围绕已得到的内容再发一个具体追问。',
         },
       ],
       glossary: [
         {
-          term: '提问草稿',
-          definition: '引导根据你的选择整理出的文字；发送前可以删改，尚未发送不等于已经开始解读。',
+          term: '补充问题',
+          definition:
+            'Agent 为理解当前任务而提出的问题；可选择建议答案，也可用自己的话补充，不必填写无关资料。',
         },
         {
           term: '背景资料',
@@ -105,7 +106,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
       answer:
         'For a first visit, aim to leave with one clear question, an answer that respects your circumstances, and one practical next step. Choose Conversation to begin. You do not need birth details, a card draw or a finished view of what the problem means.',
       takeaways: [
-        'The guide creates an editable draft. Review it before sending, or type your own question directly.',
+        'Examples start a conversation immediately. Answer follow-up questions by choosing an option or adding context in your own words.',
         'Work on one situation at a time. Share relevant facts and limits before choosing a symbolic tool.',
         'Keep the original question, one information gap and one action. Export important records separately.',
       ],
@@ -150,8 +151,8 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         intro:
           'In this fictional scenario, late-night noise is interrupting your sleep. You want a workable arrangement but have not raised the issue yet.',
         steps: [
-          'Choose Relationships and communication, select a conversation goal, then Conversation. You can also skip the guide and type your request.',
-          'Review the draft: “My housemate often gets home around midnight. Opening the door and putting things away wakes me up. I get up at seven, and we have not discussed this properly. Help me write a calm opening and suggest two arrangements we could discuss.”',
+          'Tell the Agent: “Help me prepare a conversation with my housemate about late-night noise.” You can also start from a relevant example and answer its follow-up questions.',
+          'Add the details: “My housemate often gets home around midnight. Opening the door and putting things away wakes me up. I get up at seven, and we have not discussed this properly. Help me write a calm opening and suggest two arrangements we could discuss.”',
           'Check the answer for invented motives. If it says your housemate is deliberately inconsiderate, reply: “I have not established that. Please use only the behavior I described.”',
           'Adapt one opening: “I have been waking up when you get home and feeling tired the next morning. Could we take ten minutes this weekend to work out something that suits us both?” You conduct the conversation; the Agent does not send a message for you.',
           'Export the conversation or keep your own note. Review what happened a week later. Any separate chart or draw needs its own save action if you want it in the tool journal.',
@@ -173,11 +174,15 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         {
           question: 'Will the Agent continue after I close the page?',
           answer:
-            'No. Closing interrupts the task. Successfully saved content remains available in that browser; you can return with a focused follow-up.',
+            'No. Closing interrupts the task. Successfully saved content remains in this browser or your account; you can return with a focused follow-up.',
         },
       ],
       glossary: [
-        { term: 'Draft', definition: 'A proposed message you can edit before sending.' },
+        {
+          term: 'Follow-up question',
+          definition:
+            'A question that helps the Agent understand your situation. Choose an answer or write your own.',
+        },
         {
           term: 'Context',
           definition: 'Relevant information you choose to share, including constraints and known facts.',
@@ -189,8 +194,8 @@ export const practiceDepth: Record<string, GuideExpansion> = {
       product(
         'src/lib/agent-guidance.ts',
         'Conversation guide',
-        '支持主题、目标、方法选择和可编辑草稿的描述；室友场景为本文编写的练习。',
-        'Supports the guide choices and editable draft. The housemate scenario is an original exercise.',
+        '支持直接提问、示例开聊和对话中补充资料的描述；室友场景为本文编写的练习。',
+        'Supports direct questions, conversation starters and follow-up clarification. The housemate scenario is an original exercise.',
       ),
       product(
         'src/components/AgentWorkspace.tsx',
@@ -218,14 +223,14 @@ export const practiceDepth: Record<string, GuideExpansion> = {
       figure: {
         caption: '四个无需出生资料的起点',
         description:
-          '卡片选取前四种入口及其示例请求：先聊聊、查阅资料、三张塔罗、易经起卦。它们可以不提供出生资料就开始。下方完整表格列出全部六种入口，包括八字与紫微，并补充各自所需资料和结果形式。',
+          '卡片选取前四种入口及其示例请求：普通对话、查阅资料、三张塔罗、易经起卦。它们可以不提供出生资料就开始。下方完整表格列出全部六种入口，包括八字与紫微，并补充各自所需资料和结果形式。',
       },
       table: {
         title: '六种入口，分别适合做什么',
         columns: ['入口', '适合的第一句话', '需要准备 / 会得到什么'],
         rows: [
           [
-            '先聊聊',
+            '普通对话',
             '帮我分清我在担心时间、预算还是沟通。',
             '两三句实际背景；得到问题整理、澄清问题或行动建议。',
           ],
@@ -261,7 +266,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         intro:
           '假设你拿到新职位邀请，已知薪资和职责，却不清楚出差频率，也不想提供生日。这个任务并不需要先做出生排盘。',
         steps: [
-          '先定义产物：“帮我列出接受邀请前要确认的三项条件。”选择“先聊聊”，交代自己最在意稳定作息和学习机会。不要要求系统直接决定去留。',
+          '先定义产物：“帮我列出接受邀请前要确认的三项条件。”直接交代自己最在意稳定作息和学习机会。不要要求系统直接决定去留。',
           '把得到的建议分成已知与待确认。例如薪资已有书面说明；出差安排和带教方式尚未知。先准备给招聘方的问题，比增加第二种占卜更能补足信息。',
           '若还想用图像整理感受，可以明确追加：“请抽三张塔罗，把它们当作观察角度，保留刚才的事实清单。”是否抽牌由这次请求决定，不因话题是工作就自动触发。',
           '如果对某个术语产生兴趣，再切到学习任务：“解释这张牌的常见象征，并列出来源没有证明的部分。”这时需要的是资料说明，不能把传统牌义写成新公司的真实情况。',
@@ -1093,7 +1098,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         {
           question: '删了本地手记，会同时删除模型处理过的数据吗？',
           answer:
-            '不会。移除手记处理的是当前浏览器中的记录。此前发送给 DeepSeek 的内容按提供方政策处理；主动提交的反馈和统计也有各自的存储规则，不能用本地删除一概代表。',
+            '不会。删除游客手记移除的是当前浏览器中的记录，账号云端记录有独立的删除操作。此前发送给 DeepSeek 的内容按提供方政策处理；主动提交的反馈和统计也有各自的存储规则，不能用本地删除一概代表。',
         },
       ],
       glossary: [
@@ -1185,7 +1190,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         {
           question: 'Does local deletion erase model-provider data?',
           answer:
-            'No. It removes the browser record. DeepSeek processing, submitted feedback and analytics have separate policies.',
+            'No. Removing a guest record deletes its browser copy. Account history has separate deletion controls. DeepSeek processing, submitted feedback and analytics each follow their own policies.',
         },
       ],
       glossary: [
@@ -1213,7 +1218,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
       product(
         'src/data/pages.ts',
         'Local records and privacy',
-        '支持本地记录与模型、反馈、统计分别处理的说明，以及没有自动同步和后台持续任务的边界。',
+        '支持浏览器记录、可选账号云端保存与模型、反馈、统计分别处理的说明，以及关闭页面会中断任务的边界。',
         'Supports separate handling of local records, model processing, feedback and analytics, and limits on sync and background work.',
       ),
       {

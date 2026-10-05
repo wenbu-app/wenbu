@@ -1,6 +1,15 @@
+import type { Locale } from '../lib/schema';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-export default function AgentMarkdown({ text, allowedUrls = [] }: { text: string; allowedUrls?: string[] }) {
+export default function AgentMarkdown({
+  text,
+  allowedUrls = [],
+  locale = 'zh',
+}: {
+  text: string;
+  allowedUrls?: string[];
+  locale?: Locale;
+}) {
   return (
     <Markdown
       remarkPlugins={[remarkGfm]}
@@ -8,7 +17,16 @@ export default function AgentMarkdown({ text, allowedUrls = [] }: { text: string
       disallowedElements={['img', 'iframe', 'script', 'style', 'input']}
       components={{
         table: ({ children }) => (
-          <div className="agent-table-scroll">
+          <div
+            className="agent-table-scroll"
+            role="region"
+            tabIndex={0}
+            aria-label={
+              locale === 'zh'
+                ? '结果表格，可横向滚动'
+                : 'Result table. Scroll horizontally to read all columns.'
+            }
+          >
             <table>{children}</table>
           </div>
         ),
