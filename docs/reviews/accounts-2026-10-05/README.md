@@ -25,6 +25,14 @@ A separate private USERDATA D1, four additive migrations, stable account data ke
 - The live Chinese email entry renders and focuses the email field. The local UI export downloaded a complete JSON file containing the original synthetic conversation, with no outstanding or browser-only records. Its contents are not published.
 - IndexNow's live manifest matched on the post-propagation check. Submission remained in the existing HTTP 429 backoff until the recorded retry time. No new acceptance receipt or indexing claim is made.
 
+## Isolated Cloudflare recovery drill
+
+[22 checks passed](remote-restore.json) using the production handlers deployed to a guarded, disposable Cloudflare Worker, a separate remote D1 and independent remote Durable Objects. Synthetic `.test` mail was captured inside that isolated database; no real email or model call occurred. No production user database was restored or modified.
+
+Two synthetic accounts saved cloud records. After capturing a D1 bookmark, the test deleted one account and another account's record, enabled maintenance in a separate Durable Object, and performed a real [D1 Time Travel restore](https://developers.cloudflare.com/d1/reference/time-travel/). SQL confirmed the old rows were restored; maintenance survived that restore. Guarded checks then proved the deleted account still returned 401, the deleted record 404, and a stale upload 410. Production reconciliation replayed both deletion intents and revoked all restored sessions and outstanding challenges. The surviving account had to authenticate again.
+
+An earlier disposable setup failed its initial endpoint-readiness assertion before any product checks; it was cleaned up. The successful run passed a guarded readiness check first. Both test Workers/databases were deleted; test Durable Object classes and their namespaces were removed using a [deletion migration](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/). This is an isolated remote recovery drill, not a rollback of the production user database.
+
 ## External checks and limits
 
 Grok CLI was invoked but returned HTTP 402 (usage balance exhausted). It produced no review verdict. A test recipient was requested from the user; actual provider acceptance/inbox arrival/OTP verification across real mail services are not established by the synthetic tests.

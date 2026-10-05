@@ -21,7 +21,19 @@
     "status": 402,
     "verdict": null
   },
-  "remote_restore_drill": "not performed; local restored-data masking and maintenance replay tested",
+  "remote_restore_drill": {
+    "status": "passed",
+    "checks": 22,
+    "environment": "isolated Cloudflare Worker, remote D1 Time Travel and independent remote Durable Objects",
+    "production_database_restored": false,
+    "real_mail_sent": false,
+    "cleanup": {
+      "durableObjectNamespaces": "deleted with class migration",
+      "worker": "deleted",
+      "database": "deleted"
+    },
+    "evidence": "remote-restore.json"
+  },
   "commit": "9c50a24916d7c127b0e51f71b7bba8a6ca2d839b",
   "pull_request": "https://github.com/wenbu-app/wenbu/pull/11",
   "ci": {

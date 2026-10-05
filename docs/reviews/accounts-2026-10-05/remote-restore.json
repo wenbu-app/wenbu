@@ -1,0 +1,43 @@
+{
+  "checkedAt": "2026-10-05T04:58:10.024Z",
+  "scope": "isolated Cloudflare D1 Time Travel with independent remote Durable Objects and production handlers",
+  "sourceCommit": "9c50a24916d7c127b0e51f71b7bba8a6ca2d839b",
+  "productionDatabaseTouched": false,
+  "realMailSent": false,
+  "checks": [
+    "unguarded harness request rejected",
+    "synthetic code accepted: restore-alpha@wenbu.test",
+    "synthetic account verified: restore-alpha@wenbu.test",
+    "synthetic code accepted: restore-beta@wenbu.test",
+    "synthetic account verified: restore-beta@wenbu.test",
+    "synthetic journal calculation",
+    "save isolated cloud record",
+    "save isolated cloud record",
+    "outstanding challenge before snapshot",
+    "delete isolated record",
+    "delete isolated account",
+    "enter maintenance before restore",
+    "private routes closed in maintenance",
+    "Cloudflare Time Travel restore completed",
+    "real restore brought back pre-deletion rows",
+    "maintenance survives D1 restore",
+    "restored deleted account remains blocked",
+    "restored deleted record remains hidden",
+    "restored stale upload remains blocked",
+    "production reconciliation replays deletion ledger",
+    "reconciled rows erased and all old sessions/challenges revoked",
+    "surviving account must authenticate again"
+  ],
+  "cleanup": {
+    "durableObjectNamespaces": "deleted with class migration",
+    "worker": "deleted",
+    "database": "deleted"
+  },
+  "readiness": [
+    {
+      "status": 404,
+      "expectedBody": true
+    }
+  ],
+  "result": "passed"
+}

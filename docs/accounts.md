@@ -51,6 +51,8 @@ After a USERDATA Time Travel restore:
 
 Local workerd tests simulate restoration by putting deleted data back into native D1; the independent ledger still masks reads and rejects writes. This is different from an operator exercising a remote Cloudflare Time Travel restore. Do not describe the local test as a production restore drill.
 
+The [2026-10-05 release evidence](reviews/accounts-2026-10-05/README.md#isolated-cloudflare-recovery-drill) additionally records a real Time Travel restore in an isolated Cloudflare environment: 22 checks passed for maintenance, restored-row masking, stale-upload rejection, deletion replay and revocation of sessions/challenges. The disposable resources were removed; the production user database was not rolled back.
+
 ## Account measurement
 
 `account-v2` metrics live in USERDATA and are not joined to anonymous traffic IDs or email addresses in traffic reports. The account panel is fully masked and pauses Clarity while open. Browser measurement preference, DNT and GPC control optional operation/instance measurement.
