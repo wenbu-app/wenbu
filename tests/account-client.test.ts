@@ -277,3 +277,53 @@ describe('account-owned outbox and local recovery', () => {
     expect(client.accountSnapshot().user).toBe(null);
   });
 });
+
+describe('record-level save feedback', () => {
+  it('distinguishes an unsaved result, pending write and acknowledged cloud copy', async () => {
+    const item = { id: 'result', note: 'v1' };
+    expect(client.recordSaveState('journal', item)).toBe('unsaved');
+    client.writeAccountCache('journal', [item]);
+    expect(client.recordSaveState('journal', item)).toBe('pending');
+    await client.flushAccount();
+    expect(client.recordSaveState('journal', item)).toBe('cloud');
+    expect(client.recordSaveState('journal', { ...item, note: 'unsaved edit' })).toBe('unsaved');
+  });
+  it('does not label failed or paused-history writes as cloud saved', async () => {
+    const item = { id: 'offline' };
+    fail = true;
+    client.writeAccountCache('journal', [item]);
+    await client.flushAccount();
+    expect(client.recordSaveState('journal', item)).toBe('error');
+    fail = false;
+    await client.retryAccount();
+    cloud = false;
+    await client.initializeAccount(true);
+    const temporary = { id: 'local-only' };
+    client.writeAccountCache('journal', [temporary]);
+    expect(client.recordSaveState('journal', temporary)).toBe('browser');
+  });
+  it('a generic account entry never carries a prior save intent', () => {
+    const received: unknown[] = [];
+    window.addEventListener('wenbu:account-open', (event) => received.push((event as CustomEvent).detail));
+    client.openAccount({ kind: 'journal', content: { id: 'one' } });
+    client.openAccount();
+    expect(received).toEqual([
+      { entry: 'account-save', intent: { kind: 'journal', content: { id: 'one' } } },
+      { entry: 'account-header', intent: undefined },
+    ]);
+  });
+});
+
+it('notifies subscribers after an explicit current-result import is readable', async () => {
+  const states: string[] = [];
+  const stop = client.subscribeAccount(() => {
+    const item = client.readAccountCache<{ id: string }>('journal').find((r) => r.id === 'imported');
+    states.push(item ? client.recordSaveState('journal', item) : 'missing');
+  });
+  await client.importRecord('journal', { id: 'imported' }, 'current');
+  stop();
+  expect(states.at(-1)).toBe('cloud');
+  expect(requests.find((r) => r.path.endsWith('/imported') && r.body)?.body).toMatchObject({
+    source: 'current',
+  });
+});

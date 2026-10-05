@@ -76,6 +76,7 @@ import {
   AccountClientError,
 } from '../lib/account-client';
 import CloudSaveStatus from './CloudSaveStatus';
+import AccountSavePrompt from './AccountSavePrompt';
 import { accountError } from './AccountPanel';
 
 class ChartBoundary extends Component<{ children: ReactNode; fallback: string }, { failed: boolean }> {
@@ -701,7 +702,12 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           />
         </div>
       </aside>
-      <section className="agent-conversation" aria-label={t('命理 Agent 对话', 'Wenbu Agent conversation')}>
+      <section
+        className="agent-conversation"
+        tabIndex={-1}
+        data-account-return-focus
+        aria-label={t('命理 Agent 对话', 'Wenbu Agent conversation')}
+      >
         <div className="agent-chat-toolbar">
           <button
             className="agent-icon-button mobile-only"
@@ -932,7 +938,11 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                     <div
                       className={`agent-prose agent-answer ${message.status === 'running' ? 'is-streaming' : ''}`}
                     >
-                      <AgentMarkdown text={message.text} allowedUrls={sources.map((s) => s.url)} />
+                      <AgentMarkdown
+                        locale={locale}
+                        text={message.text}
+                        allowedUrls={sources.map((s) => s.url)}
+                      />
                       {message.status === 'running' && (
                         <span className="agent-writing-cursor" aria-hidden="true" />
                       )}
@@ -1009,6 +1019,17 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       onBirth={() => openContext(true)}
                     />
                   )}
+                  {i === active.messages.length - 1 &&
+                    !busy &&
+                    message.status === 'complete' &&
+                    !message.question &&
+                    message.artifacts.length > 0 && (
+                      <AccountSavePrompt
+                        key={active.id}
+                        locale={locale}
+                        intent={{ kind: 'session', content: active }}
+                      />
+                    )}
                   {message.status === 'error' && (
                     <div className="agent-turn-error" role="alert">
                       <p>{message.error}</p>

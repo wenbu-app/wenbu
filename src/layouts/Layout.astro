@@ -224,6 +224,8 @@ const schema = {
           aria-expanded="false"
           aria-controls="mobile-nav"
           aria-label={t('打开导航', 'Open menu')}
+          data-open-label={t('打开导航', 'Open menu')}
+          data-close-label={t('收起导航', 'Close menu')}
         >
           <span></span>
           <span></span>
@@ -232,7 +234,10 @@ const schema = {
     </header>
     <nav id="mobile-nav" class="mobile-nav" aria-label={t('移动导航', 'Mobile navigation')} hidden>
       {['agent', 'bazi', 'iching', 'tarot', 'ziwei', 'learn', 'journal', 'agents'].map((p, i) => (
-        <a href={href(locale, p)}>
+        <a
+          href={href(locale, p)}
+          aria-current={path === p || (p === 'learn' && path.startsWith('learn/')) ? 'page' : undefined}
+        >
           {t(
             ['命理 Agent', '八字命盘', '易经问卦', '塔罗映照', '紫微星盘', '知识手册', '我的手记', '开发者'][
               i
@@ -314,16 +319,34 @@ const schema = {
       initializeClarity();
       const menu = document.querySelector<HTMLButtonElement>('.menu-toggle');
       const nav = document.getElementById('mobile-nav');
+      const main = document.getElementById('main');
+      function toggleMenu(open: boolean, restoreFocus = false) {
+        menu?.setAttribute('aria-expanded', String(open));
+        menu?.setAttribute('aria-label', (open ? menu.dataset.closeLabel : menu.dataset.openLabel) || 'Menu');
+        if (nav) nav.hidden = !open;
+        if (main) main.inert = open;
+        document.body.classList.toggle('navigation-open', open);
+        if (restoreFocus) menu?.focus();
+      }
       menu?.addEventListener('click', () => {
         const open = menu.getAttribute('aria-expanded') === 'true';
-        menu.setAttribute('aria-expanded', String(!open));
-        if (nav) nav.hidden = open;
+        toggleMenu(!open);
       });
       document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && nav) {
-          nav.hidden = true;
-          menu?.setAttribute('aria-expanded', 'false');
+        if (event.key === 'Escape' && nav && !nav.hidden) {
+          event.preventDefault();
+          toggleMenu(false, true);
         }
+      });
+      nav?.addEventListener('click', (event) => {
+        if ((event.target as Element).closest('a')) toggleMenu(false);
+      });
+      document.addEventListener('pointerdown', (event) => {
+        if (!nav?.hidden && !nav?.contains(event.target as Node) && !menu?.contains(event.target as Node))
+          toggleMenu(false);
+      });
+      window.matchMedia('(min-width: 1024px)').addEventListener('change', (event) => {
+        if (event.matches) toggleMenu(false);
       });
       const observer = new IntersectionObserver(
         (entries) =>

@@ -197,7 +197,11 @@ export default function AgentReport({
             </summary>
             <div className="chapter-body">
               <div className="agent-prose">
-                <AgentMarkdown text={section.body} allowedUrls={sources.map((source) => source.url)} />
+                <AgentMarkdown
+                  locale={locale}
+                  text={section.body}
+                  allowedUrls={sources.map((source) => source.url)}
+                />
               </div>
               <Citations ids={section.sourceIds} sources={sources} locale={locale} />
             </div>

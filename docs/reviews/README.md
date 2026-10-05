@@ -1,5 +1,9 @@
 # Quality and review evidence
 
+- [2026-10-05: full UI / UX audit, contextual saves and bilingual analytics](ui-ux-2026-10-05/README.md).
+
+- [2026-10-05: registration timing research and live guest-to-save entry review](registration-timing-2026-10-05/README.md) — original research; implementation and release status are recorded in the UI / UX audit above.
+
 - [2026-10-05: conversation-first Agent onboarding, direct replies and bilingual UI verification](agent-onboarding-2026-10-05/README.md).
 
 - [2026-10-03: GitHub organization and integration ownership migration](organization-launch-2026-10-03.md).

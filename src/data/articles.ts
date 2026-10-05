@@ -995,6 +995,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'choose-a-tool',
+    updated: '2026-10-05',
     category: 'learn',
     symbol: '问',
     minutes: 4,
@@ -1029,13 +1030,13 @@ export const articles: Article[] = [
           heading: '第一次使用，只做一件事',
           paragraphs: [
             '选一种工具，写一个问题，保存一份记录。隔一段时间回看：哪部分有帮助、哪部分不符合、最后采取了什么行动。',
-            '问卜让四种工具共用一份本地手记，方便记录与比较，不需要为了保留历史而注册账户。',
+            '问卜让四种工具共用一份手记。可免注册保存在当前浏览器，也可用邮箱登录，把选择的记录保存到账号。',
           ],
         },
         {
           heading: '还是拿不定主意，就从对话开始',
           paragraphs: [
-            '如果眼下只是有点困惑，打开 Agent 选“还没想好”，再选“帮我把困惑变成问题”。你不需要先决定工具，也不必填写出生资料；引导会生成可以修改的草稿，确认后才发送。',
+            '如果眼下只是有点困惑，打开 Agent，选择一个贴近当下的示例，或直接写下你想聊的事。示例会开始对话，Agent 会通过选项或补充问题逐步确认背景；不需要先决定工具或填写出生资料。',
             '只想学习术语时，可以直接问“用一个例子解释十神”或“带我认一次上下卦”。先完成这个小目标，再根据兴趣进入对应工具。',
           ],
         },
@@ -1077,7 +1078,7 @@ export const articles: Article[] = [
         {
           heading: 'Still unsure? Start with a conversation',
           paragraphs: [
-            'Open the Agent, choose “Not sure yet,” then “Help me frame a question.” You do not need to pick a tool or supply birth details. The guide creates an editable draft for you to review and send.',
+            'Open the Agent and choose a relevant example, or write what is on your mind. Examples start a conversation; the Agent then asks for any missing context through choices or follow-up questions. You do not need to choose a tool or provide birth details first.',
             'For a learning goal, ask directly: “Explain the Ten Gods with one example,” or “Show me how to identify the upper and lower trigrams.” Finish that small task, then decide which tool you want to try.',
           ],
         },
@@ -1086,6 +1087,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'a-reading-you-can-return-to',
+    updated: '2026-10-05',
     category: 'blog',
     symbol: '记',
     minutes: 5,
@@ -1125,8 +1127,8 @@ export const articles: Article[] = [
         {
           heading: '问卜里的手记怎样工作',
           paragraphs: [
-            '点击保存后，记录留在当前浏览器。你可以搜索、补写笔记、移除并撤销，或导出 JSON 备份。网站不要求注册，也没有默认上传手记的同步服务。',
-            '这也意味着清理浏览器数据会丢失记录。导出的文件包含个人信息，保存到你信任的位置。需要交给 Agent 时，使用可预览的上下文导出，并重新确认包含哪些信息。',
+            '选择“保存在此浏览器”可免注册留存；选择“免费保存到账号”后，用邮箱验证码登录即可云端保存。旧的浏览器记录由你选择导入。你可以搜索、补写笔记、移除并撤销，或导出 JSON 备份。',
+            '清理浏览器数据会移除尚未保存到账号的本地记录。导出的文件包含个人信息，保存到你信任的位置。需要交给 Agent 时，使用可预览的上下文导出，并重新确认包含哪些信息。',
           ],
         },
         {
@@ -1174,8 +1176,8 @@ export const articles: Article[] = [
         {
           heading: 'How the Wenbu journal works',
           paragraphs: [
-            'Saving creates a record in the current browser. You can search entries, add notes, remove and undo, or export a JSON backup. There is no required account and no automatic cloud journal sync.',
-            'Clearing browser data therefore removes the records. Exports contain personal information and should be stored somewhere you trust. If you want an agent to help, preview the separate context export and choose which birth details to include.',
+            'Choose Save in this browser to keep a record without an account, or Save to a free account and verify your email to save it to cloud history. Older browser records are imported only when selected. Search, add notes, undo removals or export a JSON backup.',
+            'Clearing browser data removes local records that have not been saved to your account. Exports contain personal information and should be stored somewhere you trust. If you want an agent to help, preview the separate context export and choose which birth details to include.',
           ],
         },
         {
@@ -1190,6 +1192,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'why-calculation-comes-first',
+    updated: '2026-10-05',
     category: 'blog',
     symbol: '本',
     minutes: 5,
@@ -1263,7 +1266,7 @@ export const articles: Article[] = [
         {
           heading: 'What stays available when an AI limit is reached',
           paragraphs: [
-            'Charts, casts, draws and the local journal do not require payment. Optional AI readings have a published per-network daily allowance and a site-wide budget. When a limit is reached, the existing chart and journal remain usable.',
+            'Charts, casts, draws and the local journal do not require payment. Optional AI readings have published guest or account allowances, network abuse controls and a site-wide budget. When a limit is reached, the existing chart and journal remain usable.',
             'The calculation and record should survive a failed model call. A timeout, busy provider or exhausted daily budget should not remove the result you already have.',
           ],
         },

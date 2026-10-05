@@ -1,3 +1,4 @@
+import { useInsightsLocale } from '../lib/insights-locale';
 import { useState } from 'react';
 import {
   Bar,
@@ -12,9 +13,6 @@ import {
 } from 'recharts';
 import { ArrowUpRight, Download, Table2 } from 'lucide-react';
 import {
-  formatReportTime,
-  reportLabel,
-  reportMetrics,
   type AnalyticsReport,
   type ReportFilters,
   type ReportMetric,
@@ -45,16 +43,21 @@ function ChartTooltip({
   }[];
   report: AnalyticsReport;
 }) {
+  const { t, formatReportTime, reportMetrics } = useInsightsLocale();
+
   const point = payload?.[0]?.payload;
   if (!active || !point) return null;
   return (
     <div className="observatory-tooltip">
       <strong>
         {point.label}
-        {report.range.granularity === 'hour' ? ' 起的一小时' : ''}
+        {report.range.granularity === 'hour' ? t(' 起的一小时') : ''}
       </strong>
       {point.state === 'partial' && (
-        <small>尚未结束 · 截至 {formatReportTime(report.range.asOf, report.timezone, true)}</small>
+        <small>
+          {t('尚未结束 · 截至')}
+          {formatReportTime(report.range.asOf, report.timezone, true)}
+        </small>
       )}
       {payload?.map((entry) => (
         <div key={String(entry.dataKey)}>
@@ -75,6 +78,8 @@ export function AnalyticsTrend({
   selected: ReportMetric[];
   onToggle: (key: ReportMetric) => void;
 }) {
+  const { t, formatReportTime, reportMetrics } = useInsightsLocale();
+
   const [table, setTable] = useState(false);
   const hourly = report.range.granularity === 'hour';
   const ticks = report.series
@@ -91,12 +96,12 @@ export function AnalyticsTrend({
       : formatReportTime(time, report.timezone, hourly);
   function download() {
     const headers = [
-      '时段开始 UTC',
-      '时段结束 UTC',
-      '状态',
-      '统计时区',
-      '数据截至 UTC',
-      '已应用筛选 JSON',
+      t('时段开始 UTC'),
+      t('时段结束 UTC'),
+      t('状态'),
+      t('统计时区'),
+      t('数据截至 UTC'),
+      t('已应用筛选 JSON'),
       ...reportMetrics.map((m) => m.label),
     ];
     const rows = report.series.map((p) => [
@@ -118,28 +123,28 @@ export function AnalyticsTrend({
     );
   }
   return (
-    <section className="insights-card observatory-trend" aria-label="访问与使用趋势">
+    <section className="insights-card observatory-trend" aria-label={t('访问与使用趋势')}>
       <div className="observatory-chart-heading">
         <div>
           <span className="eyebrow">TRAFFIC OVER TIME</span>
-          <h2>访问与使用趋势</h2>
+          <h2>{t('访问与使用趋势')}</h2>
           <p>
-            {hourly ? '每小时' : '每天'}一个观测点 ·{' '}
-            {report.timezone === 'Asia/Shanghai' ? '北京时间 UTC+8' : 'UTC'}
+            {hourly ? t('每小时') : t('每天')}
+            {t('一个观测点 ·')} {report.timezone === 'Asia/Shanghai' ? t('北京时间 UTC+8') : 'UTC'}
           </p>
         </div>
         <div className="observatory-chart-actions">
           <button type="button" onClick={() => setTable(!table)} aria-pressed={table}>
             <Table2 size={14} />
-            {table ? '查看曲线' : '查看数据'}
+            {table ? t('查看曲线') : t('查看数据')}
           </button>
           <button type="button" onClick={download}>
             <Download size={14} />
-            导出 CSV
+            {t('导出 CSV')}
           </button>
         </div>
       </div>
-      <div className="observatory-legend" aria-label="显示的趋势指标">
+      <div className="observatory-legend" aria-label={t('显示的趋势指标')}>
         {reportMetrics.map((m) => (
           <button
             type="button"
@@ -155,14 +160,14 @@ export function AnalyticsTrend({
       {table ? (
         <div className="insights-table observatory-data-table">
           <table>
-            <caption>相同筛选下的完整趋势数据；时段按所选时区显示</caption>
+            <caption>{t('相同筛选下的完整趋势数据；时段按所选时区显示')}</caption>
             <thead>
               <tr>
-                <th>时段</th>
+                <th>{t('时段')}</th>
                 {reportMetrics.map((m) => (
                   <th key={m.key}>{m.label}</th>
                 ))}
-                <th>状态</th>
+                <th>{t('状态')}</th>
               </tr>
             </thead>
             <tbody>
@@ -172,7 +177,9 @@ export function AnalyticsTrend({
                   {reportMetrics.map((m) => (
                     <td key={m.key}>{p[m.key] === null ? '—' : count(p[m.key])}</td>
                   ))}
-                  <td>{p.state === 'future' ? '尚未到来' : p.state === 'partial' ? '进行中' : '已结束'}</td>
+                  <td>
+                    {p.state === 'future' ? t('尚未到来') : p.state === 'partial' ? t('进行中') : t('已结束')}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -234,8 +241,9 @@ export function AnalyticsTrend({
         </div>
       )}
       <p className="observatory-chart-note">
-        悬停或使用左右方向键查看数值。空白时段尚未到来；0
-        表示该时段未记录到事件。当前时段未结束。访客与会话在每个时段内去重，跨时段不能直接相加。
+        {t(
+          '悬停或使用左右方向键查看数值。空白时段尚未到来；0 表示该时段未记录到事件。当前时段未结束。访客与会话在每个时段内去重，跨时段不能直接相加。',
+        )}
       </p>
     </section>
   );
@@ -256,6 +264,8 @@ function RankedBars({
   label: string;
   onPick?: (value: string) => void;
 }) {
+  const { t, reportLabel } = useInsightsLocale();
+
   const [expanded, setExpanded] = useState(false);
   const ordered = rows
     .filter((r) => Number(r[metric]) > 0)
@@ -270,7 +280,7 @@ function RankedBars({
         <h2>{title}</h2>
         <small>{label}</small>
       </div>
-      {!visible.length && <p className="observatory-no-data">当前筛选下暂无记录。</p>}
+      {!visible.length && <p className="observatory-no-data">{t('当前筛选下暂无记录。')}</p>}
       <ol>
         {visible.map((r) => (
           <li key={String(r.label)}>
@@ -293,11 +303,14 @@ function RankedBars({
       </ol>
       {ordered.length > 5 && (
         <button type="button" className="observatory-text-button" onClick={() => setExpanded(!expanded)}>
-          {expanded ? '收起' : `查看全部 ${ordered.length} 项`}
+          {expanded ? t('收起') : t('查看全部 {0} 项', ordered.length)}
         </button>
       )}
       <p className="observatory-chart-note">
-        比例以当前筛选下的{label}为分母。{onPick ? '点击名称进一步筛选。' : ''}
+        {t('比例以当前筛选下的')}
+        {label}
+        {t('为分母。')}
+        {onPick ? t('点击名称进一步筛选。') : ''}
       </p>
     </section>
   );
@@ -310,67 +323,69 @@ export function AnalyticsTrafficCharts({
   report: AnalyticsReport;
   onFilter: (key: keyof ReportFilters, value: string) => void;
 }) {
+  const { t } = useInsightsLocale();
+
   return (
-    <section aria-label="抓取与 Agent 流量分类">
+    <section aria-label={t('抓取与 Agent 流量分类')}>
       <div className="observatory-chart-heading">
         <div>
           <span className="eyebrow">CRAWLERS &amp; AGENTS</span>
-          <h2>谁在请求内容</h2>
-          <p>以下分布只使用内容 GET 请求；同一次请求只属于一个类型。</p>
+          <h2>{t('谁在请求内容')}</h2>
+          <p>{t('以下分布只使用内容 GET 请求；同一次请求只属于一个类型。')}</p>
         </div>
       </div>
       <div className="observatory-two-column">
         <RankedBars
-          title="访问者类型"
+          title={t('访问者类型')}
           eyebrow="REQUEST ACTORS"
           rows={report.data.actor_type}
           metric="requests"
-          label="内容请求"
+          label={t('内容请求')}
           onPick={(v) => onFilter('actor_type', v)}
         />
         <RankedBars
-          title="客户端与抓取用途"
+          title={t('客户端与抓取用途')}
           eyebrow="DECLARED CLIENTS"
           rows={report.data.actor_name}
           metric="requests"
-          label="内容请求"
+          label={t('内容请求')}
           onPick={(v) => onFilter('actor_name', v)}
         />
         <RankedBars
-          title="搜索、训练与用户委托"
+          title={t('搜索、训练与用户委托')}
           eyebrow="REQUEST PURPOSE"
           rows={report.data.actor_purpose}
           metric="requests"
-          label="内容请求"
+          label={t('内容请求')}
           onPick={(v) => onFilter('actor_purpose', v)}
         />
         <RankedBars
-          title="分类依据"
+          title={t('分类依据')}
           eyebrow="CLASSIFICATION EVIDENCE"
           rows={report.data.classification_evidence}
           metric="requests"
-          label="内容请求"
+          label={t('内容请求')}
           onPick={(v) => onFilter('classification_evidence', v)}
         />
         <RankedBars
-          title="被读取的内容形式"
+          title={t('被读取的内容形式')}
           eyebrow="CONTENT FORMATS"
           rows={report.data.resource_type}
           metric="requests"
-          label="内容请求"
+          label={t('内容请求')}
           onPick={(v) => onFilter('resource_type', v)}
         />
         <section className="insights-card">
           <span className="eyebrow">HTTP OUTCOMES</span>
-          <h2>内容响应状态</h2>
-          <p>包含重定向与失败，HEAD 单独列示，不计入内容 GET 曲线。</p>
+          <h2>{t('内容响应状态')}</h2>
+          <p>{t('包含重定向与失败，HEAD 单独列示，不计入内容 GET 曲线。')}</p>
           <div className="insights-table">
             <table>
               <thead>
                 <tr>
-                  <th>状态</th>
-                  <th>方法</th>
-                  <th>请求数</th>
+                  <th>{t('状态')}</th>
+                  <th>{t('方法')}</th>
+                  <th>{t('请求数')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -384,7 +399,7 @@ export function AnalyticsTrafficCharts({
               </tbody>
             </table>
           </div>
-          {!report.data.http_status.length && <p>当前筛选下暂无内容请求。</p>}
+          {!report.data.http_status.length && <p>{t('当前筛选下暂无内容请求。')}</p>}
         </section>
       </div>
     </section>
@@ -398,6 +413,8 @@ export function AnalyticsBreakdownCharts({
   report: AnalyticsReport;
   onFilter: (key: keyof ReportFilters, value: string) => void;
 }) {
+  const { t } = useInsightsLocale();
+
   const completed = report.data.performance
     .filter((r) => r.status === 'complete')
     .map((r) => ({ ...r, completed: Number(r.count) }));
@@ -409,28 +426,29 @@ export function AnalyticsBreakdownCharts({
     <>
       <div className="observatory-two-column">
         <RankedBars
-          title="访问从哪里来"
+          title={t('访问从哪里来')}
           eyebrow="ACQUISITION"
           rows={report.data.source}
           metric="views"
-          label="页面浏览"
+          label={t('页面浏览')}
           onPick={(v) => onFilter('source', v)}
         />
         <RankedBars
-          title="哪些页面被看见"
+          title={t('哪些页面被看见')}
           eyebrow="PAGES"
           rows={report.data.page}
           metric="views"
-          label="页面浏览"
+          label={t('页面浏览')}
           onPick={(v) => onFilter('page', v)}
         />
       </div>
       <section className="insights-card observatory-hourly">
         <span className="eyebrow">THE RHYTHM OF A DAY</span>
-        <h2>24 小时活跃分布</h2>
+        <h2>{t('24 小时活跃分布')}</h2>
         <p>
-          将所选日期的页面浏览按钟点累加，观察活跃时段。
-          {report.timezone === 'Asia/Shanghai' ? '北京时间 UTC+8' : 'UTC'}。
+          {t('将所选日期的页面浏览按钟点累加，观察活跃时段。')}
+          {report.timezone === 'Asia/Shanghai' ? t('北京时间 UTC+8') : 'UTC'}
+          {t('。')}
         </p>
         <div className="observatory-hour-chart">
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -461,38 +479,44 @@ export function AnalyticsBreakdownCharts({
                 labelFormatter={(v) =>
                   `${String(v).padStart(2, '0')}:00–${String(Number(v) + 1).padStart(2, '0')}:00`
                 }
-                formatter={(v) => [count(v), '页面浏览']}
+                formatter={(v) => [count(v), t('页面浏览')]}
                 contentStyle={{ background: '#fffef9', borderColor: '#d6decc', fontSize: 12 }}
                 cursor={{ fill: '#e6eadf' }}
               />
-              <Bar dataKey="views" name="页面浏览" fill="#7b8a6a" maxBarSize={28} isAnimationActive={false} />
+              <Bar
+                dataKey="views"
+                name={t('页面浏览')}
+                fill="#7b8a6a"
+                maxBarSize={28}
+                isAnimationActive={false}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </section>
       <div className="observatory-two-column">
         <RankedBars
-          title="使用设备"
+          title={t('使用设备')}
           eyebrow="DEVICES"
           rows={report.data.device}
           metric="views"
-          label="页面浏览"
+          label={t('页面浏览')}
           onPick={(v) => onFilter('device', v)}
         />
         <RankedBars
-          title="完成了哪些功能"
+          title={t('完成了哪些功能')}
           eyebrow="COMPLETED CALLS"
           rows={completed}
           metric="completed"
-          label="完成调用（含示例）"
+          label={t('完成调用（含示例）')}
           onPick={(v) => onFilter('tool', v)}
         />
         <RankedBars
-          title="服务结果分布"
+          title={t('服务结果分布')}
           eyebrow="SERVICE OUTCOMES"
           rows={statusRows}
           metric="count"
-          label="服务调用"
+          label={t('服务调用')}
         />
         <Coverage report={report} />
       </div>
@@ -500,19 +524,21 @@ export function AnalyticsBreakdownCharts({
   );
 }
 function Coverage({ report }: { report: AnalyticsReport }) {
+  const { t } = useInsightsLocale();
+
   const row = report.data.funnel[0] ?? {},
     visited = Number(row.visited ?? 0);
   return (
     <section className="insights-card observatory-coverage">
       <span className="eyebrow">SESSION COVERAGE</span>
-      <h2>会话走到了哪一步</h2>
-      <p>同一会话内逐层满足这些条件，不表示严格发生顺序。</p>
+      <h2>{t('会话走到了哪一步')}</h2>
+      <p>{t('同一会话内逐层满足这些条件，不表示严格发生顺序。')}</p>
       {(
         [
-          ['visited', '访问页面'],
-          ['started', '开始工具或对话'],
-          ['succeeded', '实际完成'],
-          ['saved', '保存为手记'],
+          ['visited', t('访问页面')],
+          ['started', t('开始工具或对话')],
+          ['succeeded', t('实际完成')],
+          ['saved', t('保存为手记')],
         ] as const
       ).map(([key, label], i) => (
         <div key={key}>
@@ -528,7 +554,9 @@ function Coverage({ report }: { report: AnalyticsReport }) {
         </div>
       ))}
       <p className="observatory-chart-note">
-        比例以本范围内有访问记录的会话为分母。示例计算不算完成；无会话 ID 的 API / CLI / MCP 请求不计入。
+        {t(
+          '比例以本范围内有访问记录的会话为分母。示例计算不算完成；无会话 ID 的 API / CLI / MCP 请求不计入。',
+        )}
       </p>
     </section>
   );

@@ -16,6 +16,7 @@ const waite = {
 export const beginnerArticles: Article[] = [
   {
     slug: 'first-reading',
+    updated: '2026-10-05',
     category: 'learn',
     symbol: '始',
     minutes: 4,
@@ -29,13 +30,13 @@ export const beginnerArticles: Article[] = [
           heading: '先选一件最近在意的事',
           paragraphs: [
             '第一次不必回答“我这一生会怎样”。挑一件范围小、最近需要面对的事就够了，比如准备和朋友谈一次分歧，或者比较继续当前工作与接受新机会。',
-            '打开问卜 Agent，先选工作与选择、关系与沟通、认识自己、学习与求证，或还没想好。接着选择这次想得到什么。每一步都可以返回修改；选项帮你起草问题，最后仍由你确认发送。',
+            '打开问卜 Agent，选择一句贴近当下的开场白，或直接写自己的问题。点击示例就会开始对话；Agent 会在需要时给出选项或询问背景。还没想好也可以开始，不需要先完成一份问卷。',
           ],
         },
         {
-          heading: '不知道用什么，就选“先聊聊”',
+          heading: '不知道用什么，先把问题说出来',
           paragraphs: [
-            '“先聊聊”会先整理问题，不需要出生资料，也不会因为进入对话就自动抽牌。你可以在补充里写：“请先问我几个容易回答的问题，帮我弄清我在犹豫什么。”',
+            '普通对话可以先整理问题，不需要出生资料，也不会因为进入对话就自动抽牌。你可以直接写：“请先问我一个容易回答的问题，帮我弄清我在犹豫什么。”',
             '想借图像找一个观察角度，可以选三张塔罗；想学习干支或宫位，再选择八字或紫微。若目的是核对一个概念，选查阅资料。开始之前不必把四种体系都学会。',
           ],
         },
@@ -43,14 +44,14 @@ export const beginnerArticles: Article[] = [
           heading: '补充两句背景，比写很长的自述更有用',
           paragraphs: [
             '例如：“我有一份需要频繁出差的新工作邀请。我喜欢现在的同事，但希望学到更多；我还不知道新团队的工作节奏。”这段话已经交代了选择、在意的条件和缺少的信息。公司名、同事姓名、住址都可以省略。',
-            '把生成的草稿读一遍，删掉不符合自己的部分，再发送。如果回答没有理解你，可以直接纠正：“我最担心的是出差对家庭的影响，请围绕这个重新整理。”',
+            '选择 Agent 给出的回答，或在输入框补充自己的情况。如果回答没有理解你，可以直接纠正：“我最担心的是出差对家庭的影响，请围绕这个重新整理。”',
           ],
         },
         {
           heading: '读完后，带走一件可以做的事',
           paragraphs: [
             '看到图表或报告时，先分清计算结果、传统说法和结合你背景作出的推测。你不需要接受所有解释，也可以追问某一句的依据。',
-            '这次的收获可以很小：列出两个要向新团队确认的问题，约一次沟通，或查一份出生记录。保留原来的问题和结果，再补一句“我准备做什么”。Agent 对话与工具手记保存在当前浏览器；需要长期留存时，使用各自的导出功能。',
+            '这次的收获可以很小：列出两个待确认的问题、约一次沟通，或查一份出生记录。保留原问题和结果，再补一句“我准备做什么”。游客对话保存在当前浏览器；工具结果需主动保存。可用邮箱登录保存到账号，旧记录由你选择导入，也可分别导出备份。',
           ],
           bullets: [
             '还没有具体问题：从“还没想好”开始。',
@@ -69,7 +70,7 @@ export const beginnerArticles: Article[] = [
           heading: 'Choose something on your mind',
           paragraphs: [
             'You do not need to begin with a question about your whole life. Pick something you are facing now: a difficult conversation with a friend, or a choice between your current job and a new role.',
-            'Open the Wenbu Agent and choose a topic, then what you hope to get from the conversation. “Not sure yet” is a useful starting point, too. You can go back and change your choices. The guide creates a draft for you to review before sending.',
+            'Open the Wenbu Agent and choose a relevant conversation starter, or type your own question. Selecting an example starts the conversation immediately. The Agent can then ask for missing context through choices or follow-up questions. You do not need to finish a questionnaire first.',
           ],
         },
         {
@@ -83,14 +84,14 @@ export const beginnerArticles: Article[] = [
           heading: 'A little context goes a long way',
           paragraphs: [
             'For example: “I have an offer that involves frequent travel. I like my current colleagues but want more room to learn. I do not yet know how the new team works.” That gives the Agent a choice, a priority and a gap in your information. You can leave out names, addresses and the company name.',
-            'Read the draft, change anything that does not sound like you, and send it when you are ready. If the answer misses the point, say so: “My main concern is how travel would affect family life. Please focus on that.”',
+            'Choose an answer offered by the Agent, or add your own context in the input box. If the answer misses the point, say so: “My main concern is how travel would affect family life. Please focus on that.”',
           ],
         },
         {
           heading: 'Leave with something you can do',
           paragraphs: [
             'When a chart or report appears, distinguish the calculated result from traditional meanings and suggestions based on your context. You can disagree with an interpretation or ask what supports a particular sentence.',
-            'A useful outcome might be two questions for the new team, a conversation to arrange, or a birth record to check. Keep the original question and add what you plan to do. Agent conversations and tool journal entries are stored in the current browser; use their separate export options to keep a copy elsewhere.',
+            'A useful outcome might be two questions to ask, a conversation to arrange or a birth record to check. Keep the original question and add what you plan to do. Guest chats stay in this browser; tool results need a save action. Sign in by email to save to your account, choose which older records to import, or use the separate exports for a backup.',
           ],
           bullets: [
             'No clear question yet? Choose “Not sure yet.”',
@@ -367,6 +368,7 @@ export const beginnerArticles: Article[] = [
   },
   {
     slug: 'review-a-reading',
+    updated: '2026-10-05',
     category: 'learn',
     symbol: '记',
     minutes: 4,
@@ -380,7 +382,7 @@ export const beginnerArticles: Article[] = [
           heading: '先把原来的问题留住',
           paragraphs: [
             '假设这次的问题是“是否报名一门课程”。读完后先保存原始结果，记下日期，以及你当时最在意的是学费、时间，还是担心坚持不下来。不要只保存一句让你高兴的解读。',
-            '如果你用了独立工具，保存到手记后可以补写笔记；Agent 中的对话与报告则保留在当前浏览器的会话里。两处记录的入口不同，需要备份时分别导出。',
+            '独立工具的结果保存到手记后可以补写笔记；Agent 的对话与报告在会话列表中回看。两处记录的入口不同，都支持浏览器留存、可选账号云端保存和导出。',
           ],
         },
         {
@@ -406,7 +408,7 @@ export const beginnerArticles: Article[] = [
         {
           heading: '保留一份你能找回的记录',
           paragraphs: [
-            '手记保存在当前浏览器，不会自动在手机与电脑间同步。清理网站数据、更换浏览器或使用临时浏览模式都可能让记录无法找回。重要内容可以导出 JSON，或另外抄下问题、结果和笔记。',
+            '游客手记只在当前浏览器。需要换设备继续时，可用邮箱登录保存到账号；旧记录不会默认上传，由你选择导入。清理网站数据会移除尚未上传的本地记录。重要内容仍建议导出 JSON 备份。',
             '导出文件也可能包含出生资料和私人问题。分享给别人之前先查看内容；交给 Agent 时，只选与当前问题有关的上下文。现在可以给最近一条记录补上“下一步”和一个回看日期。',
           ],
         },
@@ -421,7 +423,7 @@ export const beginnerArticles: Article[] = [
           heading: 'Keep the question you actually asked',
           paragraphs: [
             'Suppose you asked whether to enroll in a course. Save the original result and note what concerned you at the time: the fee, the time commitment or whether you would keep going. Keep more than the sentence you found reassuring.',
-            'Results from standalone tools can be saved to the journal, where you can add notes. Agent conversations and reports are saved in this browser’s conversation list. These are separate records with separate export options.',
+            'Save standalone tool results to the journal to add notes; find Agent conversations and reports in the conversation list. Both support browser storage, optional account history and separate exports.',
           ],
         },
         {
@@ -447,7 +449,7 @@ export const beginnerArticles: Article[] = [
         {
           heading: 'Keep a copy you can find again',
           paragraphs: [
-            'The journal lives in the current browser and does not automatically sync between a phone and a computer. Clearing site data, switching browsers or using a temporary browsing session can make records unavailable. Export a JSON copy of important entries, or keep the question, result and notes elsewhere.',
+            'Guest journal entries stay in the current browser. Sign in by email to save to your account and continue elsewhere. Older records are uploaded only when selected. Clearing site data removes browser records that have not been saved to your account. Export important entries as a backup.',
             'An export may contain birth details and private questions. Read it before sharing it. When bringing context into an Agent conversation, select only what is relevant. To begin, add a next action and a review date to one recent entry.',
           ],
         },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bookmark, Download, Trash2, ArrowUpRight, Search } from 'lucide-react';
 import { readJournal, writeJournal, downloadJson, type Entry } from '../lib/journal';
 import { choose, href, toolInfo } from '../lib/i18n';
@@ -13,6 +13,7 @@ export default function Journal({ locale }: { locale: Locale }) {
   const [ready, setReady] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
   const [removed, setRemoved] = useState<Entry | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function Journal({ locale }: { locale: Locale }) {
           <Search size={17} />
           <input
             type="search"
+            ref={searchInput}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('搜索问题或笔记', 'Search questions or notes')}
@@ -141,7 +143,21 @@ export default function Journal({ locale }: { locale: Locale }) {
                 </button>
               </div>
             ))}
-            {!filtered.length && <p>{t('没有匹配的手记。', 'No matching entries.')}</p>}
+            {!filtered.length && (
+              <div>
+                <p role="status">{t('没有匹配的手记。', 'No matching entries.')}</p>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => {
+                    setQuery('');
+                    searchInput.current?.focus();
+                  }}
+                >
+                  {t('清除搜索，查看全部', 'Clear search and show all')}
+                </button>
+              </div>
+            )}
           </div>
           <div className="journal-detail">
             {current ? (

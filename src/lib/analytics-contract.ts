@@ -2,6 +2,9 @@
 export const clientEvents = [
   'page_view',
   'registration_prompt_viewed',
+  'registration_offer_viewed',
+  'registration_offer_clicked',
+  'registration_offer_dismissed',
   'auth_started',
   'page_exit',
   'setting_changed',
@@ -71,6 +74,10 @@ export const campaigns = [
 ] as const;
 export const actions = [
   'none',
+  'account-header',
+  'account-result',
+  'account-save',
+  'account-history',
   'hero-agent',
   'hero-chart',
   'home-agent',

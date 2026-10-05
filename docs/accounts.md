@@ -2,6 +2,8 @@
 
 Wenbu keeps the complete guest experience available. Email sign-in creates a verified account only after a six-digit code succeeds. Signing in to save a current result retains that result; it does not redraw cards or rerun a model. The account panel is available on Chinese and English pages.
 
+The [2026-10-05 registration timing research](research/registration-timing-2026-10-05.md) proposes contextual prompts after a complete result, on explicit cloud-save intent and during return visits. The [UI / UX release](reviews/ui-ux-2026-10-05/README.md) implements optional post-result invitations and explicit cloud-save intent. Return-visit experiments remain recommendations. A guest browser-save action does not open authentication; successful contextual verification returns to the original result.
+
 ## User behaviour
 
 - Guests keep journal entries and conversations in their browser. The current result can be explicitly saved when signing in. Older browser records require selection; there is no automatic upload of the whole browser history.

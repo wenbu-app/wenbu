@@ -1,6 +1,14 @@
 import { analyticsHeaders, analyticsEnabled } from './analytics';
 import type { CloudRecord, RecordKind } from './account-protocol';
 
+export type AccountIntent = {
+  label?: string;
+  kind: RecordKind;
+  content: { id: string; title?: string; question?: string; createdAt?: string; updatedAt?: string };
+};
+export type AccountEntry = 'account-header' | 'account-result' | 'account-save' | 'account-history';
+export type AccountOpenRequest = { intent?: AccountIntent; entry: AccountEntry };
+
 export type AccountState = {
   ready: boolean;
   enabled: boolean;
@@ -186,6 +194,18 @@ export function readAccountCache<T = unknown>(kind: RecordKind): T[] {
 export function guestRecords(kind: RecordKind): unknown[] {
   return read(legacyKey(kind), []);
 }
+/** A connected account is not evidence that this particular revision was saved. */
+export function recordSaveState(kind: RecordKind, content: { id: string }) {
+  const owner = state.user?.id;
+  if (!owner)
+    return readAccountCache<{ id: string }>(kind).some((r) => r.id === content.id) ? 'browser' : 'unsaved';
+  const key = kind + ':' + content.id;
+  const pending = queue(owner).find((p) => p.kind === kind && p.id === content.id);
+  if (pending) return pending.error ? 'error' : 'pending';
+  if (read<Index>(temporaryKey(owner), {})[key]) return 'browser';
+  if (index(owner)[key]?.json === serialize(content)) return 'cloud';
+  return 'unsaved';
+}
 function serialize(value: unknown) {
   return JSON.stringify(value);
 }
@@ -316,6 +336,8 @@ export async function refreshCloud() {
     cacheWrite(cacheKey(kind, owner), serialize(values));
   }
   cacheWrite(indexKey(owner), serialize(next));
+  // Subscribers must see the refreshed records, including explicit guest imports.
+  publish();
 }
 export async function flushAccount() {
   if (flushing) {
@@ -564,8 +586,13 @@ export async function finishDeletedAccount() {
   localStorage.setItem('wenbu.account.changed', crypto.randomUUID());
   window.dispatchEvent(new Event('wenbu:account-changed'));
 }
-export function openAccount(intent?: { kind: RecordKind; content: { id: string } }) {
-  window.dispatchEvent(new CustomEvent('wenbu:account-open', { detail: intent }));
+export function openAccount(
+  intent?: AccountIntent,
+  entry: AccountEntry = intent ? 'account-save' : 'account-header',
+) {
+  window.dispatchEvent(
+    new CustomEvent<AccountOpenRequest>('wenbu:account-open', { detail: { intent, entry } }),
+  );
 }
 export function downloadAccount(data: unknown, name: string) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));

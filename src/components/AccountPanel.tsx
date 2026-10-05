@@ -32,6 +32,9 @@ import {
   finishDeletedAccount,
   exportTemporary,
   discardTemporary,
+  type AccountIntent,
+  type AccountOpenRequest,
+  type AccountEntry,
 } from '../lib/account-client';
 import '../styles/account.css';
 
@@ -152,16 +155,19 @@ export const accountError = (code: string, zh: boolean) => {
       : 'This action did not finish. Your content is retained. Please retry.')
   );
 };
-type ImportItem = {
-  kind: RecordKind;
-  content: { id: string; title?: string; question?: string; createdAt?: string; updatedAt?: string };
-};
+type ImportItem = AccountIntent;
 export default function AccountPanel({ locale }: { locale: Locale }) {
   const zh = locale === 'zh',
     t = (a: string, b: string) => (zh ? a : b);
   const state = useSyncExternalStore(subscribeAccount, accountSnapshot, accountSnapshot);
   const dialog = useRef<HTMLDialogElement>(null),
-    intent = useRef<ImportItem | undefined>(undefined);
+    intent = useRef<ImportItem | undefined>(undefined),
+    entry = useRef<AccountEntry>('account-header'),
+    returnFocus = useRef<HTMLElement | null>(null),
+    generation = useRef(0),
+    inFlight = useRef(false);
+  const [saveIntent, setSaveIntent] = useState<ImportItem>(),
+    [savedNotice, setSavedNotice] = useState('');
   const [open, setOpen] = useState(false),
     [email, setEmail] = useState(''),
     [otp, setOtp] = useState(''),
@@ -175,10 +181,37 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
     [deleting, setDeleting] = useState(false),
     [confirmation, setConfirmation] = useState(''),
     [reauth, setReauth] = useState(false);
+  function closePanel() {
+    generation.current++;
+    intent.current = undefined;
+    setSaveIntent(undefined);
+    setOpen(false);
+    setError('');
+    setNotice('');
+    setOtp('');
+    setStage('email');
+    setReauth(false);
+    setDeleting(false);
+    setConfirmation('');
+    setSelected([]);
+    requestAnimationFrame(() => {
+      const previous = returnFocus.current;
+      if (previous?.isConnected && !previous.matches(':disabled') && previous.getClientRects().length)
+        previous.focus({ preventScroll: true });
+      else document.querySelector<HTMLElement>('[data-account-return-focus]')?.focus({ preventScroll: true });
+    });
+  }
   useEffect(() => {
     void initializeAccount();
     const show = (e: Event) => {
-      intent.current = (e as CustomEvent<ImportItem>).detail;
+      const request = (e as CustomEvent<AccountOpenRequest>).detail;
+      generation.current++;
+      intent.current = request?.intent;
+      entry.current = request?.entry ?? 'account-header';
+      setSaveIntent(request?.intent);
+      returnFocus.current = document.activeElement as HTMLElement | null;
+      setError('');
+      setNotice('');
       setOpen(true);
     };
     window.addEventListener('wenbu:account-open', show);
@@ -187,7 +220,7 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
   useEffect(() => {
     if (open) {
       dialog.current?.showModal();
-      if (!accountSnapshot().user) track('registration_prompt_viewed');
+      if (!accountSnapshot().user) track('registration_prompt_viewed', { action: entry.current });
       dialog.current?.querySelector<HTMLInputElement>('input[type="email"]')?.focus();
       setImports(
         (['journal', 'session'] as const).flatMap((kind) =>
@@ -207,25 +240,37 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
     const timer = setInterval(() => setCooldown((v) => Math.max(0, v - 1)), 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
+  useEffect(() => {
+    if (!savedNotice) return;
+    const timer = setTimeout(() => setSavedNotice(''), 7000);
+    return () => clearTimeout(timer);
+  }, [savedNotice]);
   async function action(fn: () => Promise<unknown>) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    const attempt = generation.current;
     setBusy(true);
     setError('');
     setNotice('');
     try {
       await fn();
     } catch (e) {
-      setError(accountError(e instanceof AccountClientError ? e.code : 'connection_failed', zh));
+      if (attempt === generation.current)
+        setError(accountError(e instanceof AccountClientError ? e.code : 'connection_failed', zh));
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
   async function sendCode() {
     await action(async () => {
-      track('auth_started');
+      const attempt = generation.current;
+      track('auth_started', { action: entry.current });
       await accountRequest('/api/auth/email-otp/send-verification-otp', 'POST', {
         email: email.trim().toLowerCase(),
         type: 'sign-in',
       });
+      if (attempt !== generation.current) return;
       setStage('code');
       setOtp('');
       setCooldown(60);
@@ -239,6 +284,8 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
   }
   async function verify() {
     await action(async () => {
+      const attempt = generation.current;
+      const selectedIntent = intent.current;
       const old = accountSnapshot().user;
       if (old && old.email.toLowerCase() !== email.trim().toLowerCase())
         throw new AccountClientError('pending_before_signout');
@@ -246,10 +293,24 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
       // Claim before new reads, so trial usage cannot be reset by signing in.
       await accountRequest('/api/account/claim', 'POST', {});
       await initializeAccount(true);
-      localStorage.setItem('wenbu.account.changed', crypto.randomUUID());
-      if (intent.current) {
-        await importRecord(intent.current.kind, intent.current.content, 'current');
+      try {
+        localStorage.setItem('wenbu.account.changed', crypto.randomUUID());
+      } catch {
+        /* Account is already verified. */
+      }
+      if (attempt !== generation.current) return;
+      if (selectedIntent) {
+        await importRecord(selectedIntent.kind, selectedIntent.content, 'current');
+        if (attempt !== generation.current) return;
         intent.current = undefined;
+        setSavedNotice(t('这次探索已保存到你的账号。', 'This reading is saved to your account.'));
+        window.dispatchEvent(
+          new CustomEvent('wenbu:record-saved', {
+            detail: { kind: selectedIntent.kind, id: selectedIntent.content.id },
+          }),
+        );
+        closePanel();
+        return;
       }
       setReauth(false);
       setStage('email');
@@ -266,7 +327,16 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
     <>
       <button
         className="account-trigger"
-        onClick={() => setOpen(true)}
+        onClick={(event) => {
+          generation.current++;
+          intent.current = undefined;
+          entry.current = 'account-header';
+          setSaveIntent(undefined);
+          returnFocus.current = event.currentTarget;
+          setError('');
+          setNotice('');
+          setOpen(true);
+        }}
         aria-haspopup="dialog"
         aria-label={t('账号与云端记录', 'Account and cloud history')}
       >
@@ -277,16 +347,17 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
       <dialog
         ref={dialog}
         className="account-dialog"
-        onCancel={() => setOpen(false)}
-        onClose={() => setOpen(false)}
+        onCancel={(event) => {
+          event.preventDefault();
+          closePanel();
+        }}
+        onClose={() => {
+          if (open) closePanel();
+        }}
         aria-labelledby="account-title"
         data-clarity-mask="true"
       >
-        <button
-          className="account-close icon-button"
-          aria-label={t('关闭', 'Close')}
-          onClick={() => setOpen(false)}
-        >
+        <button className="account-close icon-button" aria-label={t('关闭', 'Close')} onClick={closePanel}>
           <X size={20} />
         </button>
         <div className="account-seal" aria-hidden="true">
@@ -294,18 +365,39 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
         </div>
         <span className="eyebrow">WENBU · {t('让探索有迹可循', 'A PLACE TO RETURN TO')}</span>
         <h2 id="account-title">
-          {state.user
-            ? t('你的探索，妥善留存。', 'Your reflections, kept together.')
-            : t('先探索，再留住有用的答案。', 'Explore first. Keep what matters.')}
+          {saveIntent && !state.user
+            ? t(
+                '保存这次探索',
+                saveIntent.kind === 'session' ? 'Save this conversation' : 'Save this reading',
+              )
+            : state.user
+              ? t('你的探索，妥善留存。', 'Your reflections, kept together.')
+              : t('先探索，再留住有用的答案。', 'Explore first. Keep what matters.')}
         </h2>
         {!state.user || reauth ? (
           <>
             <p className="account-intro">
-              {t(
-                '无需注册也能获得完整结果。用邮箱登录后，保存手记和对话，在不同设备间继续。',
-                'Get a complete result without signing up. Sign in with your email to save readings and conversations across devices.',
-              )}
+              {saveIntent
+                ? t(
+                    '验证邮箱后保存本次记录，换个设备也能继续。你的原结果会保留。',
+                    'Verify your email to save this record and return on another device. Your result stays as it is.',
+                  )
+                : t(
+                    '无需注册也能获得完整结果。用邮箱登录后，保存手记和对话，在不同设备间继续。',
+                    'Get a complete result without signing up. Sign in with your email to save readings and conversations across devices.',
+                  )}
             </p>
+            {saveIntent && (
+              <div className="account-save-summary">
+                <BookmarkPreview kind={saveIntent.kind} zh={zh} />
+                <span>
+                  {saveIntent.label ||
+                    saveIntent.content.title ||
+                    saveIntent.content.question ||
+                    t('本次探索', 'Your current reading')}
+                </span>
+              </div>
+            )}
             <div className="account-benefits">
               <span>
                 <Cloud size={16} />
@@ -384,8 +476,10 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
                     <ArrowRight size={17} />
                   )}{' '}
                   {stage === 'email'
-                    ? t('发送登录验证码', 'Send a sign-in code')
-                    : t('验证并继续', 'Verify and continue')}
+                    ? t('发送验证码', 'Send code')
+                    : saveIntent
+                      ? t('验证并保存', 'Verify and save')
+                      : t('验证并继续', 'Verify and continue')}
                 </button>
                 {stage === 'code' && (
                   <button
@@ -408,6 +502,14 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
               )}{' '}
               <a href={zh ? '/privacy/' : '/en/privacy/'}>{t('隐私说明', 'Privacy')}</a>
             </p>
+            {saveIntent && (
+              <p className="account-fine">
+                {t(
+                  '新账号的后续对话默认同步，可在账号中关闭。旧记录只导入你选择的部分。',
+                  'New accounts sync future conversations by default; you can turn this off. Older records are imported only when you choose them.',
+                )}
+              </p>
+            )}
           </>
         ) : (
           <>
@@ -694,11 +796,37 @@ export default function AccountPanel({ locale }: { locale: Locale }) {
             {notice}
           </p>
         )}
-        <button className="text-button account-continue" onClick={() => setOpen(false)}>
-          {state.user ? t('继续探索', 'Continue exploring') : t('先免费试用', 'Continue without an account')}{' '}
+        <button className="text-button account-continue" onClick={closePanel}>
+          {state.user
+            ? t('继续探索', 'Continue exploring')
+            : saveIntent
+              ? t('暂不保存到账号，继续浏览', 'Keep exploring without cloud save')
+              : t('先免费试用', 'Continue without an account')}{' '}
           <ArrowRight size={15} />
         </button>
       </dialog>
+      <div className="account-saved-toast" role="status" aria-live="polite">
+        {savedNotice && (
+          <>
+            <Check size={17} />
+            {savedNotice}
+          </>
+        )}
+      </div>
     </>
+  );
+}
+
+function BookmarkPreview({ kind, zh }: { kind: RecordKind; zh: boolean }) {
+  return (
+    <small>
+      {kind === 'session'
+        ? zh
+          ? '当前对话与结果'
+          : 'Conversation and results'
+        : zh
+          ? '当前手记'
+          : 'Current reading'}
+    </small>
   );
 }

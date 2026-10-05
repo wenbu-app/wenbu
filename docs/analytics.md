@@ -75,6 +75,14 @@ CSV 导出完整时间序列，时间边界为带 Z 的 UTC ISO 时间，未来�
 
 会话覆盖要求同一会话包含访问、开始、服务端成功、保存事件，逐层取交集。它不是严格时间顺序漏斗；异步批量事件可能晚于服务端结果到达，不据此推断先后因果。来自 API、CLI、MCP 的无浏览器会话请求不能计算网页访客转化。
 
+## 保存邀请与账号入口
+
+`registration_offer_viewed` 表示结果后的可选保存邀请至少一半进入前台视窗；这是可见性代理，不代表阅读、注册或保存成功。当前没有一秒停留门槛。`registration_offer_clicked` 和 `registration_offer_dismissed` 分别记录主动点击与关闭；仅记录固定入口标签，不带标题、问题或邮箱。
+
+`registration_prompt_viewed` 表示账号面板打开，action 区分 `account-header`（页头）、`account-result`（成果后的邀请）、`account-save`（主动保存）与 `account-history`（历史入口）。它不能作为页面邀请曝光分母。`auth_started` 是验证码请求开始，不代表收到邮件或成功注册。账号验证、有效保存和回访仍以服务器回执为准。
+
+历史事件名 `result_viewed` / `ai_result_viewed` 保留兼容，但后台现标作“收到计算结果” / “收到 AI 解读”：触发条件是客户端收到结果，不是用户实际阅读。
+
 ## Agent 提问引导
 
 自 2026-10-05 起，入口和对话选项直接发送按钮上可见的那句话，不再经过表单或草稿。`agent_started` 的 action 区分 guided（入口）、clarification（回答澄清）、followup（后续追问）、example（工具示例）、none（自由输入）。点击被加载状态、正在执行或输入校验拦住时，不记录开始事件；允许的提交在网络请求前记录，不能因此认定模型已收到或完成。
