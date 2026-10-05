@@ -12,6 +12,7 @@ import type { ReportArtifact, AgentSource } from '../lib/agent-protocol';
 import { readReportVisual, reportSourceIds, type ReportVisual } from '../lib/agent-report';
 import type { Locale } from '../lib/schema';
 import AgentMarkdown from './AgentMarkdown';
+import { reportFollowupQuestions } from '../lib/agent-guidance';
 import InstrumentGlyph from './InstrumentGlyph';
 
 function Citations({ ids, sources, locale }: { ids: string[]; sources: AgentSource[]; locale: Locale }) {
@@ -130,6 +131,7 @@ export default function AgentReport({
 }) {
   const [expanded, setExpanded] = useState<number[]>([0]);
   const visual = readReportVisual(report.visual);
+  const questions = reportFollowupQuestions(report.questions);
   const ids = reportSourceIds(report);
   const sourceCount = sources.filter((source) => ids.includes(source.id)).length;
   const allExpanded = expanded.length === report.sections.length;
@@ -202,10 +204,10 @@ export default function AgentReport({
           </details>
         ))}
       </div>
-      {report.questions.length > 0 && (
+      {questions.length > 0 && (
         <div className="agent-report-questions">
           <span className="eyebrow">{zh ? '点选继续追问' : 'CHOOSE A FOLLOW-UP'}</span>
-          {report.questions.map((question) => (
+          {questions.map((question) => (
             <button key={question} disabled={busy} onClick={() => onQuestion(question)}>
               {question}
               <ArrowUpRight size={14} />
