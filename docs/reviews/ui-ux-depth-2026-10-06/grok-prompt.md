@@ -282,7 +282,7 @@ index a3790c9..f5999a7 100644
 @@ -6,21 +6,6 @@ const { locale } = Astro.props as { locale: Locale };
  const t = (zh: string, en: string) => choose(locale, zh, en);
  ---
- 
+
 -<button class="feedback-launch" data-feedback-open hidden type="button" aria-haspopup="dialog">
 -  <svg
 -    width="17"
