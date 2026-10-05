@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-05T17:52:00.539Z",
+  "scope": "production public UI; temporary QA cookie; no model call, email or account creation",
+  "checks": [
+    "Chinese library 1280px: scoped contrast, no visible broken image or root overflow",
+    "English menu 820px: expand, Escape, focus returns to Open menu",
+    "Chinese Agent 320px: loaded composer, choices and selected mode",
+    "Motion pause and enable toggles; original enabled preference restored",
+    "Account entry 320px: email field, trial continuation, focus returns to header"
+  ],
+  "agentLayout": {
+    "brokenImages": [],
+    "h1": 1,
+    "lowContrast": [],
+    "scrollWidth": 320,
+    "title": "从你在意的事，聊起。",
+    "width": 320
+  }
+}

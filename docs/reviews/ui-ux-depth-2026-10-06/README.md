@@ -57,6 +57,16 @@
 
 ## 发布与后续观察
 
-最终源码、PR / CI、Cloudflare 版本、线上字节匹配及 smoke 回执将在发布后补在此节。当前本地证据是验收记录，不应被解释为正式站已更新。
+[PR #15](https://github.com/wenbu-app/wenbu/pull/15) 已合并并发布。应用源码为 `2e5a120e62063393d205b4dcff63f22ee2344a14`；[PR CI](ci-pr.json) 与[合并后 CI](ci-main.json) 均通过，且 SHA 与发布来源一致。[发布回执](release.json)记录 Cloudflare Worker `59b22f6a-c16a-4912-a400-01c279971222`。本次没有新数据库迁移或密钥变更。
+
+- [线上构建一致性](live-build-match.json)：18 个核心中英文页面及 12 个直接引用的 JS/CSS 文件逐字节匹配本地发布构建，线上 IndexNow 清单亦一致，revision 为 `2eee0d86a34ca8d3b4f9b72afeb26ca44a8bfc1729ab054affb8280d9b9593de`。
+- [线上 smoke](live-smoke.json)：96 个页面/资源，四种计算 API、6 个 MCP 工具枚举、MCP 起卦、双语知识读取通过。未调用生产模型。
+- [统计核验](live-analytics.json)：11 组检查覆盖 1 / 3 / 7 / 14 / 30 / 90 天、UTC/北京时间、逐时与逐日、含首尾日期的自定义范围、各维度筛选、未来空值与汇总对账；不公开生产使用明细。
+- [账号接口核验](live-accounts.json)：14 项接口和账号报表约束通过，没有发送真实邮件或创建账号。本地 64 项账号检查使用模拟投递，不能证明真实收件箱送达。
+- [浏览器现场复核](live-browser-checks.json)：正式站中文手册、820px 英文菜单展开 / Escape 返回焦点、320px 中文 Agent 加载完成与可选入口、动效暂停/恢复、邮箱入口与继续试用。截图：[中文手册](after/live-library-desktop.png)、[英文导航](after/live-tablet-navigation.png)、[手机 Agent](after/live-agent-320.png)、[邮箱入口](after/live-account-entry-mobile.png)。浏览器使用临时测试标记，已清理标记和测试标签页；CLI 请求同样标为测试。没有输入实际个人资料。
+- [域名核验](live-domains.json)：`wenbu.app` 返回 200，`www.wenbu.app` 和 `wenbu.genedai.me` 保留 301 到主域名。
+- 部署刚结束时清单传播尚未一致，IndexNow 的构建保护没有发起提交。在线字节匹配确认后再次检查，[IndexNow 回执](indexnow-after-deploy.json)为 `backoff`、提交 `0`；保留定时重试，没有绕过退避，也不声称已被搜索引擎接受或收录。
+
+最后一轮错误分支复核也补上无效输入、限流、过长内容的修改提示；塔罗失败明确说明可以重新选牌或随机抽取，问题与设置仍保留。
 
 发布后应观察“开始探索 → 完成操作 → 保存意图 → 邮箱验证 → 有效云端保存 → 再次使用”的分层数据，以及反馈里的阅读、误触与弱网问题。注册按钮点击不等于注册，注册不等于有效保存；浏览器 ID 不等于自然人。本轮不能证明流量、注册转化或留存已经增长。

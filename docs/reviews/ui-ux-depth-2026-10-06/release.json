@@ -1,0 +1,38 @@
+{
+  "checkedAt": "2026-10-05T17:52:34.828Z",
+  "pullRequest": "https://github.com/wenbu-app/wenbu/pull/15",
+  "sourceSha": "2e5a120e62063393d205b4dcff63f22ee2344a14",
+  "workerVersion": "59b22f6a-c16a-4912-a400-01c279971222",
+  "account": "48d9ccaf5ee7914c803b5d0656462848",
+  "domains": [
+    "wenbu.app",
+    "www.wenbu.app",
+    "wenbu.genedai.me"
+  ],
+  "databaseMigration": false,
+  "secretChanged": false,
+  "modelCalled": false,
+  "mailSent": false,
+  "accountCreated": false,
+  "prCi": {
+    "conclusion": "success",
+    "databaseId": 37350629655,
+    "headSha": "2ad2b0367e3fb2507ab094427d2a8467d9b4e3d1",
+    "status": "completed",
+    "url": "https://github.com/wenbu-app/wenbu/actions/runs/37350629655"
+  },
+  "mainCi": {
+    "conclusion": "success",
+    "databaseId": 37350975422,
+    "headSha": "2e5a120e62063393d205b4dcff63f22ee2344a14",
+    "status": "completed",
+    "url": "https://github.com/wenbu-app/wenbu/actions/runs/37350975422"
+  },
+  "manifestRevision": "2eee0d86a34ca8d3b4f9b72afeb26ca44a8bfc1729ab054affb8280d9b9593de",
+  "indexNow": {
+    "status": "backoff",
+    "submitted": 0,
+    "retryAt": 1791292516511
+  },
+  "result": "passed"
+}

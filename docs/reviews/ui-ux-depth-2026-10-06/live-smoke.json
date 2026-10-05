@@ -1,0 +1,437 @@
+{
+  "base": "https://wenbu.app",
+  "checkedAt": "2026-10-05T17:48:04.161Z",
+  "pages": [
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/about/",
+      "status": 200
+    },
+    {
+      "path": "/agent-protocol.md",
+      "status": 200
+    },
+    {
+      "path": "/agent-request.schema.json",
+      "status": 200
+    },
+    {
+      "path": "/agent/",
+      "status": 200
+    },
+    {
+      "path": "/agents/",
+      "status": 200
+    },
+    {
+      "path": "/bazi/",
+      "status": 200
+    },
+    {
+      "path": "/blog/",
+      "status": 200
+    },
+    {
+      "path": "/blog/a-reading-you-can-return-to/",
+      "status": 200
+    },
+    {
+      "path": "/blog/connect-your-agent/",
+      "status": 200
+    },
+    {
+      "path": "/blog/why-calculation-comes-first/",
+      "status": 200
+    },
+    {
+      "path": "/compare/chatbot/",
+      "status": 200
+    },
+    {
+      "path": "/compare/fatetell/",
+      "status": 200
+    },
+    {
+      "path": "/compare/labyrinthos/",
+      "status": 200
+    },
+    {
+      "path": "/en/",
+      "status": 200
+    },
+    {
+      "path": "/en/about/",
+      "status": 200
+    },
+    {
+      "path": "/en/agent/",
+      "status": 200
+    },
+    {
+      "path": "/en/agents/",
+      "status": 200
+    },
+    {
+      "path": "/en/bazi/",
+      "status": 200
+    },
+    {
+      "path": "/en/blog/",
+      "status": 200
+    },
+    {
+      "path": "/en/blog/a-reading-you-can-return-to/",
+      "status": 200
+    },
+    {
+      "path": "/en/blog/connect-your-agent/",
+      "status": 200
+    },
+    {
+      "path": "/en/blog/why-calculation-comes-first/",
+      "status": 200
+    },
+    {
+      "path": "/en/compare/chatbot/",
+      "status": 200
+    },
+    {
+      "path": "/en/compare/fatetell/",
+      "status": 200
+    },
+    {
+      "path": "/en/compare/labyrinthos/",
+      "status": 200
+    },
+    {
+      "path": "/en/feed.xml",
+      "status": 200
+    },
+    {
+      "path": "/en/free/",
+      "status": 200
+    },
+    {
+      "path": "/en/iching/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/ai-divination/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/ask-a-better-question/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/bazi-basics/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/bazi-ten-gods/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/bazi-vs-western-astrology/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/birth-time-timezone/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/chinese-zodiac-vs-bazi/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/choose-a-tool/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/first-reading/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/five-elements/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/iching-three-coins/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/iching-trigrams/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/prepare-birth-details/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/read-ai-with-sources/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/review-a-reading/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/tarot-beginner/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/tarot-reversals/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/tarot-suits-and-court-cards/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/unknown-birth-time/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/ziwei-four-transformations/",
+      "status": 200
+    },
+    {
+      "path": "/en/learn/ziwei-twelve-palaces/",
+      "status": 200
+    },
+    {
+      "path": "/en/methodology/",
+      "status": 200
+    },
+    {
+      "path": "/en/privacy/",
+      "status": 200
+    },
+    {
+      "path": "/en/sources/",
+      "status": 200
+    },
+    {
+      "path": "/en/tarot/",
+      "status": 200
+    },
+    {
+      "path": "/en/tarot/deck/",
+      "status": 200
+    },
+    {
+      "path": "/en/terms/",
+      "status": 200
+    },
+    {
+      "path": "/en/ziwei/",
+      "status": 200
+    },
+    {
+      "path": "/feed.xml",
+      "status": 200
+    },
+    {
+      "path": "/free/",
+      "status": 200
+    },
+    {
+      "path": "/iching/",
+      "status": 200
+    },
+    {
+      "path": "/learn/",
+      "status": 200
+    },
+    {
+      "path": "/learn/ai-divination/",
+      "status": 200
+    },
+    {
+      "path": "/learn/ask-a-better-question/",
+      "status": 200
+    },
+    {
+      "path": "/learn/bazi-basics/",
+      "status": 200
+    },
+    {
+      "path": "/learn/bazi-ten-gods/",
+      "status": 200
+    },
+    {
+      "path": "/learn/bazi-vs-western-astrology/",
+      "status": 200
+    },
+    {
+      "path": "/learn/birth-time-timezone/",
+      "status": 200
+    },
+    {
+      "path": "/learn/chinese-zodiac-vs-bazi/",
+      "status": 200
+    },
+    {
+      "path": "/learn/choose-a-tool/",
+      "status": 200
+    },
+    {
+      "path": "/learn/first-reading/",
+      "status": 200
+    },
+    {
+      "path": "/learn/five-elements/",
+      "status": 200
+    },
+    {
+      "path": "/learn/iching-three-coins/",
+      "status": 200
+    },
+    {
+      "path": "/learn/iching-trigrams/",
+      "status": 200
+    },
+    {
+      "path": "/learn/prepare-birth-details/",
+      "status": 200
+    },
+    {
+      "path": "/learn/read-ai-with-sources/",
+      "status": 200
+    },
+    {
+      "path": "/learn/review-a-reading/",
+      "status": 200
+    },
+    {
+      "path": "/learn/tarot-beginner/",
+      "status": 200
+    },
+    {
+      "path": "/learn/tarot-reversals/",
+      "status": 200
+    },
+    {
+      "path": "/learn/tarot-suits-and-court-cards/",
+      "status": 200
+    },
+    {
+      "path": "/learn/unknown-birth-time/",
+      "status": 200
+    },
+    {
+      "path": "/learn/ziwei-four-transformations/",
+      "status": 200
+    },
+    {
+      "path": "/learn/ziwei-twelve-palaces/",
+      "status": 200
+    },
+    {
+      "path": "/methodology/",
+      "status": 200
+    },
+    {
+      "path": "/missing-wenbu-verification-page/",
+      "status": 404
+    },
+    {
+      "path": "/og.png",
+      "status": 200
+    },
+    {
+      "path": "/openapi.json",
+      "status": 200
+    },
+    {
+      "path": "/privacy/",
+      "status": 200
+    },
+    {
+      "path": "/robots.txt",
+      "status": 200
+    },
+    {
+      "path": "/SKILL.md",
+      "status": 200
+    },
+    {
+      "path": "/sources/",
+      "status": 200
+    },
+    {
+      "path": "/tarot/",
+      "status": 200
+    },
+    {
+      "path": "/tarot/deck/",
+      "status": 200
+    },
+    {
+      "path": "/terms/",
+      "status": 200
+    },
+    {
+      "path": "/wenbu.mjs",
+      "status": 200
+    },
+    {
+      "path": "/ziwei/",
+      "status": 200
+    }
+  ],
+  "api": [
+    {
+      "kind": "bazi",
+      "status": 200
+    },
+    {
+      "kind": "iching",
+      "status": 200
+    },
+    {
+      "kind": "tarot",
+      "status": 200
+    },
+    {
+      "kind": "ziwei",
+      "status": 200
+    }
+  ],
+  "mcp": [
+    "calculate_bazi",
+    "cast_iching",
+    "draw_tarot",
+    "calculate_ziwei",
+    "search_library",
+    "read_library"
+  ],
+  "library": [
+    {
+      "locale": "zh",
+      "id": "guide-first-reading",
+      "title": "第一次用问卜：从一个小问题开始"
+    },
+    {
+      "locale": "en",
+      "id": "guide-first-reading",
+      "title": "Your first visit: start with one small question"
+    }
+  ],
+  "ai": null,
+  "health": {
+    "status": "ok",
+    "version": "1.3.1",
+    "measurementVersion": "2026-10-03-v2",
+    "aiConfigured": true,
+    "requestedModel": "deepseek-v4-flash"
+  },
+  "result": "passed"
+}

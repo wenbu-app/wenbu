@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-05T17:51:31.071Z",
+  "rows": [
+    {
+      "host": "wenbu.app",
+      "status": 200,
+      "location": null
+    },
+    {
+      "host": "www.wenbu.app",
+      "status": 301,
+      "location": "https://wenbu.app/"
+    },
+    {
+      "host": "wenbu.genedai.me",
+      "status": 301,
+      "location": "https://wenbu.app/"
+    }
+  ],
+  "result": "passed"
+}
