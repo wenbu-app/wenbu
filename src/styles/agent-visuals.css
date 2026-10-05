@@ -35,37 +35,6 @@
 .agent-instruments > a > .instrument-glyph {
   margin: -3px 0;
 }
-.agent-starters > button {
-  position: relative;
-  align-items: center;
-  padding: 17px 13px;
-  gap: 12px;
-  min-height: 107px;
-}
-.agent-starters > button > svg:first-child {
-  margin: 0;
-}
-.agent-starters > button > svg:last-child {
-  position: absolute;
-  top: 12px;
-  right: 10px;
-  width: 11px;
-}
-.agent-starters > button > span {
-  padding-right: 4px;
-}
-.agent-starters > button small {
-  font-family: var(--serif);
-  font-size: 17px;
-  color: #364d35;
-  margin: 0 0 8px;
-}
-.agent-starters > button strong {
-  font-size: 10px;
-  line-height: 1.7;
-  color: #737d68;
-  font-weight: 400;
-}
 .reading-desk-illustration {
   display: block;
   width: min(100%, 300px);
@@ -584,12 +553,6 @@
   transform: rotate(180deg);
 }
 @media (hover: hover) and (pointer: fine) {
-  .agent-starters > button:hover .glyph-lines {
-    transform: translateY(-2px);
-  }
-  .agent-starters .glyph-lines {
-    transition: transform 260ms var(--ritual-ease);
-  }
   .diagram-items > button:hover {
     border-color: #8e9f7d;
   }
@@ -598,17 +561,6 @@
   }
 }
 @media (max-width: 600px) {
-  .agent-starters > button {
-    padding: 15px 12px;
-    min-height: 106px;
-  }
-  .agent-starters > button .instrument-glyph {
-    width: 40px;
-    height: 40px;
-  }
-  .agent-starters > button small {
-    font-size: 16px;
-  }
   .trace-station + .trace-station::before {
     width: 8px;
     margin: 0 3px;

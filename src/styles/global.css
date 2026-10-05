@@ -200,6 +200,8 @@ svg {
 }
 .language-switch {
   letter-spacing: 1px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .journal-link {
   display: flex;

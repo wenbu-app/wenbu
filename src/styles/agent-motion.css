@@ -4,32 +4,6 @@
   --ritual-ink: #6c7761;
   --ritual-red: #a35a45;
 }
-.agent-draft-receipt > span {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 2px 9px;
-  color: #637654;
-  font-size: 10px;
-  line-height: 1.6;
-  animation: ritual-detail-in 220ms var(--ritual-ease);
-}
-.agent-draft-receipt svg,
-.agent-guide-progress .is-reached svg,
-.agent-onboarding[data-ready='true'] .agent-guide-rest > svg {
-  stroke-dasharray: 24;
-  animation: ritual-check-draw 350ms ease-out;
-}
-.agent-guide-progress li,
-.agent-guide-progress li > span {
-  transition:
-    color 180ms,
-    background-color 180ms,
-    border-color 180ms;
-}
-.agent-onboarding[data-ready='true'] .agent-guide-mark {
-  animation: ritual-seal-arrive 450ms var(--ritual-ease);
-}
 .agent-notice > span {
   animation: ritual-detail-in 220ms var(--ritual-ease);
 }
