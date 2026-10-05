@@ -60,6 +60,63 @@ const mf = new Miniflare({
         outboundService: async (request) => {
           if (new URL(request.url).hostname !== 'api.deepseek.com')
             return new Response('Local preview has no external access', { status: 503 });
+          if (process.env.WENBU_PREVIEW_GUIDANCE === '1') {
+            const input = await request.json();
+            const users = input.messages.filter((m) => m.role === 'user');
+            const last = users.at(-1)?.content || '';
+            const zh = /[\u4e00-\u9fff]/.test(last);
+            const first = users.length === 1;
+            const birth = /命盘|birth chart/.test(last);
+            const delta = first
+              ? {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'preview-clarification',
+                      type: 'function',
+                      function: {
+                        name: 'ask_user',
+                        arguments: JSON.stringify({
+                          question: birth
+                            ? zh
+                              ? '先从八字开始。请补充出生日期；不知道时刻也可以继续。'
+                              : 'Let’s start with BaZi. Add your birth date; it’s OK if you don’t know the time.'
+                            : zh
+                              ? '你更想从哪件事聊起？'
+                              : 'What would you like to explore first?',
+                          options: birth
+                            ? []
+                            : zh
+                              ? ['比较两个选择', '说清自己的顾虑', '找一个可以尝试的下一步']
+                              : [
+                                  'Compare two options',
+                                  'Understand what is holding me back',
+                                  'Find a practical next step',
+                                ],
+                          ...(birth ? { form: 'birth' } : {}),
+                        }),
+                      },
+                    },
+                  ],
+                }
+              : {
+                  content: zh
+                    ? '这是本地交互测试，未调用真实模型。可以先写下两个选择各自最吸引你的地方，再看看哪一点最符合你现在的需要。'
+                    : 'This is a local interaction test; no real model was called. Start by naming what appeals to you about each option, then consider which matters most right now.',
+                };
+            console.log(
+              'LOCAL GUIDANCE TURN',
+              JSON.stringify({
+                turn: users.length,
+                mode: input.messages[0].content.includes('Mode: RESEARCH.') ? 'research-capable' : 'explore',
+                clarification: first,
+              }),
+            );
+            return new Response(
+              `data: ${JSON.stringify({ model: 'local-fixture', choices: [{ delta, finish_reason: first ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n`,
+              { headers: { 'Content-Type': 'text/event-stream' } },
+            );
+          }
           const text =
             'This is a synthetic local preview response. The cards provide a prompt for reflection, not a prediction. Notice what you can influence, write down one small next step, and return to your notes after you have tried it. No real model request was made.';
           return new Response(

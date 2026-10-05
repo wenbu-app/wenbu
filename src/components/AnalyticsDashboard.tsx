@@ -132,17 +132,17 @@ export default function AnalyticsDashboard() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const guidanceLabels: Record<string, string> = {
-    guide_opened: '开始使用引导',
-    guide_step_1: '返回选择主题',
-    guide_step_2: '进入目标选择',
-    guide_step_3: '进入补充与预览',
-    guide_skipped: '切换直接输入',
-    guide_draft_created: '引导内容放入草稿',
+    guide_opened: '打开旧版引导',
+    guide_step_1: '旧版：返回选择主题',
+    guide_step_2: '旧版：进入目标选择',
+    guide_step_3: '旧版：进入补充与预览',
+    guide_skipped: '旧版：切换直接输入',
+    guide_draft_created: '旧版：引导内容放入草稿',
     suggestion_selected_clarification: '选择澄清回答',
     suggestion_selected_followup: '选择继续追问',
-    agent_started_guided: '发送引导草稿',
-    agent_started_clarification: '发送澄清草稿',
-    agent_started_followup: '发送追问草稿',
+    agent_started_guided: '从引导开始对话',
+    agent_started_clarification: '回复澄清问题',
+    agent_started_followup: '发送后续追问',
     agent_started_example: '发送示例提问',
   };
   const breakdownNames: Record<string, string> = {

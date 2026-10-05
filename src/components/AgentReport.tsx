@@ -204,7 +204,7 @@ export default function AgentReport({
       </div>
       {report.questions.length > 0 && (
         <div className="agent-report-questions">
-          <span className="eyebrow">{zh ? '把问题留给下一步' : 'KEEP EXPLORING'}</span>
+          <span className="eyebrow">{zh ? '点选继续追问' : 'CHOOSE A FOLLOW-UP'}</span>
           {report.questions.map((question) => (
             <button key={question} disabled={busy} onClick={() => onQuestion(question)}>
               {question}

@@ -59,7 +59,7 @@ import InstrumentGlyph, { ReadingDeskIllustration, type InstrumentKind } from '.
 import AgentRitual, { useAgentMotion } from './AgentRitual';
 import ReadingView from './ReadingView';
 import { readReportVisual } from '../lib/agent-report';
-import { isSuggestionIntact, stageSuggestion } from '../lib/agent-guidance';
+import { prepareAgentSubmission, type ConversationChoice } from '../lib/agent-guidance';
 import AgentOnboarding from './AgentOnboarding';
 import AgentConversationGuide from './AgentConversationGuide';
 import '../styles/agent.css';
@@ -101,11 +101,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const [activeId, setActiveId] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState('');
-  const stagedSuggestion = useRef({
-    text: '',
-    start: 0,
-    action: 'none' as 'none' | 'guided' | 'clarification' | 'followup' | 'example',
-  });
+  const submissionFocus = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const motion = useAgentMotion();
   const [currentTurn, setCurrentTurn] = useState<string[]>([]);
@@ -257,6 +253,14 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     if (contextOpen) dialog.current?.showModal();
     else {
       dialog.current?.close();
+      // The modal makes the conversation inert until close(), so restore shortcut focus now.
+      const submitted =
+        submissionFocus.current &&
+        scroll.current?.querySelector<HTMLElement>(`[data-message-id="${submissionFocus.current}"]`);
+      if (submitted) {
+        submissionFocus.current = null;
+        submitted.focus({ preventScroll: true });
+      }
       if (focusAfterContext.current) {
         focusAfterContext.current = false;
         textarea.current?.focus();
@@ -330,7 +334,6 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     setActiveId(id);
     setSelectedArtifact('');
     setDraft('');
-    stagedSuggestion.current = { text: '', start: 0, action: 'none' };
     setSidebar(false);
     setMobilePane('chat');
     setNotice('');
@@ -389,28 +392,21 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     setMobilePane('results');
   }
 
-  function prepareDraft(text: string, action: 'guided' | 'clarification' | 'followup' | 'example') {
-    const { draft: next, suggestion } = stageSuggestion(draft, stagedSuggestion.current, text);
-    if (next.length > 3000) {
-      setNotice(
-        t(
-          '草稿已接近 3000 字上限，请先精简内容，再添加这个选项。',
-          'Your draft is near the 3,000-character limit. Shorten it before adding this suggestion.',
-        ),
-      );
-      textarea.current?.focus();
-      return false;
-    }
-    setDraft(next);
-    stagedSuggestion.current = { ...suggestion, action };
-    setMobilePane('chat');
-    setNotice('');
-    textarea.current?.focus();
-    return true;
-  }
-  async function send(value = draft) {
+  async function send(choice?: ConversationChoice) {
     const session = sessionRef.current.find((s) => s.id === activeId);
-    if (!session || pending.current || !value.trim()) return;
+    if (!loaded || !session || pending.current) return;
+    const submission = prepareAgentSubmission(draft, choice);
+    if (!submission) {
+      if ((choice?.text ?? draft).trim().length > 3000)
+        setNotice(
+          t(
+            '消息超过 3000 字，请精简后发送。',
+            'This message exceeds 3,000 characters. Shorten it before sending.',
+          ),
+        );
+      return;
+    }
+    const mode = submission.mode ?? session.mode;
     if (session.messages.length >= 160) {
       setNotice(
         t(
@@ -425,20 +421,19 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
       return;
     }
     setNotice('');
-    setDraft('');
-    const user = newMessage('user', value.trim().slice(0, 3000));
+    setDraft(submission.draft);
+    const user = newMessage('user', submission.text);
+    if (choice) submissionFocus.current = user.id;
     const assistant = newMessage('assistant', '');
     const correlation = { operation: assistant.id, conversation: session.id };
     track('agent_started', {
       ...correlation,
       tool: 'agent',
-      mode: session.mode,
-      action:
-        value === draft && isSuggestionIntact(value, stagedSuggestion.current)
-          ? stagedSuggestion.current.action
-          : 'none',
+      mode,
+      action: submission.action,
     });
-    stagedSuggestion.current = { text: '', start: 0, action: 'none' };
+    if (choice?.action === 'clarification' || choice?.action === 'followup')
+      track('suggestion_selected', { tool: 'agent', action: choice.action, ...correlation });
     setBusy(true);
     setMobilePane('chat');
     stickToBottom.current = true;
@@ -465,7 +460,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
       .slice(0, 5000);
     mutateSession(session.id, (s) => ({
       ...s,
-      title: s.messages.length ? s.title : value.trim().slice(0, 30),
+      mode,
+      title: s.messages.length ? s.title : submission.text.slice(0, 30),
       updatedAt: new Date().toISOString(),
       messages: [...s.messages, user, assistant],
     }));
@@ -486,10 +482,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
         },
         signal: controller.signal,
         body: JSON.stringify({
-          message: value.trim().slice(0, 3000),
+          message: submission.text,
           history,
           locale,
-          mode: session.mode,
+          mode,
           consent: true,
           context: {
             note: contextNote,
@@ -532,7 +528,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             track('agent_received', {
               ...correlation,
               tool: 'agent',
-              mode: session.mode,
+              mode,
               status: event.type === 'done' ? event.status : 'error',
             });
           }
@@ -579,7 +575,6 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
       if (pending.current?.generationId === generationId) {
         pending.current = null;
         setBusy(false);
-        textarea.current?.focus();
       }
     }
   }
@@ -607,45 +602,6 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
       setStorageError(true);
     }
   }
-  const starters = [
-    {
-      kind: 'bazi' as const,
-      description: t('四柱排盘 · 五行构成', 'Four pillars · Five elements'),
-      label: t('看见自己', 'Understand yourself'),
-      text: t('我想了解自己的八字，从哪里开始？', 'I want to explore my BaZi chart. Where do we begin?'),
-      mode: 'explore' as const,
-    },
-    {
-      kind: 'tarot' as const,
-      description: t('三张牌 · 三个看问题的角度', 'Three cards · A new perspective'),
-      label: t('眼前的问题', 'A question in mind'),
-      text: t(
-        '帮我抽三张塔罗，梳理最近工作上的犹豫。',
-        'Draw three tarot cards to reflect on a decision at work.',
-      ),
-      mode: 'explore' as const,
-    },
-    {
-      kind: 'library' as const,
-      description: t('查阅资料 · 整理图解札记', 'Read sources · Make a visual note'),
-      label: t('带着依据研习', 'Follow the evidence'),
-      text: t(
-        '真太阳时会怎样影响八字？查阅资料，整理一份有出处的说明。',
-        'How does apparent solar time affect BaZi? Research it and create a sourced note.',
-      ),
-      mode: 'research' as const,
-    },
-    {
-      kind: 'iching' as const,
-      description: t('六爻成象 · 看见变化', 'Six lines · Reflect on change'),
-      label: t('在变化中思考', 'Reflect on change'),
-      text: t(
-        '为我起一卦，看看如何面对一个还不确定的新开始。',
-        'Cast an I Ching hexagram to reflect on an uncertain new beginning.',
-      ),
-      mode: 'explore' as const,
-    },
-  ];
   return (
     <div
       className={`agent-workspace ${sidebar ? 'sidebar-open' : ''} mobile-${mobilePane}`}
@@ -853,39 +809,24 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             <AgentOnboarding
               key={activeId}
               locale={locale}
-              disabled={!loaded}
-              onDirect={() => textarea.current?.focus()}
-              onCompose={(value) => {
-                if (!prepareDraft(value.text, 'guided')) return false;
-                if (active) mutateSession(active.id, (a) => ({ ...a, mode: value.mode }));
-                return true;
-              }}
-            >
-              <div className="agent-starters">
-                {starters.map((s) => (
-                  <button
-                    key={s.label}
-                    onClick={() => {
-                      if (prepareDraft(s.text, 'example') && active)
-                        mutateSession(active.id, (a) => ({ ...a, mode: s.mode }));
-                    }}
-                  >
-                    <InstrumentGlyph kind={s.kind} size={48} />
-                    <span>
-                      <small>{s.label}</small>
-                      <strong>{s.description}</strong>
-                    </span>
-                    <ArrowUpRight size={14} />
-                  </button>
-                ))}
-              </div>
-            </AgentOnboarding>
+              disabled={!loaded || busy}
+              hasDraft={!!draft.trim()}
+              onStart={(choice) => void send(choice)}
+            />
           ) : (
             <div className="agent-message-list">
               <h1 className="sr-only">{t('命理 Agent', 'Wenbu Agent')}</h1>
               {active.messages.map((message, i) => (
                 <article
                   key={message.id}
+                  data-message-id={message.id}
+                  tabIndex={message.role === 'user' ? -1 : undefined}
+                  ref={(node) => {
+                    if (node && submissionFocus.current === message.id && !dialog.current?.open) {
+                      submissionFocus.current = null;
+                      node.focus({ preventScroll: true });
+                    }
+                  }}
                   className={`agent-message role-${message.role} ${currentTurn.includes(message.id) ? 'is-current-turn' : ''}`}
                 >
                   {message.role === 'assistant' && (
@@ -900,6 +841,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                     </div>
                   )}
                   {message.role === 'assistant' &&
+                    message.status !== 'waiting' &&
                     (message.status === 'running' || currentTurn.includes(message.id)) && (
                       <AgentRitual message={message} locale={locale} />
                     )}
@@ -932,7 +874,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       </ol>
                     </details>
                   )}
-                  {!!message.tools.length && (
+                  {message.tools.some(
+                    (tool) =>
+                      tool.name !== 'update_plan' && (tool.name !== 'ask_user' || tool.status !== 'complete'),
+                  ) && (
                     <AgentTrace message={message} locale={locale}>
                       {message.tools
                         .filter((tool) => tool.name !== 'update_plan')
@@ -993,23 +938,26 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       )}
                     </div>
                   )}
-                  {message.role === 'assistant' && message.status !== 'running' && message.text && (
-                    <FeedbackTrigger
-                      locale={locale}
-                      tool="agent"
-                      category="reading"
-                      operation={message.id}
-                      conversation={active?.id}
-                      excerpt={
-                        (active?.messages
-                          .slice(0, active.messages.indexOf(message))
-                          .reverse()
-                          .find((m) => m.role === 'user')?.text ?? '') +
-                        '\n\n' +
-                        message.text
-                      }
-                    />
-                  )}
+                  {message.role === 'assistant' &&
+                    message.status === 'complete' &&
+                    !message.question &&
+                    message.text && (
+                      <FeedbackTrigger
+                        locale={locale}
+                        tool="agent"
+                        category="reading"
+                        operation={message.id}
+                        conversation={active?.id}
+                        excerpt={
+                          (active?.messages
+                            .slice(0, active.messages.indexOf(message))
+                            .reverse()
+                            .find((m) => m.role === 'user')?.text ?? '') +
+                          '\n\n' +
+                          message.text
+                        }
+                      />
+                    )}
                   {!!message.artifacts.length && (
                     <div className="agent-artifact-links">
                       {message.artifacts.map((a) => (
@@ -1050,14 +998,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                     <AgentConversationGuide
                       key={message.id}
                       message={message}
-                      stagedText={
-                        isSuggestionIntact(draft, stagedSuggestion.current)
-                          ? stagedSuggestion.current.text
-                          : ''
-                      }
+                      hasDraft={!!draft.trim()}
                       locale={locale}
                       disabled={busy}
-                      onStage={(text) => prepareDraft(text, message.question ? 'clarification' : 'followup')}
+                      onReply={(choice) => void send(choice)}
                       onCustom={() => {
                         setMobilePane('chat');
                         textarea.current?.focus();
@@ -1071,12 +1015,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       <button
                         disabled={busy}
                         onClick={() =>
-                          void send(
-                            t(
-                              '请从刚才已完成的步骤继续，沿用已有的命盘、卦象或牌阵，不要重新抽取。',
-                              'Continue from the completed steps. Keep the existing charts, cast and cards; do not redraw.',
-                            ),
-                          )
+                          void send({
+                            text: t('沿用已有结果继续', 'Continue with existing results'),
+                            action: 'followup',
+                          })
                         }
                       >
                         {t('沿用已有结果继续', 'Continue with existing results')} →
@@ -1110,14 +1052,6 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               if (!busy) void send();
             }}
           >
-            <div className="agent-draft-receipt" role="status" aria-atomic="true">
-              {isSuggestionIntact(draft, stagedSuggestion.current) && stagedSuggestion.current.text && (
-                <span key={stagedSuggestion.current.text}>
-                  <Check size={13} aria-hidden="true" />
-                  {t('已放入草稿，可修改后发送', 'Draft added · edit before sending')}
-                </span>
-              )}
-            </div>
             <textarea
               ref={textarea}
               value={draft}
@@ -1128,13 +1062,9 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               placeholder={
                 active?.messages.length
                   ? t('补充你的情况，或继续追问……', 'Add context, or ask a follow-up…')
-                  : t('也可以直接写：我最近在犹豫……', 'Or start here: lately, I have been wondering…')
+                  : t('写下你的问题，不必想好怎么问……', 'Write what’s on your mind. A few words are enough…')
               }
-              onChange={(e) => {
-                setDraft(e.target.value);
-                if (!isSuggestionIntact(e.target.value, stagedSuggestion.current))
-                  stagedSuggestion.current = { text: '', start: 0, action: 'none' };
-              }}
+              onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
@@ -1360,7 +1290,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                     sources={sources}
                     locale={locale}
                     busy={busy}
-                    onQuestion={(question) => prepareDraft(question, 'followup')}
+                    onQuestion={(text) => void send({ text, action: 'followup' })}
                   />
                 )}
                 <div className="agent-artifact-actions">
@@ -1408,12 +1338,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             focusAfterContext.current = !resumeAfterContext || busy;
             setContextOpen(false);
             if (resumeAfterContext && !busy) {
-              void send(
-                t(
-                  '请使用我刚才选择的出生资料继续排盘，并保留时间与计算约定中的不确定性。',
-                  'Continue using the birth details I selected, preserving uncertainty and calculation conventions.',
-                ),
-              );
+              void send({
+                text: t('出生资料已补充，请继续。', 'I’ve added my birth details. Please continue.'),
+                action: 'clarification',
+              });
             } else {
               setNotice(
                 t(

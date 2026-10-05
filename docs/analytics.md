@@ -77,11 +77,13 @@ CSV 导出完整时间序列，时间边界为带 Z 的 UTC ISO 时间，未来�
 
 ## Agent 提问引导
 
-`guide_opened` 表示第一次选择主题或重新打开引导，`guide_step` 的 value 为 1–3（仅步骤编号），`guide_skipped` 表示转为直接输入，`guide_draft_created` 表示放入草稿，`suggestion_selected` 的 action 区分 clarification / followup。`agent_started` 的 action 区分 guided / clarification / followup / example；自由编辑后若原建议已不完整则归普通对话。
+自 2026-10-05 起，入口和对话选项直接发送按钮上可见的那句话，不再经过表单或草稿。`agent_started` 的 action 区分 guided（入口）、clarification（回答澄清）、followup（后续追问）、example（工具示例）、none（自由输入）。点击被加载状态、正在执行或输入校验拦住时，不记录开始事件；允许的提交在网络请求前记录，不能因此认定模型已收到或完成。
 
-管理员后台的“Agent 提问引导”显示每步操作数和访问会话数。它能定位用户是否停在目标选择、背景补充或草稿阶段；回退和重复编辑都会产生操作，不能直接用次数相除当转化率。发送与实际服务端完成分别统计。测试流量遵循统一排除规则。
+`suggestion_selected` 的 action 区分 clarification / followup，与接受提交时的回合 ID 关联。引导按钮不会混入或覆盖用户未发送的草稿。自由输入始终归 none。
 
-不记录选了工作还是关系、不记录选项原文，也不记录背景、对话或出生资料。引导选择在本页完成，直到用户发送后才作为对话内容交给 DeepSeek。
+管理员后台保留旧版 `guide_opened`、`guide_step`（value 1–3）、`guide_skipped`、`guide_draft_created` 的历史查询，标签注明“旧版”；新界面不再产生这些事件。2026-10-05 前的 guided / clarification / followup 开始事件可能来自草稿发送，跨版本比较应按日期分段。操作次数、访问会话数和服务端完成数分别统计，不将点击率当完成率。
+
+不记录主题、选项原文、草稿、对话或出生资料到分析事件。点选即发送的说明出现在入口、选项和结果页；只有已提交的对话及用户选中的上下文会交给 DeepSeek。测试流量遵循统一排除规则。
 
 ## 推广链接
 

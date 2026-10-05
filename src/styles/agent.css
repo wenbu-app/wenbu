@@ -384,50 +384,6 @@
   color: #74796d;
   margin-bottom: 26px;
 }
-.agent-starters {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 11px;
-}
-.agent-starters > button {
-  text-align: left;
-  padding: 15px 13px;
-  border: 1px solid #e1e2d7;
-  background: #f5f4eb;
-  border-radius: 3px;
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  transition:
-    border-color 0.18s,
-    background 0.18s,
-    transform 0.18s;
-}
-.agent-starters > button:hover {
-  border-color: #b3bba5;
-  background: #eeefdf;
-  transform: translateY(-2px);
-}
-.agent-starters > button > svg:first-child {
-  color: #7e8a70;
-  margin-top: 2px;
-}
-.agent-starters > button > svg:last-child {
-  color: #7b826f;
-  margin: 2px 0 0 auto;
-}
-.agent-starters small {
-  display: block;
-  font-size: 9px;
-  color: #717a68;
-  margin-bottom: 6px;
-}
-.agent-starters strong {
-  font-size: 11px;
-  line-height: 1.75;
-  font-weight: 400;
-  display: block;
-}
 .agent-composer-area {
   padding: 14px 28px 17px;
   max-width: 840px;
@@ -1510,9 +1466,6 @@
   .agent-welcome > p {
     margin-bottom: 20px;
   }
-  .agent-starters > button {
-    padding: 11px;
-  }
 }
 @media (max-width: 1180px) and (min-width: 1001px) {
   .agent-workspace {
@@ -1596,15 +1549,6 @@
   }
   .agent-welcome {
     padding: 30px 28px;
-  }
-  .agent-starters {
-    gap: 8px;
-  }
-  .agent-starters > button {
-    padding: 13px 10px;
-  }
-  .agent-starters > button > svg:last-child {
-    display: none;
   }
   .agent-provider {
     display: none;
@@ -1698,25 +1642,6 @@
   .agent-welcome > p {
     font-size: 11px;
     margin-bottom: 21px;
-  }
-  .agent-starters {
-    gap: 9px;
-  }
-  .agent-starters > button {
-    padding: 12px 10px;
-    gap: 8px;
-  }
-  .agent-starters > button > svg:first-child {
-    width: 15px;
-    height: 15px;
-  }
-  .agent-starters small {
-    font-size: 8px;
-    margin-bottom: 4px;
-  }
-  .agent-starters strong {
-    font-size: 10px;
-    line-height: 1.65;
   }
   .agent-composer-area {
     padding: 9px 13px max(10px, env(safe-area-inset-bottom));
@@ -1862,9 +1787,6 @@
   }
   .agent-welcome {
     padding: 24px 18px;
-  }
-  .agent-starters strong {
-    font-size: 9px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
