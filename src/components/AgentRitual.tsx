@@ -201,14 +201,16 @@ export default function AgentRitual({ message, locale }: { message: AgentMessage
           <div className="agent-ritual-facts">
             {message.sources.length > 0 && (
               <span key={`sources-${message.sources.length}`}>
-                {zh ? `已读 ${message.sources.length} 份资料` : `${message.sources.length} sources read`}
+                {zh
+                  ? `已读 ${message.sources.length} 份资料`
+                  : `${message.sources.length} ${message.sources.length === 1 ? 'source' : 'sources'} read`}
               </span>
             )}
             {message.artifacts.length > 0 && (
               <span key={`results-${message.artifacts.length}`}>
                 {zh
                   ? `已生成 ${message.artifacts.length} 份结果`
-                  : `${message.artifacts.length} results received`}
+                  : `${message.artifacts.length} ${message.artifacts.length === 1 ? 'result' : 'results'} received`}
               </span>
             )}
           </div>

@@ -1,0 +1,5 @@
+Attempt 1: supplied patch, no tools and no subagents. Stopped after more than 8 minutes with no review verdict. Startup diagnostics are omitted.
+
+Attempt 2: direct single-turn prompt, fallback Git, no tools/subagents, 120-second deadline.
+
+Timed out without a review verdict.

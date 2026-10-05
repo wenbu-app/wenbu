@@ -29,6 +29,7 @@ import {
   recordSaveState,
 } from '../lib/account-client';
 import { accountError } from './AccountPanel';
+import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
 
 async function post<T>(
   path: string,
@@ -54,9 +55,7 @@ async function post<T>(
   });
   const data = await response.json();
   if (!response.ok)
-    throw new Error(
-      data.error?.message || accountError(data.error?.code, document.documentElement.lang.startsWith('zh')),
-    );
+    throw new UserFacingError(accountError(data.error?.code, document.documentElement.lang.startsWith('zh')));
   const receipt = response.headers.get('X-Wenbu-Receipt');
   if (receipt) onReceipt?.(receipt);
   return data;
@@ -220,7 +219,13 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
     } catch (e) {
       track('client_error', { tool: kind, operation: operationId, status: 'error' });
       setError(
-        e instanceof Error ? e.message : t('连接失败，请重试。', 'Connection failed. Please try again.'),
+        uiErrorMessage(
+          e,
+          t(
+            '暂时无法取得结果。你的输入仍在，请联网后重试。',
+            'We couldn’t get a result. Your input is still here; reconnect and try again.',
+          ),
+        ),
       );
       setSelected([]);
     } finally {
@@ -273,7 +278,16 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         ...correlation,
         status: controller.signal.aborted ? 'cancelled' : 'error',
       });
-      if (!controller.signal.aborted && e instanceof Error && e.name !== 'AbortError') setAiError(e.message);
+      if (!controller.signal.aborted)
+        setAiError(
+          uiErrorMessage(
+            e,
+            t(
+              '解读暂未完成，原始结果仍保留。请稍后重试。',
+              'The reading did not finish. Your original result is retained; please try again.',
+            ),
+          ),
+        );
     } finally {
       if (aiAbort.current === controller) setAiBusy(false);
     }
@@ -733,7 +747,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         </p>
         {!result ? (
           <div className="empty-reading">
-            <div className="empty-orbit">
+            <div className="empty-orbit" aria-hidden="true">
               <i />
               <span>
                 {kind === 'bazi' ? '命' : kind === 'iching' ? '易' : kind === 'tarot' ? '象' : '星'}
@@ -744,8 +758,21 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
             <h2>{t('答案之前，先看见自己。', 'Before an answer, a new perspective.')}</h2>
             <p>
               {t(
-                '填入信息，或让一次随机的相遇，成为思考的起点。',
-                'Enter your details, or let a chance encounter become a starting point for reflection.',
+                {
+                  bazi: '填写出生日期与时间，先看四柱的结构。记不清时辰，也可以继续。',
+                  ziwei: '填写出生日期与时辰，查看十二宫星曜。原始星盘与计算约定会显示在这里。',
+                  iching: '带着一个具体的问题，选自动起卦或记录六次掷币。卦象与动爻会显示在这里。',
+                  tarot: '想一个正在面对的问题，再选一张或三张牌。可以自己选牌，也可以让系统随机抽取。',
+                }[kind],
+                {
+                  bazi: 'Enter your birth date and time to see the four pillars. You can continue even if you do not know the hour.',
+                  ziwei:
+                    'Enter your birth date and time to see the twelve palaces. Your chart and calculation conventions will appear here.',
+                  iching:
+                    'Focus on one question, then use a random cast or record six coin tosses. Your hexagram and changing lines will appear here.',
+                  tarot:
+                    'Think of a situation, then choose one or three cards. Pick them yourself or let Wenbu draw at random.',
+                }[kind],
               )}
             </p>
             <a className="text-link" href={href(locale, 'methodology')}>

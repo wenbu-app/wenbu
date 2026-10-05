@@ -60,6 +60,8 @@ import AgentRitual, { useAgentMotion } from './AgentRitual';
 import ReadingView from './ReadingView';
 import { readReportVisual } from '../lib/agent-report';
 import { prepareAgentSubmission, type ConversationChoice } from '../lib/agent-guidance';
+import { shouldSendMessage } from '../lib/agent-keyboard';
+import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
 import AgentOnboarding from './AgentOnboarding';
 import AgentConversationGuide from './AgentConversationGuide';
 import '../styles/agent.css';
@@ -112,6 +114,9 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const [remaining, setRemaining] = useState<number>();
   const [sidebar, setSidebar] = useState(false);
   const [mobilePane, setMobilePane] = useState<'chat' | 'results'>('chat');
+  const previousPane = useRef(mobilePane);
+  const showResults = useRef<HTMLButtonElement>(null);
+  const backToConversation = useRef<HTMLButtonElement>(null);
   const [panel, setPanel] = useState<'results' | 'sources'>('results');
   const [selectedArtifact, setSelectedArtifact] = useState('');
   const [sessionSearch, setSessionSearch] = useState('');
@@ -129,6 +134,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  const [atLatest, setAtLatest] = useState(true);
   const dialog = useRef<HTMLDialogElement>(null);
   const focusAfterContext = useRef(false);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -236,6 +242,12 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     if (scroll.current && (!active?.messages.length || stickToBottom.current))
       scroll.current.scrollTop = active?.messages.length ? scroll.current.scrollHeight : 0;
   }, [active?.messages, busy]);
+  useEffect(() => {
+    if (previousPane.current === mobilePane) return;
+    previousPane.current = mobilePane;
+    if (!window.matchMedia('(max-width: 700px)').matches) return;
+    (mobilePane === 'results' ? backToConversation : showResults).current?.focus();
+  }, [mobilePane]);
   useEffect(() => {
     setArrivingArtifacts([]);
   }, [motion.reduced]);
@@ -508,7 +520,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
       });
       if (!response.ok) {
         const data = (await response.json()) as { error?: { message?: string; code?: string } };
-        throw new Error(data.error?.message ?? accountError(data.error?.code || '', locale === 'zh'));
+        throw new UserFacingError(accountError(data.error?.code || '', locale === 'zh'));
       }
       if (!response.body) throw new Error('No response stream');
       await consumeSse(
@@ -544,7 +556,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
         controller.signal,
       );
       if (!terminal && isCurrent())
-        throw new Error(
+        throw new UserFacingError(
           t(
             '连接在完成前中断，已收到的结果仍保留。',
             'The connection ended before completion. Received results are retained.',
@@ -560,9 +572,13 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             message:
               error instanceof AccountClientError
                 ? accountError(error.code, locale === 'zh')
-                : error instanceof Error
-                  ? error.message
-                  : t('连接失败，请稍后再试。', 'Connection failed. Try again later.'),
+                : uiErrorMessage(
+                    error,
+                    t(
+                      '连接在完成前中断，已收到的结果仍保留。请检查网络后继续。',
+                      'The connection ended before completion. Received results are retained; check your connection and continue.',
+                    ),
+                  ),
           }),
         );
     } finally {
@@ -770,8 +786,11 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               <Download size={16} />
             </button>
             <button
+              ref={showResults}
               className="agent-icon-button mobile-only"
               aria-label={t('查看探索结果', 'Show results')}
+              aria-controls="agent-results-pane"
+              aria-expanded={mobilePane === 'results'}
               onClick={() => setMobilePane('results')}
             >
               <PanelRight size={18} />
@@ -805,10 +824,14 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
         <div
           className="agent-chat-scroll"
           ref={scroll}
+          tabIndex={-1}
+          aria-label={t('对话内容', 'Conversation messages')}
           onScroll={() => {
-            if (scroll.current)
+            if (scroll.current) {
               stickToBottom.current =
                 scroll.current.scrollHeight - scroll.current.scrollTop - scroll.current.clientHeight < 110;
+              setAtLatest(stickToBottom.current);
+            }
           }}
         >
           {!active?.messages.length ? (
@@ -980,7 +1003,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                           <span>
                             <small>
                               {a.type === 'chart'
-                                ? t('可查看的原始结果', 'Verified result')
+                                ? t('可查看的原始结果', 'Original result')
                                 : t('已整理的研究札记', 'Research note')}
                             </small>
                             <strong>{a.title}</strong>
@@ -1000,7 +1023,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       }}
                     >
                       <BookOpen size={13} />
-                      {message.sources.length} {t('份已读取资料', 'sources read')}
+                      {message.sources.length}{' '}
+                      {t('份已读取资料', message.sources.length === 1 ? 'source read' : 'sources read')}
                       <ArrowUpRight size={11} />
                     </button>
                   )}
@@ -1066,6 +1090,23 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           )}
         </div>
         <div className="agent-composer-area">
+          {!atLatest && !!active?.messages.length && (
+            <button
+              type="button"
+              className="agent-jump-latest"
+              onClick={() => {
+                stickToBottom.current = true;
+                if (scroll.current) {
+                  scroll.current.scrollTop = scroll.current.scrollHeight;
+                  scroll.current.focus({ preventScroll: true });
+                }
+                setAtLatest(true);
+              }}
+            >
+              <ChevronDown size={14} />
+              {t('回到最新消息', 'Jump to latest')}
+            </button>
+          )}
           <form
             className={`agent-composer ${busy ? 'is-working' : ''}`}
             onSubmit={(event) => {
@@ -1080,6 +1121,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               rows={2}
               disabled={!loaded}
               aria-label={t('向命理 Agent 提问', 'Ask Wenbu Agent')}
+              aria-describedby="agent-input-help"
               placeholder={
                 active?.messages.length
                   ? t('补充你的情况，或继续追问……', 'Add context, or ask a follow-up…')
@@ -1087,17 +1129,32 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               }
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                if (
+                  shouldSendMessage(
+                    {
+                      key: e.key,
+                      shiftKey: e.shiftKey,
+                      ctrlKey: e.ctrlKey,
+                      metaKey: e.metaKey,
+                      isComposing: e.nativeEvent.isComposing,
+                      // Safari can report the legacy IME confirmation code without isComposing.
+                      keyCode: (e.nativeEvent as { keyCode?: number }).keyCode,
+                    },
+                    window.matchMedia('(pointer: coarse)').matches,
+                  )
+                ) {
                   e.preventDefault();
                   if (!busy) void send();
                 }
               }}
             />
             <div className="agent-composer-controls">
-              <div className="agent-mode-picker" aria-label={t('探索方式', 'Exploration mode')}>
+              <div className="agent-mode-picker" role="group" aria-label={t('探索方式', 'Exploration mode')}>
                 <button
                   type="button"
                   className={active?.mode === 'explore' ? 'selected' : ''}
+                  aria-pressed={active?.mode === 'explore'}
+                  disabled={!loaded}
                   title={t(
                     '围绕你的问题对话，按需使用排盘与抽取工具',
                     'Talk through your question and use reading tools when needed',
@@ -1110,6 +1167,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                 <button
                   type="button"
                   className={active?.mode === 'research' ? 'selected' : ''}
+                  aria-pressed={active?.mode === 'research'}
+                  disabled={!loaded}
                   title={t(
                     '查阅资料、核对出处，整理研究札记',
                     'Read sources and prepare a referenced research note',
@@ -1151,6 +1210,14 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               )}
             </div>
           </form>
+          <p id="agent-input-help" className="agent-input-help">
+            <span className="keyboard-fine">
+              {t('Enter 发送 · Shift + Enter 换行', 'Enter to send · Shift + Enter for a new line')}
+            </span>
+            <span className="keyboard-coarse">
+              {t('回车换行 · 点箭头发送', 'Return for a new line · Tap the arrow to send')}
+            </span>
+          </p>
           <div className="agent-composer-foot">
             <span>
               {t(
@@ -1161,23 +1228,32 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             <span>
               {remaining === undefined
                 ? t('每日 12 回合', '12 turns / day')
-                : t(`今日余 ${remaining} 回合`, `${remaining} turns left today`)}
+                : t(
+                    `今日余 ${remaining} 回合`,
+                    `${remaining} ${remaining === 1 ? 'turn' : 'turns'} left today`,
+                  )}
             </span>
           </div>
         </div>
       </section>
-      <aside className="agent-result-pane" aria-label={t('探索结果与资料', 'Results and sources')}>
+      <aside
+        id="agent-results-pane"
+        className="agent-result-pane"
+        aria-label={t('探索结果与资料', 'Results and sources')}
+      >
         <div className="agent-panel-toolbar">
           <button
+            ref={backToConversation}
             className="agent-icon-button mobile-only"
             aria-label={t('返回对话', 'Back to conversation')}
             onClick={() => setMobilePane('chat')}
           >
             <ChevronRight className="rotate-180" size={19} />
           </button>
-          <div className="agent-panel-tabs">
+          <div className="agent-panel-tabs" role="group" aria-label={t('结果面板内容', 'Result panel view')}>
             <button
               className={panel === 'results' ? 'selected' : ''}
+              aria-pressed={panel === 'results'}
               onClick={() => {
                 setArrivingArtifacts([]);
                 setPanel('results');
@@ -1188,6 +1264,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             </button>
             <button
               className={panel === 'sources' ? 'selected' : ''}
+              aria-pressed={panel === 'sources'}
               onClick={() => {
                 setArrivingArtifacts([]);
                 setPanel('sources');
@@ -1287,8 +1364,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                           'Generated by the calculation tools · inspect the structure',
                         )
                       : t(
-                          '基于所读资料与本次对话整理',
-                          'Prepared from the sources read and this conversation',
+                          '本次对话的整理，引用与适用范围见下方',
+                          'A note from this conversation. Review the sources and limits below.',
                         )}
                   </p>
                 </div>

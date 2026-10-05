@@ -1,5 +1,7 @@
 # Quality and review evidence
 
+- [2026-10-06: deep bilingual UI / UX research, full-route checks and systematic interaction recovery](ui-ux-depth-2026-10-06/README.md).
+
 - [2026-10-05: full UI / UX audit, contextual saves and bilingual analytics](ui-ux-2026-10-05/README.md).
 
 - [2026-10-05: registration timing research and live guest-to-save entry review](registration-timing-2026-10-05/README.md) — original research; implementation and release status are recorded in the UI / UX audit above.

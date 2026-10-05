@@ -107,12 +107,12 @@
 }
 .observatory-more-filters summary span {
   font-size: 10px;
-  color: #6a7660;
+  color: var(--muted);
 }
 .observatory-more-filters p,
 .observatory-dates p {
   font-size: 11px;
-  color: #65725c;
+  color: var(--muted);
   line-height: 1.8;
 }
 .observatory-filter-footer {
@@ -133,7 +133,7 @@
   accent-color: #496342;
 }
 .observatory-filter-footer > span {
-  color: #717d68;
+  color: var(--muted);
   font-size: 10px;
   margin-right: auto;
 }
@@ -149,7 +149,7 @@
   padding: 5px 0;
   font: inherit;
   font-size: 12px;
-  color: #5c7051;
+  color: var(--muted);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 4px;
@@ -164,7 +164,7 @@
 .observatory-dates > span {
   padding-bottom: 12px;
   font-size: 12px;
-  color: #68775d;
+  color: var(--muted);
 }
 .observatory-dates p {
   margin: 0 0 9px;
@@ -180,7 +180,7 @@
 .observatory-toolbar small {
   display: block;
   margin-top: 5px;
-  color: #76836d;
+  color: var(--muted);
 }
 .observatory-toolbar button {
   font: inherit;
@@ -243,7 +243,7 @@
 .observatory-metrics small {
   display: block;
   font-size: 9px;
-  color: #748368;
+  color: var(--muted);
 }
 .observatory-results {
   transition: opacity 0.16s;
@@ -266,7 +266,7 @@
 .observatory .eyebrow {
   font-size: 9px;
   letter-spacing: 0.16em;
-  color: #7e896f;
+  color: var(--muted);
 }
 .observatory h2 {
   color: #374e39;
@@ -280,7 +280,7 @@
 }
 .observatory-chart-heading p {
   font-size: 11px;
-  color: #738069;
+  color: var(--muted);
 }
 .observatory-chart-actions {
   display: flex;
@@ -294,7 +294,7 @@
   align-items: center;
   border: 0;
   background: transparent;
-  color: #5a704d;
+  color: var(--muted);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
@@ -316,7 +316,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 3px;
-  color: #6f7a64;
+  color: var(--muted);
   cursor: pointer;
 }
 .observatory-legend button[aria-pressed='true'] {
@@ -341,7 +341,7 @@
 .observatory-chart-note {
   font-size: 10px !important;
   line-height: 1.8;
-  color: #738169;
+  color: var(--muted);
   margin-top: 16px;
 }
 .observatory-tooltip {
@@ -363,7 +363,7 @@
   display: block;
   font-size: 10px;
   margin: -4px 0 10px;
-  color: #7b795d;
+  color: var(--warm-muted);
 }
 .observatory-tooltip > div {
   display: flex;
@@ -389,7 +389,7 @@
   text-align: left;
   font-size: 11px;
   padding: 10px 0;
-  color: #6a7b60;
+  color: var(--muted);
 }
 .observatory-data-table th {
   white-space: nowrap;
@@ -473,7 +473,7 @@
   right: 0;
   bottom: 1px;
   font-size: 9px;
-  color: #738068;
+  color: var(--muted);
 }
 .observatory-hour-chart {
   height: 220px;
@@ -500,12 +500,12 @@
   bottom: 4px;
   font-size: 10px;
   font-style: normal;
-  color: #6e8062;
+  color: var(--muted);
 }
 .observatory-no-data {
   padding: 25px 0;
   font-size: 12px;
-  color: #839078;
+  color: var(--muted);
 }
 .observatory-detail-tables {
   padding-top: 17px;
@@ -520,12 +520,12 @@
 .observatory-detail-tables > summary span {
   margin-left: 12px;
   font-size: 10px;
-  color: #7a876e;
+  color: var(--muted);
 }
 .insights-quality-note {
   font-size: 11px;
   line-height: 1.9;
-  color: #7b846e;
+  color: var(--muted);
 }
 .observatory-refreshing {
   animation: observatory-spin 1.4s linear infinite;

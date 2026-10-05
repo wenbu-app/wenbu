@@ -1,0 +1,10 @@
+{
+  "scope": "disposable local D1 only",
+  "receipt": "dfd1604a-20c1-45fe-8448-46baa87ff5cb",
+  "records": 1,
+  "responseKeys": [
+    "rows",
+    "asOf",
+    "next"
+  ]
+}

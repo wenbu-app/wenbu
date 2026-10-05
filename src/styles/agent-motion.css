@@ -1,7 +1,7 @@
 /* Paper, ink and a measured cadence. Only live events start a ceremony. */
 .agent-workspace {
   --ritual-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --ritual-ink: #6c7761;
+  --ritual-ink: var(--muted);
   --ritual-red: #a35a45;
 }
 .agent-notice > span {
@@ -33,13 +33,13 @@
   align-items: center;
   gap: 5px;
   padding: 8px 6px;
-  color: #777e6c;
+  color: var(--muted);
   font-size: 9px;
   white-space: nowrap;
   border-radius: 3px;
 }
 .agent-motion-toggle[aria-pressed='false'] {
-  color: #8a877c;
+  color: var(--muted);
 }
 .agent-motion-toggle:disabled {
   cursor: default;
@@ -169,7 +169,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #8b8b79;
+  color: var(--muted);
   font-size: 8px;
   letter-spacing: 1.8px;
   margin-bottom: 7px;
@@ -190,7 +190,7 @@
 .agent-ritual-detail {
   font-size: 10px;
   line-height: 1.8;
-  color: #7c826f;
+  color: var(--muted);
   margin: 0;
 }
 .agent-ritual-facts {
@@ -199,7 +199,7 @@
   gap: 6px 14px;
   margin-top: 9px;
   font-size: 9px;
-  color: #6e7c60;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .agent-ritual-facts > span {
@@ -208,7 +208,7 @@
 .agent-ritual-facts > span + span::before {
   content: '·';
   margin-right: 12px;
-  color: #adab97;
+  color: var(--muted);
 }
 .agent-ritual[data-active='false'] {
   grid-template-columns: 42px minmax(0, 1fr);
@@ -231,7 +231,7 @@
   opacity: 0;
 }
 .agent-ritual[data-phase='interrupted'] .agent-ritual-title {
-  color: #806a56;
+  color: var(--warm-muted);
 }
 .agent-ritual[data-phase='settled'] .ritual-impression {
   animation: ritual-seal-arrive 550ms var(--ritual-ease);
@@ -276,7 +276,7 @@
   width: 25px;
   height: 28px;
   border: 1px solid #b47d66;
-  color: #a8634c;
+  color: var(--red);
   font: 17px var(--serif);
   transform: rotate(-5deg);
 }

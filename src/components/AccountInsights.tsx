@@ -1,5 +1,6 @@
 import { useInsightsLocale } from '../lib/insights-locale';
 import { useEffect, useState } from 'react';
+import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 type Report = {
   available: boolean;
@@ -41,14 +42,14 @@ export default function AccountInsights({ token }: { token: string }) {
       { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store', signal: abort.signal },
     )
       .then(async (r) => {
-        if (!r.ok) throw new Error(t('账号统计暂不可用，请稍后刷新。'));
+        if (!r.ok) throw new UserFacingError(t('账号统计暂不可用，请稍后刷新。'));
         return r.json() as Promise<Report>;
       })
       .then((data) => {
         if (!abort.signal.aborted) setReport(data);
       })
       .catch((e) => {
-        if (!abort.signal.aborted) setError(e.message);
+        if (!abort.signal.aborted) setError(uiErrorMessage(e, t('账号统计暂不可用，请稍后刷新。')));
       });
     return () => abort.abort();
   }, [token, days, locale, test, version]);
