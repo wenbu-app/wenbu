@@ -63,11 +63,21 @@ export const toolStarters = [
   },
 ] as const;
 
+// Older reports may contain intake questions addressed to the reader. Sending one
+// back as a user message reverses its meaning. Exclude these known intake patterns.
+export function reportFollowupQuestions(questions: string[]): string[] {
+  const intake =
+    /^(?:你(?:想|希望|更|有没有|是否|手上|已经|愿意)|想先(?:了解|深入|看|从)|要不要|是否要|愿不愿意|更想|还想|would you like|do you (?:want|prefer)|which .*(?:would|do) you|what (?:would|do) you|how (?:would you like|do you feel))/i;
+  return [...new Set(questions.map((q) => q.trim()).filter(Boolean))].filter(
+    (q) => q.length <= 3000 && !intake.test(q),
+  );
+}
+
 export function followupSuggestions(message: AgentMessage, locale: Locale): { id: string; text: string }[] {
   if (message.role !== 'assistant' || message.status !== 'complete' || message.question) return [];
   const report = [...message.artifacts].reverse().find((a) => a.type === 'report');
   if (report?.type === 'report') {
-    const questions = [...new Set(report.questions.map((q) => q.trim()).filter(Boolean))].slice(0, 2);
+    const questions = reportFollowupQuestions(report.questions).slice(0, 2);
     if (questions.length) return questions.map((text, i) => ({ id: `report-${i}`, text }));
   }
   const hasReading = message.artifacts.some((a) => a.type === 'chart');

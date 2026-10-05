@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   followupSuggestions,
+  reportFollowupQuestions,
   prepareAgentSubmission,
   conversationStarters,
   toolStarters,
@@ -53,6 +54,42 @@ describe('conversation submissions preserve authorship', () => {
 });
 
 describe('contextual follow-ups', () => {
+  it('never sends an old intake question back to the assistant as a user reply', () => {
+    expect(
+      reportFollowupQuestions([
+        '想先深入哪一边：八字的四柱结构，还是塔罗/易经的提问方式？',
+        '要不要用一张示例命盘，带你实际认一次年、月、日、时四柱？',
+        '你手上有没有一个当下的具体问题？',
+        'Would you like an example?',
+        'Which method would you prefer?',
+        '用示例命盘解释四柱结构',
+        '你能解释这个术语吗？',
+        'How does this work?',
+      ]),
+    ).toEqual(['用示例命盘解释四柱结构', '你能解释这个术语吗？', 'How does this work?']);
+    const message = newMessage('assistant', 'A report');
+    expect(
+      followupSuggestions(
+        {
+          ...message,
+          status: 'complete',
+          artifacts: [
+            {
+              type: 'report',
+              id: 'legacy',
+              title: 'Legacy',
+              summary: 'Summary',
+              sections: [],
+              questions: ['Would you like an example?'],
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+        'en',
+      ).map((item) => item.text),
+    ).toEqual(['Give me an example', 'Explain the evidence and limits']);
+  });
+
   it('never interrupts a clarification, running, failed or stopped turn with generic suggestions', () => {
     const message = newMessage('assistant', 'A question');
     for (const status of ['running', 'waiting', 'error', 'limited', 'stopped'] as const)

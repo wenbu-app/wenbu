@@ -44,7 +44,13 @@ export const reportSchema = z
       )
       .min(1)
       .max(4),
-    questions: z.array(z.string().max(100)).max(3).default([]),
+    questions: z
+      .array(z.string().max(100))
+      .max(3)
+      .default([])
+      .describe(
+        'Clickable follow-up messages written from the user’s perspective. Use specific requests, not questions addressed to the user or either-or choices. Example: Explain this with a hypothetical chart. Omit when unnecessary.',
+      ),
     visual: reportVisualSchema.optional(),
   })
   .strict()
