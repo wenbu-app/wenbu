@@ -7,7 +7,7 @@
   display: flex;
   gap: 9px;
   align-items: center;
-  color: #78816e;
+  color: #626f58;
   font-size: 10px;
   letter-spacing: 0.06em;
 }
@@ -28,6 +28,7 @@
   text-wrap: balance;
 }
 .agent-onboarding > p {
+  color: #64705c;
   margin-bottom: 22px;
 }
 .agent-starting-points {
@@ -55,7 +56,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #68785c;
+  color: #5b6c50;
   font-size: 10px;
   line-height: 1.5;
 }
@@ -93,7 +94,7 @@
   min-height: 44px;
   margin-top: 5px;
   padding: 7px 1px;
-  color: #69775e;
+  color: #5f6d53;
   font-size: 11px;
   line-height: 1.7;
   text-align: left;
@@ -116,7 +117,7 @@
   min-height: 44px;
   padding: 8px 0;
   list-style: none;
-  color: #6d7764;
+  color: #626f58;
   font-size: 11px;
   line-height: 1.65;
   cursor: pointer;
@@ -178,7 +179,7 @@
   gap: 8px;
   font-size: 11px;
   line-height: 1.65;
-  color: #68795b;
+  color: #607151;
   margin-bottom: 12px;
 }
 .agent-conversation-guide-heading svg {
@@ -228,7 +229,7 @@
   align-items: center;
   gap: 5px;
   min-height: 44px;
-  color: #68775d;
+  color: #5c6c51;
   font-size: 11px;
   text-align: left;
   line-height: 1.65;
@@ -241,7 +242,7 @@
 }
 .agent-guidance-hint {
   font-size: 10px;
-  color: #737e67;
+  color: #637055;
   line-height: 1.7;
   margin: 0;
 }
@@ -262,7 +263,7 @@
   display: block;
   font-size: 10px;
   line-height: 1.7;
-  color: #657557;
+  color: #526644;
   margin-top: 3px;
 }
 .agent-guidance-birth > svg {
@@ -305,6 +306,7 @@
     margin: 14px 0 9px;
   }
   .agent-onboarding > p {
+    color: #64705c;
     margin-bottom: 18px;
   }
   .agent-workspace .agent-starting-points > button {
