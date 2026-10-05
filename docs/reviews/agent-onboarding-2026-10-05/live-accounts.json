@@ -1,0 +1,65 @@
+{
+  "base": "https://wenbu.app",
+  "checkedAt": "2026-10-05T05:37:31.074Z",
+  "mailSent": false,
+  "accountCreated": false,
+  "checks": [
+    {
+      "path": "/api/account",
+      "status": 200
+    },
+    {
+      "path": "/api/account/records",
+      "status": 401
+    },
+    {
+      "path": "/api/account/export",
+      "status": 401
+    },
+    {
+      "path": "/api/admin/accounts/analytics",
+      "status": 401
+    },
+    {
+      "path": "/api/auth/get-session",
+      "status": 404
+    },
+    {
+      "path": "/api/auth/email-otp/send-verification-otp",
+      "status": 403
+    },
+    {
+      "path": "/api/auth/email-otp/send-verification-otp",
+      "status": 422
+    },
+    {
+      "path": "/api/v1/tarot",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/accounts/analytics",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/accounts/analytics",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/accounts/analytics",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/accounts/analytics",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/accounts/analytics",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/accounts/analytics",
+      "status": 422
+    }
+  ],
+  "result": "passed"
+}

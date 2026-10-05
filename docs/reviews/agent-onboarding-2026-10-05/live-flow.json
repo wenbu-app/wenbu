@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-05T05:46:30.401Z",
+  "url": "https://wenbu.app/agent/",
+  "scenario": "Synthetic public-library learning prompts, no personal birth details",
+  "composerCount": 1,
+  "draft": "报告追问测试：这段草稿也应该保留。",
+  "errorCount": 0,
+  "modelLabels": ["DeepSeek · deepseek-flash"],
+  "reportQuestions": [
+    "用一个虚构例子演示四种方法共享同一段背景时会怎样趋同",
+    "把一段解读拆成实际输入、传统说法和推测三类句子",
+    "解释一下基线在评估预测时起什么作用"
+  ],
+  "userMessages": [
+    "我想了解命理与占卜",
+    "整体概览：命理与占卜各是什么、区别在哪",
+    "把刚才的概览整理成两段简明报告，保留已核对的来源。",
+    "解释一下为什么四种方法互相验证不算独立检验"
+  ]
+}
