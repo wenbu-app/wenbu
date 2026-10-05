@@ -24,7 +24,7 @@
   gap: 16px;
   font: 10px/1.6 var(--sans);
   letter-spacing: 2px;
-  color: #61715b;
+  color: var(--muted);
   padding-bottom: 24px;
 }
 .knowledge-figure figcaption {
@@ -42,7 +42,7 @@
 }
 .knowledge-figure figcaption small {
   font: 11px/1.7 var(--sans);
-  color: #6a7064;
+  color: var(--muted);
 }
 .pillar-lesson {
   display: grid;
@@ -98,7 +98,7 @@
 }
 .trigram-lesson small {
   font: 11px/1.7 monospace;
-  color: #6d765f;
+  color: var(--muted);
 }
 .tarot-lesson {
   display: flex;
@@ -399,7 +399,7 @@
 }
 .lesson-line span {
   font: 11px/1.5 var(--sans);
-  color: #65765c;
+  color: var(--muted);
 }
 .lesson-line i {
   height: 7px;
@@ -584,7 +584,7 @@
   display: block;
   font: 10px/1.7 var(--sans);
   margin-top: 4px;
-  color: #64705a;
+  color: var(--muted);
 }
 .relation-map > div {
   border-top: 1px solid #c4ceb7;

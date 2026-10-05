@@ -40,6 +40,15 @@ import '../styles/account.css';
 
 export const accountError = (code: string, zh: boolean) => {
   const messages: Record<string, [string, string]> = {
+    invalid_input: [
+      '请检查填写内容，尤其是日期、时间和问题长度，再试一次。',
+      'Check the fields, especially the date, time and question length, then try again.',
+    ],
+    rate_limited: ['请求有些频繁，请稍后重试。', 'Too many requests. Please wait before trying again.'],
+    body_too_large: [
+      '提交内容过长，请精简问题或补充资料后再试。',
+      'This submission is too long. Shorten the question or context, then try again.',
+    ],
     OTP_EXPIRED: ['验证码已过期，请重新获取。', 'This code expired. Request a new one.'],
     daily_allowance: [
       '今日免费额度已用完，上海时间零点后恢复；工具和历史记录仍可使用。',

@@ -7,7 +7,7 @@
   display: flex;
   gap: 9px;
   align-items: center;
-  color: #626f58;
+  color: var(--muted);
   font-size: 10px;
   letter-spacing: 0.06em;
 }
@@ -28,7 +28,7 @@
   text-wrap: balance;
 }
 .agent-onboarding > p {
-  color: #64705c;
+  color: var(--muted);
   margin-bottom: 22px;
 }
 .agent-starting-points {
@@ -76,7 +76,7 @@
 }
 .agent-starting-prompt svg {
   flex-shrink: 0;
-  color: #7c8d6d;
+  color: var(--muted);
   transition: transform 160ms;
 }
 .agent-workspace .agent-starting-points > button:hover:not(:disabled) {
@@ -117,7 +117,7 @@
   min-height: 44px;
   padding: 8px 0;
   list-style: none;
-  color: #626f58;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.65;
   cursor: pointer;
@@ -151,7 +151,7 @@
 }
 .agent-tool-starts button > svg {
   flex-shrink: 0;
-  color: #718563;
+  color: var(--muted);
 }
 .agent-tool-starts button > svg:last-child {
   margin-left: auto;
@@ -179,7 +179,7 @@
   gap: 8px;
   font-size: 11px;
   line-height: 1.65;
-  color: #607151;
+  color: var(--muted);
   margin-bottom: 12px;
 }
 .agent-conversation-guide-heading svg {
@@ -216,7 +216,7 @@
 }
 .agent-guidance-options > button > svg {
   flex-shrink: 0;
-  color: #637951;
+  color: var(--muted);
 }
 .agent-guidance-other {
   display: flex;
@@ -242,7 +242,7 @@
 }
 .agent-guidance-hint {
   font-size: 10px;
-  color: #637055;
+  color: var(--muted);
   line-height: 1.7;
   margin: 0;
 }
@@ -306,7 +306,7 @@
     margin: 14px 0 9px;
   }
   .agent-onboarding > p {
-    color: #64705c;
+    color: var(--muted);
     margin-bottom: 18px;
   }
   .agent-workspace .agent-starting-points > button {

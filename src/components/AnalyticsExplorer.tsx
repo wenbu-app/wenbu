@@ -123,7 +123,7 @@ export default function AnalyticsExplorer({
       cache: 'no-store',
     });
     if (!response.ok)
-      throw new Error(
+      throw new UserFacingError(
         response.status === 401
           ? t('管理凭据已失效，请退出后重新登录。')
           : response.status === 429
@@ -147,7 +147,7 @@ export default function AnalyticsExplorer({
         setApplied(values);
       }
     } catch (e) {
-      if (version === generation.current) setError((e as Error).message);
+      if (version === generation.current) setError(uiErrorMessage(e, t('请求失败')));
     } finally {
       if (version === generation.current) setBusy(false);
     }
@@ -174,7 +174,7 @@ export default function AnalyticsExplorer({
     try {
       setDetail(await (await api('feedback/' + row.id)).json());
     } catch (e) {
-      setError((e as Error).message);
+      setError(uiErrorMessage(e, t('请求失败')));
     } finally {
       setBusy(false);
     }
@@ -204,7 +204,7 @@ export default function AnalyticsExplorer({
           },
       );
     } catch (e) {
-      setError((e as Error).message);
+      setError(uiErrorMessage(e, t('请求失败')));
     } finally {
       setBusy(false);
     }
@@ -216,7 +216,7 @@ export default function AnalyticsExplorer({
       const response = await api('archive?key=' + encodeURIComponent(key));
       saveBlob(await response.blob(), 'wenbu-' + key.split('/').slice(-2).join('-'));
     } catch (e) {
-      setError((e as Error).message);
+      setError(uiErrorMessage(e, t('请求失败')));
     } finally {
       setBusy(false);
     }
@@ -693,3 +693,4 @@ export default function AnalyticsExplorer({
     </section>
   );
 }
+import { UserFacingError, uiErrorMessage } from '../lib/ui-error';

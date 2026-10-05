@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Download, Trash2, ArrowUpRight, Search } from 'lucide-react';
+import { Bookmark, Download, Trash2, ArrowUpRight, Search, ArrowLeft } from 'lucide-react';
 import { readJournal, writeJournal, downloadJson, type Entry } from '../lib/journal';
 import { choose, href, toolInfo } from '../lib/i18n';
 import type { Locale } from '../lib/schema';
@@ -14,38 +14,57 @@ export default function Journal({ locale }: { locale: Locale }) {
   const [active, setActive] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const searchInput = useRef<HTMLInputElement>(null);
+  const detail = useRef<HTMLDivElement>(null);
+  const entryButtons = useRef(new Map<string, HTMLButtonElement>());
+  const focusDetail = useRef(false);
   const [removed, setRemoved] = useState<Entry | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
     let mounted = true;
-    const load = () => {
+    const load = (reset = false) => {
       if (mounted) {
-        setEntries(readJournal());
-        setActive(null);
-        setRemoved(null);
+        const next = readJournal();
+        setEntries(next);
+        setActive((id) => (!reset && next.some((entry) => entry.id === id) ? id : null));
+        if (reset) {
+          setRemoved(null);
+          setQuery('');
+          setError('');
+        }
         setReady(true);
       }
     };
-    void initializeAccount().then(load);
-    window.addEventListener('wenbu:account-changed', load);
-    window.addEventListener('wenbu:records-changed', load);
+    const accountChanged = () => load(true);
+    const recordsChanged = () => load();
+    void initializeAccount().then(() => load(true));
+    window.addEventListener('wenbu:account-changed', accountChanged);
+    window.addEventListener('wenbu:records-changed', recordsChanged);
     return () => {
       mounted = false;
-      window.removeEventListener('wenbu:account-changed', load);
-      window.removeEventListener('wenbu:records-changed', load);
+      window.removeEventListener('wenbu:account-changed', accountChanged);
+      window.removeEventListener('wenbu:records-changed', recordsChanged);
     };
   }, []);
+  useEffect(() => {
+    if (!active || !focusDetail.current) return;
+    focusDetail.current = false;
+    detail.current?.focus();
+  }, [active]);
   function update(list: Entry[]) {
     try {
       writeJournal(list);
       setEntries(list);
       setError('');
+      return true;
     } catch {
       setError(t('保存失败，请导出备份。', 'Storage failed. Please export a backup.'));
+      return false;
     }
   }
   const filtered = entries.filter((e) =>
-    `${e.question} ${e.note} ${e.answer?.title || ''}`.toLowerCase().includes(query.toLowerCase()),
+    `${e.question} ${e.note} ${e.answer?.title || ''} ${toolInfo[e.kind].zh} ${toolInfo[e.kind].en}`
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()),
   );
   const current = entries.find((e) => e.id === active);
   return (
@@ -58,7 +77,7 @@ export default function Journal({ locale }: { locale: Locale }) {
             ref={searchInput}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('搜索问题或笔记', 'Search questions or notes')}
+            placeholder={t('搜索问题、笔记或工具', 'Search questions, notes or tools')}
             aria-label={t('搜索手记', 'Search journal')}
           />
         </label>
@@ -89,8 +108,7 @@ export default function Journal({ locale }: { locale: Locale }) {
           <button
             className="text-button"
             onClick={() => {
-              update([{ ...removed, id: crypto.randomUUID() }, ...entries]);
-              setRemoved(null);
+              if (update([{ ...removed, id: crypto.randomUUID() }, ...entries])) setRemoved(null);
             }}
           >
             {t('恢复为副本', 'Restore as a copy')}
@@ -109,9 +127,12 @@ export default function Journal({ locale }: { locale: Locale }) {
               'Save a reading and a note about how it felt. Your future self may notice something new.',
             )}
           </p>
-          <a className="button primary" href={href(locale, 'bazi')}>
-            {t('开始我的第一次探索', 'Begin a first reading')}
+          <a className="button primary" href={href(locale, 'agent')}>
+            {t('从一个问题开始', 'Start with a question')}
             <ArrowUpRight size={16} />
+          </a>
+          <a className="text-link journal-tool-link" href={href(locale, 'learn/choose-a-tool')}>
+            {t('先了解四种工具', 'Explore the four tools')} ↗
           </a>
         </div>
       ) : (
@@ -119,7 +140,22 @@ export default function Journal({ locale }: { locale: Locale }) {
           <div className="journal-list">
             {filtered.map((e) => (
               <div className={`journal-entry ${active === e.id ? 'active' : ''}`} key={e.id}>
-                <button className="entry-open" onClick={() => setActive(e.id)}>
+                <button
+                  className="entry-open"
+                  aria-pressed={active === e.id}
+                  ref={(node) => {
+                    if (node) entryButtons.current.set(e.id, node);
+                    else entryButtons.current.delete(e.id);
+                  }}
+                  onClick={() => {
+                    const mobile = window.matchMedia('(max-width: 800px)').matches;
+                    if (active === e.id && mobile) detail.current?.focus();
+                    else {
+                      focusDetail.current = mobile;
+                      setActive(e.id);
+                    }
+                  }}
+                >
                   <span className="eyebrow">
                     {t(toolInfo[e.kind].zh, toolInfo[e.kind].en)} ·{' '}
                     {new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en-GB', {
@@ -134,9 +170,10 @@ export default function Journal({ locale }: { locale: Locale }) {
                   className="icon-button"
                   aria-label={t('移除这条手记', 'Remove this entry')}
                   onClick={() => {
-                    update(entries.filter((x) => x.id !== e.id));
-                    setRemoved(e);
-                    if (active === e.id) setActive(null);
+                    if (update(entries.filter((x) => x.id !== e.id))) {
+                      setRemoved(e);
+                      if (active === e.id) setActive(null);
+                    }
                   }}
                 >
                   <Trash2 size={15} />
@@ -159,9 +196,21 @@ export default function Journal({ locale }: { locale: Locale }) {
               </div>
             )}
           </div>
-          <div className="journal-detail">
+          <div
+            className="journal-detail"
+            ref={detail}
+            tabIndex={-1}
+            aria-label={t('手记内容', 'Journal entry')}
+          >
             {current ? (
               <>
+                <button
+                  type="button"
+                  className="text-button journal-back"
+                  onClick={() => entryButtons.current.get(current.id)?.focus()}
+                >
+                  <ArrowLeft size={16} /> {t('返回手记列表', 'Back to entries')}
+                </button>
                 {current.question && (
                   <div className="reflection-callout">
                     <span>{t('当时的问题', 'YOUR ORIGINAL QUESTION')}</span>

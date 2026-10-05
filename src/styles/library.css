@@ -22,7 +22,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  color: #5c704d;
+  color: var(--muted);
 }
 .library-welcome h2 {
   font: 34px/1.4 var(--serif);
@@ -33,7 +33,7 @@
 }
 .library-welcome-copy > p {
   max-width: 42em;
-  color: #66705f;
+  color: var(--muted);
   font-size: 13px;
   line-height: 1.9;
 }
@@ -151,7 +151,7 @@
   display: none;
 }
 .library-search input::placeholder {
-  color: #808678;
+  color: var(--muted);
 }
 .library-clear {
   display: grid;
@@ -206,7 +206,7 @@
   width: 42px;
   height: 48px;
   border: 1px solid #bfae91;
-  color: #8e6750;
+  color: var(--warm-muted);
   font: 25px/1 var(--serif);
   flex-shrink: 0;
 }
@@ -223,7 +223,7 @@
 }
 .library-topic-index {
   margin-left: auto;
-  color: #98a08d;
+  color: var(--muted);
   font: 31px/1 var(--serif);
   align-self: start;
 }
@@ -389,7 +389,7 @@
   align-items: center;
   margin: 0 0 20px;
   font: 500 13px/1.6 var(--sans);
-  color: #5c704d;
+  color: var(--muted);
 }
 .guide-primer ol {
   list-style: none;
@@ -407,7 +407,7 @@
 }
 .primer-number {
   font: 25px/1.2 var(--serif);
-  color: #8c947c;
+  color: var(--muted);
   display: block;
   margin-bottom: 8px;
 }
@@ -422,13 +422,13 @@
   font-size: 11px;
   line-height: 1.8;
   margin: 8px 0 0;
-  color: #66705f;
+  color: var(--muted);
 }
 .primer-arrow {
   position: absolute;
   top: 8px;
   right: -22px;
-  color: #8c947c;
+  color: var(--muted);
 }
 .article-mobile-toc {
   display: none;

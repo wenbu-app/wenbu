@@ -145,11 +145,11 @@ export default function AgentReport({
           <div className="report-overview-counts">
             <span>
               <b>{report.sections.length}</b>
-              {zh ? '个章节' : 'sections'}
+              {zh ? '个章节' : report.sections.length === 1 ? 'section' : 'sections'}
             </span>
             <span>
               <b>{sourceCount}</b>
-              {zh ? '份引用资料' : 'cited sources'}
+              {zh ? '份引用资料' : sourceCount === 1 ? 'cited source' : 'cited sources'}
             </span>
             {visual && (
               <span>

@@ -1,0 +1,8 @@
+{
+  "scope": "local synthetic conversation; 320 x 812",
+  "afterClick": {
+    "focus": "Conversation messages",
+    "gap": 0.5,
+    "jump": false
+  }
+}

@@ -298,6 +298,11 @@ const schema = {
             <a href={href(locale, 'free')}>{t('免费使用说明', 'Free-use policy')}</a>
             <a href={href(locale, 'agents')}>MCP / CLI / Skills</a>
             <a href="https://github.com/wenbu-app/wenbu">{t('开源项目', 'Open source')} ↗</a>
+            {path !== 'insights' && path !== 'move' && (
+              <button class="feedback-launch" data-feedback-open hidden type="button" aria-haspopup="dialog">
+                {t('反馈与建议', 'Feedback & suggestions')} ↗
+              </button>
+            )}
           </div>
         </div>
       </div>

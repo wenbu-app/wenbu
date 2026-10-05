@@ -16,6 +16,7 @@ export default function TarotCard({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [failed, setFailed] = useState(false);
+  const [fullFailed, setFullFailed] = useState(false);
   const [opened, setOpened] = useState(false);
   const name = locale === 'zh' ? card.zh : card.en;
   const orientation =
@@ -36,6 +37,7 @@ export default function TarotCard({
         className={`tarot-face illustrated ${card.reversed ? 'reversed' : ''}`}
         aria-label={locale === 'zh' ? `放大查看${name} · ${orientation}` : `Inspect ${name} · ${orientation}`}
         onClick={() => {
+          setFullFailed(false);
           setOpened(true);
           dialog.current?.showModal();
           track('card_inspected', { tool: 'tarot', action: 'inspect' });
@@ -79,15 +81,32 @@ export default function TarotCard({
           >
             <X size={20} />
           </button>
-          {opened && (
+          {opened && !fullFailed && src ? (
             <img
               className={card.reversed ? 'is-reversed' : undefined}
               src={src}
               alt={`${name} · ${orientation}`}
               width="600"
               height="900"
+              onError={() => setFullFailed(true)}
             />
-          )}
+          ) : opened ? (
+            <div className="tarot-art-retry" role="status">
+              <span className="card-unavailable">
+                {name}
+                <small>
+                  {locale === 'zh'
+                    ? '插画暂未载入，牌义仍可阅读。'
+                    : 'Artwork could not load. You can still read the card meaning.'}
+                </small>
+              </span>
+              {src && (
+                <button className="button secondary" type="button" onClick={() => setFullFailed(false)}>
+                  {locale === 'zh' ? '重新载入插画' : 'Retry artwork'}
+                </button>
+              )}
+            </div>
+          ) : null}
           <div className="tarot-lightbox-copy">
             <span className="eyebrow">
               WENBU · {card.arcana === 'major' ? 'MAJOR ARCANA' : card.suit.toUpperCase()}

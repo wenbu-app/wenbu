@@ -7,13 +7,14 @@ export default function TarotGallery({ locale }: { locale: Locale }) {
   const [suit, setSuit] = useState('all');
   const t = (zh: string, en: string) => (locale === 'zh' ? zh : en);
   const groups = [
-    ['all', '全部', 'All 78'],
+    ['all', '全部', 'All cards'],
     ['major', '大阿卡纳', 'Major arcana'],
     ['wands', '权杖', 'Wands'],
     ['cups', '圣杯', 'Cups'],
     ['swords', '宝剑', 'Swords'],
     ['pentacles', '星币', 'Pentacles'],
   ];
+  const cards = tarotDeck.filter((card) => suit === 'all' || card.suit === suit);
   return (
     <section className="tarot-gallery shell">
       <div className="gallery-heading">
@@ -37,24 +38,21 @@ export default function TarotGallery({ locale }: { locale: Locale }) {
           </button>
         ))}
       </div>
+      <p className="gallery-count" role="status" aria-live="polite" aria-atomic="true">
+        {t(`显示 ${cards.length} 张牌`, `Showing ${cards.length} cards`)}
+      </p>
       <div className="tarot-gallery-grid">
-        {tarotDeck
-          .filter((card) => suit === 'all' || card.suit === suit)
-          .map((card) => (
-            <article key={card.id}>
-              <TarotCard
-                card={{ ...card, reversed: false, position: 'reflection' }}
-                locale={locale}
-                preview
-              />
-              <h2>{t(card.zh, card.en)}</h2>
-              <p>{t(card.keywordsZh, card.keywordsEn)}</p>
-              <small>
-                {t('逆位：', 'Reversed: ')}
-                {t(card.reversedZh, card.reversedEn)}
-              </small>
-            </article>
-          ))}
+        {cards.map((card) => (
+          <article key={card.id}>
+            <TarotCard card={{ ...card, reversed: false, position: 'reflection' }} locale={locale} preview />
+            <h2>{t(card.zh, card.en)}</h2>
+            <p>{t(card.keywordsZh, card.keywordsEn)}</p>
+            <small>
+              {t('逆位：', 'Reversed: ')}
+              {t(card.reversedZh, card.reversedEn)}
+            </small>
+          </article>
+        ))}
       </div>
       <p className="gallery-note">
         {t(

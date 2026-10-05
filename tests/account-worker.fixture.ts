@@ -3,6 +3,7 @@ import type { Env } from '../worker/types';
 export { UsageGate } from '../worker/quota';
 export { DeletionLedger } from '../worker/deletion-ledger';
 const wrapped = new WeakMap<object, Env>();
+let failFeedback = false;
 export default {
   async fetch(request: Request, env: Env & { MAILBOX: Fetcher }, ctx: ExecutionContext) {
     let configured = wrapped.get(env);
@@ -22,6 +23,13 @@ export default {
       wrapped.set(env, configured);
     }
     try {
+      // Disposable local browser QA only; this file is never imported by production.
+      if (new URL(request.url).pathname === '/__fixture/feedback-failure' && request.method === 'POST') {
+        failFeedback = ((await request.json()) as { fail?: boolean }).fail === true;
+        return Response.json({ fail: failFeedback });
+      }
+      if (failFeedback && new URL(request.url).pathname === '/api/feedback')
+        return Response.json({ error: 'fixture_feedback_unavailable' }, { status: 503 });
       if (new URL(request.url).pathname === '/__fixture/reconcile') {
         const { reconcileDeletionLedger } = await import('../worker/accounts');
         return Response.json(await reconcileDeletionLedger({ ...configured, ACCOUNTS_MAINTENANCE: 'true' }));

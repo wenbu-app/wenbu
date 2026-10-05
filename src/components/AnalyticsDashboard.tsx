@@ -16,6 +16,7 @@ import {
 } from '../lib/analytics-report';
 import '../styles/analytics-dashboard.css';
 import AccountInsights from './AccountInsights';
+import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
 const number = (value: unknown) => Number(value ?? 0).toLocaleString('zh-CN');
 export default function AnalyticsDashboard({ locale = 'zh' }: { locale?: Locale }) {
   return (
@@ -73,11 +74,11 @@ function DashboardContent() {
       if (!response.ok) {
         if (response.status === 401) {
           setReport(undefined);
-          throw new Error(t('管理密钥无效，请检查后再试。'));
+          throw new UserFacingError(t('管理密钥无效，请检查后再试。'));
         }
         if (response.status === 400)
-          throw new Error(t('请检查日期与筛选条件：日期限最近 90 天，小时明细最多查看 7 天。'));
-        throw new Error(
+          throw new UserFacingError(t('请检查日期与筛选条件：日期限最近 90 天，小时明细最多查看 7 天。'));
+        throw new UserFacingError(
           response.status === 429 ? t('查询较频繁，请稍后再试。') : t('统计暂时不可用，已保留上次结果。'),
         );
       }
@@ -92,9 +93,7 @@ function DashboardContent() {
         setError(
           e instanceof DOMException && e.name === 'TimeoutError'
             ? t('查询超时，已保留上次结果，请稍后重试。')
-            : e instanceof Error
-              ? e.message
-              : t('加载失败'),
+            : uiErrorMessage(e, t('统计暂时不可用，已保留上次结果。')),
         );
     } finally {
       if (requestId.current === id) setBusy(false);
@@ -580,10 +579,11 @@ function DashboardContent() {
                   <span className="eyebrow">USAGE &amp; DATA QUALITY</span>
                   <h2>{t('完成使用与采集质量')}</h2>
                   <p>
-                    {t('完成使用的浏览器标识')}
-                    <b>{number(summary.active_visitors)}</b>
-                    {t('个 · 关联会话')} <b>{number(summary.active_sessions)}</b>{' '}
-                    {t('个。由服务器确认成功结果，排除示例；标识不是自然人数，自动化不能仅靠 UA 完全识别。')}
+                    {t(
+                      '完成使用的浏览器标识 {0} 个，关联会话 {1} 个。由服务器确认成功结果，排除示例；标识不是自然人数，自动化不能仅靠 UA 完全识别。',
+                      number(summary.active_visitors),
+                      number(summary.active_sessions),
+                    )}
                   </p>
                   <div className="observatory-coverage-facts">
                     <span>

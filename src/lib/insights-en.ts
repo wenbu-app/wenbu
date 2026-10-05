@@ -109,6 +109,8 @@ export const insightsEnglish: Record<string, string> = {
     'User agents and protocols can be spoofed; browser signals do not prove a human visit. Cloudflare verification is recorded only when supplied by the edge; client names still come from user agents. Legacy non-bot page events remain in browsing metrics. Earlier crawls and MCP calls without completion records cannot be reliably reconstructed. These counts exclude edge-blocked requests, assets and admin pages.',
   使用与数据质量: 'Usage and data quality',
   完成使用与采集质量: 'Completed use and collection quality',
+  '完成使用的浏览器标识 {0} 个，关联会话 {1} 个。由服务器确认成功结果，排除示例；标识不是自然人数，自动化不能仅靠 UA 完全识别。':
+    'Browser IDs with completed use: {0}; linked sessions: {1}. Successful results are server-confirmed and exclude examples. Identifiers are not people; user agents alone cannot identify all automation.',
   完成使用的浏览器标识: 'Browser IDs with completed use',
   '个 · 关联会话': ' · linked sessions ',
   '个。由服务器确认成功结果，排除示例；标识不是自然人数，自动化不能仅靠 UA 完全识别。':

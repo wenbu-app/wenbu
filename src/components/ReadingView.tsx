@@ -35,7 +35,14 @@ export default function ReadingView({ result, locale }: { result: Reading; local
               </strong>
               <span className="pillar-pinyin">{p.pinyin ?? '—'}</span>
               <span className="pillar-element">
-                {p.value ? `${p.stemElement} · ${p.branchElement}` : t('不推定时柱', 'Not inferred')}
+                {p.value
+                  ? [p.stemElement, p.branchElement]
+                      .map((element) => {
+                        const label = result.elements.find((item) => item.zh === element);
+                        return locale === 'en' ? (label?.en ?? element) : element;
+                      })
+                      .join(' · ')
+                  : t('不推定时柱', 'Not inferred')}
               </span>
               <span className="pillar-hidden">
                 {t('藏干', 'Hidden')} {p.hidden?.join(' ') || '—'}

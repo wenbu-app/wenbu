@@ -6,21 +6,6 @@ const { locale } = Astro.props as { locale: Locale };
 const t = (zh: string, en: string) => choose(locale, zh, en);
 ---
 
-<button class="feedback-launch" data-feedback-open hidden type="button" aria-haspopup="dialog">
-  <svg
-    width="17"
-    height="17"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.5"
-    aria-hidden="true"
-  >
-    <path d="M20 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3H20Z" />
-    <path d="M7 9h8M7 13h5" />
-  </svg>
-  {t('反馈', 'Feedback')}
-</button>
 <dialog id="feedback-dialog" class="feedback-dialog" aria-labelledby="feedback-title" data-locale={locale}>
   <button
     type="button"
@@ -40,7 +25,8 @@ const t = (zh: string, en: string) => choose(locale, zh, en);
       )}
     </p>
     <form id="feedback-form">
-      <fieldset class="feedback-rating">
+      <p id="feedback-error" class="error-message" data-feedback-error role="alert" hidden></p>
+      <fieldset class="feedback-rating" aria-describedby="feedback-error">
         <legend>{t('这次体验如何？', 'How was this experience?')}</legend>
         {[
           ['helpful', '有帮助', 'Helpful', '↗'],
@@ -74,6 +60,7 @@ const t = (zh: string, en: string) => choose(locale, zh, en);
         {t('留下一句话', 'Leave us a note')}
         <textarea
           name="message"
+          aria-describedby="feedback-error"
           rows="3"
           maxlength="3000"
           placeholder={t(
@@ -115,7 +102,6 @@ const t = (zh: string, en: string) => choose(locale, zh, en);
         )}{' '}
         <a href={href(locale, 'privacy')}>{t('隐私说明', 'Privacy details')} ↗</a>
       </p>
-      <p class="error-message" data-feedback-error role="alert" hidden></p>
       <button class="button feedback-submit" type="submit">
         {t('发送反馈', 'Send feedback')} <span aria-hidden="true">↗</span>
       </button>
@@ -143,6 +129,7 @@ const t = (zh: string, en: string) => choose(locale, zh, en);
   import { analyticsHeaders, track } from '../lib/analytics';
   import { safePage } from '../lib/analytics-contract';
   import { feedbackCategories, feedbackRatings, type FeedbackRequest } from '../lib/feedback-contract';
+  import { feedbackFailureMessage, feedbackReceipt, FeedbackDeliveryError } from '../lib/feedback-delivery';
   const dialog = document.querySelector<HTMLDialogElement>('#feedback-dialog')!;
   const form = dialog.querySelector<HTMLFormElement>('form')!;
   const zh = dialog.dataset.locale === 'zh';
@@ -166,6 +153,7 @@ const t = (zh: string, en: string) => choose(locale, zh, en);
     id = crypto.randomUUID();
     form.reset();
     error.hidden = true;
+    field<HTMLTextAreaElement>('message').removeAttribute('aria-invalid');
     thanks.hidden = true;
     formView.hidden = false;
     field<HTMLSelectElement>('category').value = feedbackCategories.includes(value.category!)
@@ -207,6 +195,7 @@ const t = (zh: string, en: string) => choose(locale, zh, en);
   form.addEventListener('input', () => {
     id = crypto.randomUUID();
     error.hidden = true;
+    field<HTMLTextAreaElement>('message').removeAttribute('aria-invalid');
   });
   share.addEventListener('change', () => {
     preview.hidden = !share.checked;
@@ -220,9 +209,12 @@ const t = (zh: string, en: string) => choose(locale, zh, en);
     if (!String(data.get('message')).trim() && rating === 'none') {
       error.textContent = t('选一个评价，或留下一句话。', 'Choose a rating or leave a note.');
       error.hidden = false;
+      field<HTMLTextAreaElement>('message').setAttribute('aria-invalid', 'true');
+      field<HTMLTextAreaElement>('message').focus();
       return;
     }
     busy = true;
+    form.setAttribute('aria-busy', 'true');
     submit.disabled = true;
     submit.textContent = t('正在发送…', 'Sending…');
     error.hidden = true;
@@ -252,31 +244,19 @@ const t = (zh: string, en: string) => choose(locale, zh, en);
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(20000),
       });
-      if (!response.ok)
-        throw new Error(
-          response.status === 429
-            ? t('提交得有些频繁，请一分钟后再试。', 'Please wait a minute before sending another note.')
-            : t(
-                '暂时没能保存，请稍后重试。内容还在这里。',
-                'We couldn’t save this yet. Your note is still here; please try again.',
-              ),
-        );
-      const receipt = await response.json();
-      dialog.querySelector<HTMLElement>('[data-feedback-receipt]')!.textContent = receipt.id;
+      if (!response.ok) throw new FeedbackDeliveryError(response.status);
+      const receipt = feedbackReceipt(await response.json(), id);
+      dialog.querySelector<HTMLElement>('[data-feedback-receipt]')!.textContent = receipt;
       formView.hidden = true;
       thanks.hidden = false;
       (thanks.querySelector('button') as HTMLButtonElement).focus();
     } catch (e) {
-      error.textContent =
-        e instanceof Error && e.name !== 'TimeoutError'
-          ? e.message
-          : t(
-              '连接超时，请重试。重复提交不会重复保存。',
-              'The connection timed out. You can retry without creating a duplicate.',
-            );
+      error.textContent = feedbackFailureMessage(e, zh ? 'zh' : 'en');
       error.hidden = false;
+      error.scrollIntoView({ block: 'nearest' });
     } finally {
       busy = false;
+      form.removeAttribute('aria-busy');
       submit.disabled = false;
       inputs.forEach((el) => (el.disabled = false));
       submit.textContent = t('发送反馈 ↗', 'Send feedback ↗');

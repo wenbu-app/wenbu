@@ -3,7 +3,8 @@
   --paper: #f6f3ec;
   --paper-light: #fdfbf6;
   --ink: #293b33;
-  --muted: #6c7368;
+  --muted: #596657;
+  --warm-muted: #74634f;
   --line: #dcded2;
   --red: #ab4936;
   --red-dark: #893826;
@@ -3812,4 +3813,86 @@ html[lang='en'] .section-heading h2 {
   color: var(--ink);
   font-size: 13px;
   line-height: 1.7;
+}
+
+/* Keep revisiting a journal entry predictable on a phone. */
+.journal-back {
+  display: none;
+}
+.journal-tool-link {
+  margin-top: 18px;
+}
+.gallery-count {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 18px 0;
+}
+.tarot-art-retry {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 20px;
+  padding: 32px;
+  background: var(--sage);
+  text-align: center;
+}
+.tarot-art-retry .card-unavailable {
+  position: static;
+}
+@media (max-width: 800px) {
+  .journal-back {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    min-height: 44px;
+    margin-bottom: 20px;
+  }
+  .journal-entry > .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+  .entry-open .eyebrow {
+    font-size: 10px;
+  }
+  .entry-open p {
+    font-size: 12px;
+  }
+}
+
+.pillar-role,
+.pillar-pinyin,
+.pillar-hidden,
+.pillar-element {
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.pillar-role {
+  min-height: 36px;
+  margin-bottom: 12px;
+}
+.tarot-close {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (max-width: 560px) {
+  .pillar-role,
+  .pillar-pinyin,
+  .pillar-hidden,
+  .pillar-element,
+  .pillar-label {
+    font-size: 10px;
+  }
+  .pillar-label {
+    letter-spacing: 1px;
+  }
+  .element-buttons button {
+    min-height: 36px;
+    font-size: 12px;
+  }
+  .element-note {
+    font-size: 11px;
+  }
 }
