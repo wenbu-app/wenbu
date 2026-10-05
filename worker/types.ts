@@ -1,6 +1,16 @@
 import type { UsageGate } from './quota';
+import type { DeletionLedger } from './deletion-ledger';
 export interface Env {
   ASSETS: Fetcher;
+  USERDATA?: D1Database;
+  AUTH_SECRET?: string;
+  ACCOUNT_DATA_KEY?: string;
+  AUTH_EMAIL?: SendEmail;
+  AUTH_EMAIL_FROM?: string;
+  AUTH_EMAIL_DAILY_LIMIT?: string;
+  ACCOUNTS_ENABLED?: string;
+  ACCOUNTS_MAINTENANCE?: string;
+  PRIVACY_LEDGER?: DurableObjectNamespace<DeletionLedger>;
   ANALYTICS?: D1Database;
   ANALYTICS_ARCHIVE?: R2Bucket;
   ANALYTICS_ADMIN_TOKEN?: string;
@@ -17,4 +27,6 @@ export interface Env {
   AI_PER_USER_DAILY_LIMIT: string;
   AGENT_PER_USER_DAILY_LIMIT?: string;
   AGENT_GLOBAL_DAILY_LIMIT?: string;
+  AI_NETWORK_DAILY_LIMIT?: string;
+  AGENT_NETWORK_DAILY_LIMIT?: string;
 }

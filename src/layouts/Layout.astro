@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import FeedbackWidget from '../components/FeedbackWidget.astro';
+import AccountPanel from '../components/AccountPanel';
 import '@fontsource-variable/dm-sans';
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/500.css';
@@ -203,6 +204,7 @@ const schema = {
         </a>
       </nav>
       <div class="header-actions">
+        <AccountPanel locale={locale} client:load />
         <a
           class="language-switch"
           href={href(locale === 'zh' ? 'en' : 'zh', path === '404' ? '' : path)}

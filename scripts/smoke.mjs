@@ -76,7 +76,7 @@ for (const [kind, input] of [
   const d = await r.json();
   assert.equal(r.status, 200, JSON.stringify(d));
   assert.equal(d.kind, kind);
-  assert.equal(r.headers.get('Cache-Control'), 'no-store');
+  assert.match(r.headers.get('Cache-Control') || '', /(?:^|,\s*)no-store(?:,|$)/);
   if (kind === 'bazi')
     assert.deepEqual(
       d.pillars.map((x) => x.value),

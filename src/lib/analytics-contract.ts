@@ -1,6 +1,8 @@
 /** Deliberately closed vocabulary: no prompts, birth inputs, arbitrary URLs or labels. */
 export const clientEvents = [
   'page_view',
+  'registration_prompt_viewed',
+  'auth_started',
   'page_exit',
   'setting_changed',
   'feedback_opened',

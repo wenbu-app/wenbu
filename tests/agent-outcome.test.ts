@@ -1,3 +1,8 @@
+vi.mock('../src/lib/account-client', () => ({
+  readAccountCache: () => JSON.parse(localStorage.getItem('wenbu.agent.sessions.v1') || '[]'),
+  writeAccountCache: (_kind: string, entries: unknown) =>
+    localStorage.setItem('wenbu.agent.sessions.v1', JSON.stringify(entries)),
+}));
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';

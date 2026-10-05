@@ -56,7 +56,7 @@ curl -N -sS https://wenbu.app/api/v1/agent \
 
 研究只搜索问卜文章、符号条目和精选来源目录。内置 Agent 能读取目录允许的公开页面文本，不能搜索整个互联网、登录网站或读取任意文件。网页读取成功表示取得了文本，并不保证每条引用都支持模型的结论；来源、摘录与限制仍需阅读者检查。
 
-会话和报告保存在浏览器。每次发送时，所选上下文及最近历史会经 Cloudflare 发给 DeepSeek；应用服务不保存会话正文，但不代表基础设施或模型提供商承诺零保留。取消勾选出生资料不会移除此前消息、命盘或导出里的信息；需要空上下文时开始新会话。
+未登录的会话和报告保存在浏览器；邮箱账号开启云端记录后，可同步站内对话。每次发送时，所选上下文及最近历史会经 Cloudflare 发给 DeepSeek；未认证的外部 API 不保存会话正文，站内登录会话按账号设置保存；这不代表基础设施或模型提供商承诺零保留。取消勾选出生资料不会移除此前消息、命盘或导出里的信息；需要空上下文时开始新会话。
 
 每个网络每天最多 12 回合，上海时间零点重置，与单次 AI 解读的 5 次额度分开。每回合最多 5 次模型调用、12 次工具执行、120 秒；两类 AI 共用每天 1,000 次模型尝试预算，Agent 最多占 600 次。共享网络可能共享额度。请求正文上限为 96 KiB；模型不可用时，原有计算工具仍可单独使用。
 
@@ -134,9 +134,9 @@ Every diagram citation must have been read or revalidated, just like section cit
 
 ## State, privacy and limits
 
-The application API does not persist conversation bodies. Clients carry selected state forward. Requests pass through Cloudflare and send the selected message, history and context to DeepSeek; both providers apply their own data practices. Browser-local storage is not a claim of zero provider retention or end-to-end encryption.
+Unauthenticated external API calls do not persist conversation bodies. Signed-in first-party browser sessions can enable private cloud history. Private history is not available through public MCP or CLI endpoints. Clients carry selected state forward. Requests pass through Cloudflare and send the selected message, history and context to DeepSeek; both providers apply their own data practices. Browser-local storage is not a claim of zero provider retention or end-to-end encryption.
 
-Browser conversations and report versions are stored locally, may be exported as JSON or Markdown, and stop executing when closed. Clearing storage does not reset network quotas. Changing the site domain does not migrate local history. Deselecting a profile does not remove facts already included in prior conversation messages or chart artifacts; begin a new conversation for empty context.
+Guest and paused-history conversations stay in the browser; signed-in accounts can enable cloud checkpoints. Conversations may be exported as JSON or Markdown and stop executing when the page closes. Only acknowledged checkpoints are recoverable. Clearing storage does not reset network quotas. Changing the site domain does not migrate local history. Deselecting a profile does not remove facts already included in prior conversation messages or chart artifacts; begin a new conversation for empty context.
 
 Each network has 12 Agent turns per Shanghai day, separately from five single readings. A turn permits up to five model calls, 12 tool executions and 120 seconds. Each attempted model call uses one unit of the shared 1,000 daily model budget, with Agent use capped at 600. Failures and cancellations may count. Body limit: 96 KiB. The server bounds accumulated tool context and report lengths. Tools remain usable when the AI budget ends.
 

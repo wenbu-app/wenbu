@@ -17,6 +17,7 @@ import {
   type ReportMetric,
 } from '../lib/analytics-report';
 import '../styles/analytics-dashboard.css';
+import AccountInsights from './AccountInsights';
 const number = (value: unknown) => Number(value ?? 0).toLocaleString('zh-CN');
 export default function AnalyticsDashboard() {
   const [tab, setTab] = useState<'overview' | 'events' | 'feedback' | 'archives'>('overview');
@@ -246,6 +247,7 @@ export default function AnalyticsDashboard() {
             ))}
             <button onClick={logout}>退出</button>
           </div>
+          {tab === 'overview' && <AccountInsights token={token.trim()} />}
           {tab !== 'overview' ? (
             <AnalyticsExplorer
               key={tab + linked.operation}

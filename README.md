@@ -40,7 +40,7 @@ Connect remote MCP at `https://wenbu.app/mcp`, use the dependency-free CLI, or i
 
 计算、抽取、学习内容、手记和 MCP 无需注册或付费。单次 AI 解读每个网络每天最多 5 次，Agent 每天最多 12 回合，上海时间零点重置；仍受全站共享预算限制。AI 不可用时，独立工具仍可使用。详见[免费额度](https://wenbu.app/free/)。
 
-会话与手记保存在当前浏览器，没有自动云同步。计算请求会发送至问卜的 Cloudflare 服务；使用 AI 时，消息和所选上下文会经该服务发送给 DeepSeek。导出文件可能包含私人资料，下载不等于自动分享，也不等于匿名化。详见[隐私说明](https://wenbu.app/privacy/)。
+未登录时，会话与手记暂存在当前浏览器。邮箱验证码登录后可开启云端记录、选择导入旧记录，并跨设备回看；不要求注册才能查看完整结果。计算请求会发送至问卜的 Cloudflare 服务；使用 AI 时，消息和所选上下文会经该服务发送给 DeepSeek。导出文件可能包含私人资料，下载不等于自动分享，也不等于匿名化。详见[隐私说明](https://wenbu.app/privacy/)。
 
 ## Start with a question
 
@@ -106,7 +106,7 @@ Read [the Skill](public/SKILL.md) before adding it to your host. It does not gra
 
 The Agent can plan, calculate, read the curated library and available allowlisted pages, ask for missing details and write a report. It has no unrestricted web search or background execution. Reports and their citations are model-authored; a successful source read does not verify every interpretation. Follow-ups preserve the original cards or lines unless a new draw is requested.
 
-Conversations and artifacts are saved in the browser. Requests send the selected context and a bounded recent history through Cloudflare to DeepSeek. Clearing browser storage removes local records; it does not delete provider records or reset quotas. The app does not promise end-to-end encryption or automatic cross-device sync.
+Guest conversations and artifacts stay in the browser. Email-verified accounts can enable private cloud history; older browser records require explicit selection for import. Requests send the selected context and a bounded recent history through Cloudflare to DeepSeek. Clearing browser storage removes local records; it does not delete provider records or reset quotas. The app does not promise end-to-end encryption; cloud sync requires an account with cloud history enabled.
 
 ## Limits and architecture
 
@@ -132,3 +132,7 @@ See [review evidence](docs/reviews/README.md), [calculation methodology](https:/
 Report a problem with reproducible steps, the selected convention and a synthetic example. Keep birth details, private questions and credentials out of public issues.
 
 MIT license. Third-party packages retain their own licenses.
+
+## Email accounts and cloud history
+
+Complete guest trials remain free. Email verification lets users save the current result, sync conversations and journal entries, select older browser records to import, and export or delete their account data. Public MCP and CLI remain available without access to private history. See [account architecture, privacy and recovery](docs/accounts.md) for limits, reliable saving, quota linking and measurement definitions.

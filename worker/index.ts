@@ -7,7 +7,6 @@ import { InputError, type ToolKind } from '../src/lib/schema';
 import { ApiError, interpret } from './ai';
 import { handleMcp } from './mcp';
 import type { Env } from './types';
-import { agentResponse } from './agent';
 import { AGENT_BODY_LIMIT } from '../src/lib/agent-protocol';
 import {
   collectEvents,
@@ -21,6 +20,13 @@ import { submitFeedback, updateFeedback } from './feedback';
 import { historyReport, feedbackDetail, storageStatus, archiveAnalytics, archiveDownload } from './history';
 import { INDEXNOW_CRON, indexNowStatus, submitIndexNow } from './indexnow';
 export { UsageGate } from './quota';
+export { DeletionLedger } from './deletion-ledger';
+import { handleAuth } from './account-auth';
+import { handleAccounts, reconcileDeletionLedger, pruneAccountMetadata } from './accounts';
+import { AccountError, accountJson } from './account-security';
+import { requestActor, resultReceipt } from './account-operations';
+import { accountAgentResponse } from './account-agent';
+import { accountInsights } from './account-insights';
 
 const apiHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -115,6 +121,9 @@ export default {
       if (ctx) ctx.waitUntil(task);
     };
     try {
+      if (path.startsWith('/api/auth/')) return await handleAuth(request, env);
+      if (path === '/api/account' || path.startsWith('/api/account/'))
+        return await handleAccounts(request, env);
       if (path === '/api/events') {
         if (request.method !== 'POST') return json({ error: { code: 'method_not_allowed' } }, 405);
         if (request.headers.get('Origin') !== url.origin)
@@ -148,6 +157,13 @@ export default {
         )
           return json({ error: { code: 'rate_limited' } }, 429);
         if (!(await authorizedAnalytics(request, env))) return json({ error: { code: 'unauthorized' } }, 401);
+        if (path === '/api/admin/accounts/reconcile' && request.method === 'POST') {
+          if (request.headers.get('Origin') !== env.SITE_URL)
+            return json({ error: { code: 'origin_denied' } }, 403);
+          return accountJson(await reconcileDeletionLedger(env));
+        }
+        if (path === '/api/admin/accounts/analytics' && request.method === 'GET')
+          return accountJson(await accountInsights(url, env));
         if (!env.ANALYTICS) return json({ error: { code: 'analytics_unavailable' } }, 503);
         if (request.method === 'GET') {
           if (path === '/api/admin/indexnow') return json(await indexNowStatus(env));
@@ -239,16 +255,18 @@ export default {
         return json({ error: { code: 'method_not_allowed', message: 'Use POST with a JSON body.' } }, 405);
       const raw = await boundedBody(request, path === '/api/v1/agent' ? AGENT_BODY_LIMIT : 8192);
       locale = raw && typeof raw === 'object' && raw.locale === 'zh' ? 'zh' : 'en';
+      const actor = path.startsWith('/api/v1/') ? await requestActor(request, env) : undefined;
       if (path === '/api/v1/agent')
-        return await agentResponse(
+        return await accountAgentResponse(
           raw,
           request,
           env,
+          actor,
           (metric) => record({ ...metric, locale, duration: Date.now() - started }),
           record,
         );
       if (path === '/api/v1/interpret') {
-        const result = await interpret(raw, request, env);
+        const result = await interpret(raw, request, env, actor);
         record({
           event: 'interpret_succeeded',
           tool: 'interpret',
@@ -256,7 +274,11 @@ export default {
           locale,
           duration: Date.now() - started,
         });
-        return json(result);
+        const receipt = actor ? await resultReceipt(env, actor, 'journal', result, 'answer') : undefined;
+        return accountJson(result, 200, {
+          ...(actor?.cookie ? { 'Set-Cookie': actor.cookie } : {}),
+          ...(receipt ? { 'X-Wenbu-Receipt': receipt } : {}),
+        });
       }
       const kind = path.match(/^\/api\/v1\/(bazi|iching|tarot|ziwei)$/)?.[1] as ToolKind | undefined;
       if (!kind) return json({ error: { code: 'not_found', message: 'Unknown endpoint.' } }, 404);
@@ -268,8 +290,17 @@ export default {
         locale,
         duration: Date.now() - started,
       });
-      return json(result);
+      const receipt =
+        actor && request.headers.get('X-Wenbu-Action') !== 'example'
+          ? await resultReceipt(env, actor, 'journal', { result })
+          : undefined;
+      return accountJson(result, 200, {
+        ...(receipt ? { 'X-Wenbu-Receipt': receipt } : {}),
+        ...(actor?.cookie ? { 'Set-Cookie': actor.cookie } : {}),
+      });
     } catch (error) {
+      if (error instanceof AccountError)
+        return accountJson({ error: { code: error.code }, detail: error.detail }, error.status);
       if (observedTool)
         record({
           event: 'api_failed',
@@ -314,7 +345,10 @@ export default {
     }
   },
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    if (event.cron === '15 * * * *') ctx.waitUntil(archiveAnalytics(env));
+    if (event.cron === '15 * * * *') {
+      ctx.waitUntil(archiveAnalytics(env));
+      ctx.waitUntil(pruneAccountMetadata(env));
+    }
     if (event.cron === INDEXNOW_CRON) ctx.waitUntil(submitIndexNow(env));
   },
 } satisfies ExportedHandler<Env>;

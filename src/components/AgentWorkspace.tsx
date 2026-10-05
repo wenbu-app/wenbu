@@ -66,6 +66,17 @@ import '../styles/agent.css';
 import '../styles/agent-motion.css';
 import '../styles/agent-visuals.css';
 import '../styles/agent-guidance.css';
+import {
+  initializeAccount,
+  accountSnapshot,
+  accountInstance,
+  prepareCloudRun,
+  endCloudRun,
+  acknowledgeCloudSession,
+  AccountClientError,
+} from '../lib/account-client';
+import CloudSaveStatus from './CloudSaveStatus';
+import { accountError } from './AccountPanel';
 
 class ChartBoundary extends Component<{ children: ReactNode; fallback: string }, { failed: boolean }> {
   state = { failed: false };
@@ -125,6 +136,9 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const focusAfterContext = useRef(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const sessionRef = useRef(sessions);
+  const loadedOwner = useRef<string | undefined>(undefined);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
   const pending = useRef<{
     controller: AbortController;
     sessionId: string;
@@ -160,12 +174,34 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     }));
   }
   useEffect(() => {
-    const saved = restoreSessions();
-    const initial = saved.length ? saved : [newSession(locale)];
-    replaceSessions(initial);
-    setActiveId(initial[0].id);
-    setLoaded(true);
+    let mounted = true;
+    const load = (event?: Event) => {
+      if (!mounted || pending.current) return;
+      loadedOwner.current = accountSnapshot().user?.id || 'guest';
+      const saved = restoreSessions();
+      const initial = saved.length ? saved : [newSession(locale)];
+      replaceSessions(initial);
+      const preferred = (event as CustomEvent<{ kind?: string; id?: string }> | undefined)?.detail;
+      const selected = preferred?.kind === 'session' ? preferred.id : activeIdRef.current;
+      setActiveId(initial.some((s) => s.id === selected) ? selected! : initial[0].id);
+      setLoaded(true);
+    };
+    const changing = () => {
+      pending.current?.controller.abort();
+      pending.current = null;
+      setBusy(false);
+      setLoaded(false);
+      sessionRef.current = [];
+      loadedOwner.current = undefined;
+      setSessions([]);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+    void initializeAccount().then(() => load());
+    window.addEventListener('wenbu:account-changing', changing);
+    window.addEventListener('wenbu:account-changed', load);
+    window.addEventListener('wenbu:records-changed', load);
     const flush = () => {
+      if (loadedOwner.current !== (accountSnapshot().user?.id || 'guest')) return;
       try {
         persistSessions(sessionRef.current);
       } catch {
@@ -174,6 +210,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     };
     window.addEventListener('pagehide', flush);
     return () => {
+      mounted = false;
+      window.removeEventListener('wenbu:account-changing', changing);
+      window.removeEventListener('wenbu:account-changed', load);
+      window.removeEventListener('wenbu:records-changed', load);
       pending.current?.controller.abort();
       if (saveTimer.current) clearTimeout(saveTimer.current);
       flush();
@@ -386,7 +426,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     }
     setNotice('');
     setDraft('');
-    const user = newMessage('user', value.trim());
+    const user = newMessage('user', value.trim().slice(0, 3000));
     const assistant = newMessage('assistant', '');
     const correlation = { operation: assistant.id, conversation: session.id };
     track('agent_started', {
@@ -430,10 +470,20 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
       messages: [...s.messages, user, assistant],
     }));
     let terminal = false;
+    let cloudRevision: number | undefined;
     try {
+      const savedSession = sessionRef.current.find((s) => s.id === session.id)!;
+      const cloudHeaders = await prepareCloudRun(savedSession);
+      if (!isCurrent()) return;
       const response = await fetch('/api/v1/agent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...analyticsHeaders(correlation) },
+        headers: {
+          'Content-Type': 'application/json',
+          ...analyticsHeaders(correlation),
+          ...cloudHeaders,
+          'X-Wenbu-Request-Id': assistant.id,
+          ...(accountInstance() ? { 'X-Wenbu-Instance': accountInstance()! } : {}),
+        },
         signal: controller.signal,
         body: JSON.stringify({
           message: value.trim().slice(0, 3000),
@@ -460,8 +510,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
         }),
       });
       if (!response.ok) {
-        const data = (await response.json()) as { error?: { message?: string } };
-        throw new Error(data.error?.message ?? 'Request failed');
+        const data = (await response.json()) as { error?: { message?: string; code?: string } };
+        throw new Error(data.error?.message ?? accountError(data.error?.code || '', locale === 'zh'));
       }
       if (!response.body) throw new Error('No response stream');
       await consumeSse(
@@ -469,6 +519,13 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
         (data) => {
           if (!isCurrent()) return;
           const event = JSON.parse(data) as AgentEvent;
+          if (event.type === 'cloud') {
+            if (event.receipt) mutateSession(session.id, (s) => ({ ...s, receipt: event.receipt }));
+            cloudRevision = event.revision;
+            if (event.status === 'pending')
+              setNotice(accountError(event.code || 'connection_failed', locale === 'zh'));
+            return;
+          }
           if (event.type === 'start') setRemaining(event.remaining);
           if (event.type === 'done' || event.type === 'error') {
             terminal = true;
@@ -504,12 +561,21 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             type: 'error',
             code: 'client_error',
             message:
-              error instanceof Error
-                ? error.message
-                : t('连接失败，请稍后再试。', 'Connection failed. Try again later.'),
+              error instanceof AccountClientError
+                ? accountError(error.code, locale === 'zh')
+                : error instanceof Error
+                  ? error.message
+                  : t('连接失败，请稍后再试。', 'Connection failed. Try again later.'),
           }),
         );
     } finally {
+      endCloudRun(session.id);
+      if (cloudRevision && isCurrent())
+        acknowledgeCloudSession(
+          session.id,
+          cloudRevision,
+          sessionRef.current.find((s) => s.id === session.id),
+        );
       if (pending.current?.generationId === generationId) {
         pending.current = null;
         setBusy(false);
@@ -673,10 +739,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             {t('翻阅知识手册', 'Browse the library')}
             <ArrowUpRight size={12} />
           </a>
-          <p className="agent-local">
-            <span />
-            {t('会话仅保存在此浏览器', 'Conversations stay in this browser')}
-          </p>
+          <CloudSaveStatus
+            locale={locale}
+            intent={active?.messages.length ? { kind: 'session', content: active } : undefined}
+          />
         </div>
       </aside>
       <section className="agent-conversation" aria-label={t('命理 Agent 对话', 'Wenbu Agent conversation')}>
@@ -1374,8 +1440,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           </div>
           <p className="agent-quiet">
             {t(
-              '只把你选择的内容用于本次会话。资料会随消息交给 DeepSeek，保存在此浏览器。',
-              'Only your selection is used in this conversation. It is sent to DeepSeek with your message and saved in this browser.',
+              '只把你选择的内容用于本次会话。资料会随消息交给 DeepSeek；记录是否同步到云端，取决于你的账号保存设置。',
+              'Only your selection is used in this conversation and sent to DeepSeek with your message. Cloud storage follows your account’s history setting.',
             )}
           </p>
           <label className="agent-context-toggle">
@@ -1566,8 +1632,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             </pre>
             <p>
               {t(
-                '还会保留本会话最近 16 条消息、6 份命盘结果和 2 版报告。完整记录仍在此浏览器，导出会话包含其中已分享的资料。',
-                'The agent also receives up to 16 recent messages, 6 recent charts and 2 report versions. Full history stays in this browser. Conversation exports include shared details.',
+                '还会保留本会话最近 16 条消息、6 份命盘结果和 2 版报告。记录的保存位置由账号设置决定；导出会话包含已分享的资料。',
+                'The agent also receives up to 16 recent messages, 6 recent charts and 2 report versions. History storage follows your account setting. Conversation exports include shared details.',
               )}
             </p>
           </details>

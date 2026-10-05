@@ -1,5 +1,6 @@
 import { track } from './analytics';
 import type { Reading } from './tools';
+import { readAccountCache, writeAccountCache } from './account-client';
 export type Answer = {
   title: string;
   summary: string;
@@ -8,6 +9,7 @@ export type Answer = {
   question: string;
 };
 export type Entry = {
+  receipt?: string;
   id: string;
   createdAt: string;
   kind: Reading['kind'];
@@ -18,32 +20,29 @@ export type Entry = {
   context?: string;
   provenance?: string;
 };
-const KEY = 'wenbu.journal.v1';
 export function readJournal(): Entry[] {
   try {
-    const data = JSON.parse(localStorage.getItem(KEY) || '[]');
+    const data = readAccountCache<Entry>('journal');
     return Array.isArray(data)
-      ? data
-          .filter(
-            (x) =>
-              x &&
-              typeof x.id === 'string' &&
-              typeof x.createdAt === 'string' &&
-              Number.isFinite(Date.parse(x.createdAt)) &&
-              typeof x.question === 'string' &&
-              typeof x.note === 'string' &&
-              x.result &&
-              x.result.kind === x.kind &&
-              ['bazi', 'iching', 'tarot', 'ziwei'].includes(x.kind),
-          )
-          .slice(0, 100)
+      ? data.filter(
+          (x) =>
+            x &&
+            typeof x.id === 'string' &&
+            typeof x.createdAt === 'string' &&
+            Number.isFinite(Date.parse(x.createdAt)) &&
+            typeof x.question === 'string' &&
+            typeof x.note === 'string' &&
+            x.result &&
+            x.result.kind === x.kind &&
+            ['bazi', 'iching', 'tarot', 'ziwei'].includes(x.kind),
+        )
       : [];
   } catch {
     return [];
   }
 }
 export function writeJournal(entries: Entry[]) {
-  localStorage.setItem(KEY, JSON.stringify(entries.slice(0, 100)));
+  writeAccountCache('journal', entries);
 }
 export function downloadJson(data: unknown, name: string) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));

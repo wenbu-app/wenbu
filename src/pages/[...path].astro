@@ -89,8 +89,8 @@ const descriptions: Record<string, [string, string]> = {
     'Browse all 78 tarot cards: original AI illustrations, upright and reversed themes, major arcana and four suits. Open each artwork and explore for free.',
   ],
   journal: [
-    '留住当时的问题，也留住后来的理解。记录只在当前浏览器里，由你保存、回看和导出。',
-    'Keep the question you had and the understanding that followed. Your entries stay in this browser, ready to revisit and export.',
+    '留住当时的问题，也留住后来的理解。先免费试用；登录后可保存到云端，在不同设备间回看和导出。',
+    'Keep the question you had and the understanding that followed. Try freely, then sign in to keep entries in the cloud and revisit them across devices.',
   ],
   learn: [
     '第一次怎么选、怎么问、怎么看结果？从上手步骤到术语与计算依据，按你遇到的问题慢慢读。',
@@ -125,7 +125,7 @@ const description =
   (tool
     ? t(
         tool.descriptionZh +
-          '免费使用，无需注册，计算规则与来源公开，支持可选 AI 解读、本地保存和 Agent 导出。',
+          '免费使用，无需注册，计算规则与来源公开，支持可选 AI 解读、可选云端记录和 Agent 导出。',
         tool.descriptionEn +
           ' Free, without an account. View calculation conventions, save locally and export for your agent.',
       )
@@ -298,7 +298,7 @@ const ctaLabels: Record<string, [string, string]> = {
                 <summary>{t('资料会被公开吗？', 'Will my information be public?')}</summary>
                 <p>
                   {t(
-                    '不会自动公开。排盘输入通过 POST 发送；保存的手记只在当前浏览器。AI 解读需你主动确认将当前信息发送给 DeepSeek。',
+                    '不会自动公开。排盘输入通过 POST 发送；试用手记暂存在当前浏览器，登录并开启云端记录后可同步。AI 解读需你主动确认将当前信息发送给 DeepSeek。',
                     'Nothing is published automatically. Inputs use POST, saved entries stay in this browser, and an AI request requires your explicit choice to send the current information to DeepSeek.',
                   )}
                 </p>

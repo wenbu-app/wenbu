@@ -72,7 +72,7 @@ The CLI writes newline-delimited JSON events. Check the terminal event, not just
 
 For a follow-up, supply selected `history` and `context` explicitly. Preserve BaZi/Zi Wei original inputs, I Ching's six lines, or tarot's original `{id,reversed}` cards. A website context export is a different schema and cannot be sent directly as an Agent request. See the bilingual [Agent protocol](https://wenbu.app/agent-protocol.md) for limits and field mapping.
 
-Current limits: 12 Agent turns per network per Shanghai day, up to five model calls, 12 tool executions and 120 seconds per turn. Site-wide model budgets also apply; failures and cancellations may count. The API does not retain conversation history in application storage, but requests reach Cloudflare and DeepSeek. Browser-local history is not a promise of zero provider retention or end-to-end encryption.
+Current limits: 12 Agent turns per network per Shanghai day, up to five model calls, 12 tool executions and 120 seconds per turn. Site-wide model budgets also apply; failures and cancellations may count. Unauthenticated external calls do not retain conversation history in application storage. First-party email accounts can enable cloud history; public MCP and CLI cannot access private account data. Requests reach Cloudflare and DeepSeek. Browser-local history is not a promise of zero provider retention or end-to-end encryption.
 
 ## 中文使用要点
 

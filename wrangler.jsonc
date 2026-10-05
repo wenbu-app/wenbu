@@ -15,6 +15,12 @@
   },
   "vars": {
     "SITE_URL": "https://wenbu.app",
+    "ACCOUNTS_ENABLED": "true",
+    "ACCOUNTS_MAINTENANCE": "false",
+    "AUTH_EMAIL_FROM": "login@wenbu.app",
+    "AUTH_EMAIL_DAILY_LIMIT": "1000",
+    "AI_NETWORK_DAILY_LIMIT": "50",
+    "AGENT_NETWORK_DAILY_LIMIT": "120",
     "DEEPSEEK_MODEL": "deepseek-v4-flash",
     "AI_DAILY_LIMIT": "1000",
     "AI_PER_USER_DAILY_LIMIT": "5",
@@ -27,6 +33,7 @@
         "name": "QUOTA",
         "class_name": "UsageGate",
       },
+      { "name": "PRIVACY_LEDGER", "class_name": "DeletionLedger" },
     ],
   },
   "migrations": [
@@ -34,6 +41,7 @@
       "tag": "v1",
       "new_sqlite_classes": ["UsageGate"],
     },
+    { "tag": "v2", "new_sqlite_classes": ["DeletionLedger"] },
   ],
   "ratelimits": [
     { "name": "FEEDBACK_LIMITER", "namespace_id": "1004", "simple": { "limit": 5, "period": 60 } },
@@ -48,7 +56,14 @@
       },
     },
   ],
+  "send_email": [{ "name": "AUTH_EMAIL", "allowed_sender_addresses": ["login@wenbu.app"] }],
   "d1_databases": [
+    {
+      "binding": "USERDATA",
+      "database_name": "wenbu-userdata",
+      "database_id": "fa1a0a4f-afda-4aa4-9a27-a432843b92b1",
+      "migrations_dir": "migrations-userdata",
+    },
     {
       "binding": "ANALYTICS",
       "database_name": "wenbu-analytics",

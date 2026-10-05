@@ -202,6 +202,7 @@ export async function agentResponse(
   env: Env,
   onFinish?: (metric: ServiceMetric) => void,
   onActivity?: (metric: ServiceMetric) => void,
+  actor?: import('./account-operations').Actor,
 ) {
   const input = agentRequestSchema.parse(raw);
   // Rebuild charts and validate original random results BEFORE reserving a paid turn.
@@ -225,7 +226,9 @@ export async function agentResponse(
     request.headers.get('CF-Connecting-IP') ?? 'local-development',
     env.QUOTA_SALT,
   );
-  const quota = await env.QUOTA.get(env.QUOTA.idFromName('global')).reserveAgent(identity);
+  const quota = actor
+    ? await (await import('./account-operations')).reserveActor(env, actor, 'agent')
+    : await env.QUOTA.get(env.QUOTA.idFromName('global')).reserveAgent(identity);
   if (!quota.allowed) {
     const reason = quota.reason ?? 'daily_allowance';
     throw new ApiError(

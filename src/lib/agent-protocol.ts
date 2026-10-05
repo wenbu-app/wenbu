@@ -65,6 +65,13 @@ export type ToolTrace = {
   recovery?: { toolId: string; artifactId: string };
 };
 export type AgentEvent =
+  | {
+      type: 'cloud';
+      status: 'saved' | 'pending' | 'local';
+      revision?: number;
+      receipt?: string;
+      code?: string;
+    }
   | { type: 'start'; runId: string; remaining: number }
   | { type: 'delta'; text: string }
   | { type: 'tool_start'; tool: ToolTrace }
@@ -105,6 +112,7 @@ export type AgentMessage = {
   error?: string;
 };
 export type AgentSession = {
+  receipt?: string;
   id: string;
   title: string;
   locale: Locale;

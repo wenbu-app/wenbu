@@ -6,6 +6,7 @@ const deniedStorage = { ad_Storage: 'denied', analytics_Storage: 'denied' };
 let initialized = false;
 let script: HTMLScriptElement | undefined;
 let stopped = false;
+let accountOpen = false;
 
 export function initializeClarity() {
   if (
@@ -20,6 +21,7 @@ export function initializeClarity() {
     try {
       return (
         analyticsEnabled() &&
+        !accountOpen &&
         sessionStorage.getItem('wenbu.analytics.test') !== 'true' &&
         !/(?:^|;\s*)wenbu_analytics_test=1(?:;|$)/.test(document.cookie ?? '')
       );
@@ -66,6 +68,10 @@ export function initializeClarity() {
     document.head.appendChild(script);
   };
   window.addEventListener('wenbu:analytics-preference', sync);
+  window.addEventListener('wenbu:account-dialog', (event) => {
+    accountOpen = !!(event as CustomEvent<{ open: boolean }>).detail?.open;
+    sync();
+  });
   window.addEventListener('storage', (event) => {
     if (event.key === 'wenbu.analytics.disabled' || event.key === null) sync();
   });

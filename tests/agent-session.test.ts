@@ -12,6 +12,11 @@ import {
 } from '../src/lib/agent-session';
 import { drawTarot } from '../src/lib/tarot';
 import { restoreReading } from '../worker/agent-schema';
+vi.mock('../src/lib/account-client', () => ({
+  readAccountCache: () => JSON.parse(localStorage.getItem('wenbu.agent.sessions.v1') || '[]'),
+  writeAccountCache: (_kind: string, entries: unknown) =>
+    localStorage.setItem('wenbu.agent.sessions.v1', JSON.stringify(entries)),
+}));
 afterEach(() => vi.unstubAllGlobals());
 describe('Agent local recovery and context', () => {
   it('preserves partial content but does not resume abandoned executions on reload', () => {
