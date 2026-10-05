@@ -4,6 +4,9 @@ import { readJournal, writeJournal, downloadJson, type Entry } from '../lib/jour
 import { choose, href, toolInfo } from '../lib/i18n';
 import type { Locale } from '../lib/schema';
 import ReadingView from './ReadingView';
+import CloudSaveStatus from './CloudSaveStatus';
+import RecordBoundary from './RecordBoundary';
+import { initializeAccount } from '../lib/account-client';
 export default function Journal({ locale }: { locale: Locale }) {
   const t = (zh: string, en: string) => choose(locale, zh, en);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -13,8 +16,23 @@ export default function Journal({ locale }: { locale: Locale }) {
   const [removed, setRemoved] = useState<Entry | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    setEntries(readJournal());
-    setReady(true);
+    let mounted = true;
+    const load = () => {
+      if (mounted) {
+        setEntries(readJournal());
+        setActive(null);
+        setRemoved(null);
+        setReady(true);
+      }
+    };
+    void initializeAccount().then(load);
+    window.addEventListener('wenbu:account-changed', load);
+    window.addEventListener('wenbu:records-changed', load);
+    return () => {
+      mounted = false;
+      window.removeEventListener('wenbu:account-changed', load);
+      window.removeEventListener('wenbu:records-changed', load);
+    };
   }, []);
   function update(list: Entry[]) {
     try {
@@ -51,10 +69,11 @@ export default function Journal({ locale }: { locale: Locale }) {
           {t('导出全部', 'Export all')}
         </button>
       </div>
+      <CloudSaveStatus locale={locale} />
       <p className="form-note">
         {t(
-          '手记只保存在当前浏览器。清理浏览器数据会丢失记录，请导出备份；导出文件包含个人资料。',
-          'Your journal is stored in this browser. Clearing browser data removes it. Export a backup; the file contains personal information.',
+          '云端保存状态可在账号中查看。导出文件包含你选择保留的个人资料，请妥善存放。',
+          'Check sync status in your account. Exports contain the personal details you chose to keep; store them safely.',
         )}
       </p>
       {error && (
@@ -68,16 +87,16 @@ export default function Journal({ locale }: { locale: Locale }) {
           <button
             className="text-button"
             onClick={() => {
-              update([removed, ...entries]);
+              update([{ ...removed, id: crypto.randomUUID() }, ...entries]);
               setRemoved(null);
             }}
           >
-            {t('撤销', 'Undo')}
+            {t('恢复为副本', 'Restore as a copy')}
           </button>
         </div>
       )}
       {!ready ? (
-        <p role="status">{t('读取本地手记…', 'Opening your local journal…')}</p>
+        <p role="status">{t('正在打开手记…', 'Opening your journal…')}</p>
       ) : !entries.length ? (
         <div className="journal-empty">
           <Bookmark size={32} strokeWidth={1} />
@@ -133,7 +152,9 @@ export default function Journal({ locale }: { locale: Locale }) {
                     <p>{current.question}</p>
                   </div>
                 )}
-                <ReadingView result={current.result} locale={locale} />
+                <RecordBoundary key={current.id} locale={locale}>
+                  <ReadingView result={current.result} locale={locale} />
+                </RecordBoundary>
                 {current.answer && (
                   <div className="ai-reading">
                     <span className="eyebrow">{t('AI 生成的象征性解读', 'AI-GENERATED REFLECTION')}</span>

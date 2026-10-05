@@ -3,6 +3,7 @@ import { calculate } from '../src/lib/tools';
 import { tarotDeck } from '../src/data/tarot';
 import { z } from 'zod';
 import type { Env } from './types';
+import { reserveActor, type Actor } from './account-operations';
 
 export class ApiError extends Error {
   constructor(
@@ -77,7 +78,7 @@ const responseSchema = z
   })
   .strict();
 
-export async function interpret(raw: unknown, request: Request, env: Env) {
+export async function interpret(raw: unknown, request: Request, env: Env, actor?: Actor) {
   const input = interpretationSchema.parse(raw);
   const reading = verifiedReading(input.kind, input.input);
   if (!env.DEEPSEEK_API_KEY || !env.QUOTA_SALT)
@@ -90,7 +91,9 @@ export async function interpret(raw: unknown, request: Request, env: Env) {
     request.headers.get('CF-Connecting-IP') ?? 'local-development',
     env.QUOTA_SALT,
   );
-  const quota = await env.QUOTA.get(env.QUOTA.idFromName('global')).reserve(identity);
+  const quota = actor
+    ? await reserveActor(env, actor, 'interpret')
+    : await env.QUOTA.get(env.QUOTA.idFromName('global')).reserve(identity);
   if (!quota.allowed)
     throw new ApiError(
       429,

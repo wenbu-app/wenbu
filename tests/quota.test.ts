@@ -103,3 +103,91 @@ describe('Agent and original reading budgets', () => {
     expect(db.prepare("SELECT count FROM quota WHERE identity='global'").get()?.count).toBe(601);
   });
 });
+
+describe('guest to account reservations', () => {
+  const account = 'account:' + 'a'.repeat(64),
+    other = 'account:' + 'b'.repeat(64),
+    network = 'c'.repeat(64);
+  const reserve = (
+    subject: string,
+    kind: 'agent' | 'interpret' = 'interpret',
+    requestId = crypto.randomUUID(),
+  ) => ({ subject, kind, requestId, network });
+  it('atomically carries both allowances into an account, without charging the global budget twice', async () => {
+    const { instance, db } = gate(100, 3),
+      guest = crypto.randomUUID();
+    await instance.reserveAccount(reserve('guest:' + guest));
+    await instance.reserveAccount(reserve('guest:' + guest, 'agent'));
+    await Promise.all(Array.from({ length: 12 }, () => instance.claimGuest(account, guest)));
+    expect(db.prepare("SELECT count FROM quota WHERE identity='global'").get()?.count).toBe(2);
+    expect(db.prepare('SELECT count FROM quota WHERE identity=?').get(account)?.count).toBe(1);
+    expect(db.prepare('SELECT count FROM quota WHERE identity=?').get('agent:' + account)?.count).toBe(1);
+    expect((await instance.claimGuest(other, guest)).claimed).toBe(false);
+    expect((await instance.reserveAccount(reserve(account))).remaining).toBe(1);
+  });
+  it('cannot charge a replay after signup or after midnight', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-04T15:59:00Z'));
+    const { instance, db } = gate(100, 3),
+      guest = crypto.randomUUID(),
+      id = crypto.randomUUID();
+    await instance.reserveAccount(reserve('guest:' + guest, 'agent', id));
+    await instance.claimGuest(account, guest);
+    expect((await instance.reserveAccount(reserve(account, 'agent', id))).reason).toBe(
+      'request_already_reserved',
+    );
+    vi.setSystemTime(new Date('2026-10-04T16:01:00Z'));
+    expect((await instance.reserveAccount(reserve(account, 'agent', id))).reason).toBe(
+      'request_already_reserved',
+    );
+    expect((await instance.reserveAccount(reserve(account, 'agent'))).remaining).toBe(11);
+    expect(db.prepare("SELECT count FROM quota WHERE identity='global'").get()?.count).toBe(1);
+  });
+  it('deduplicates simultaneous paid reservations and enforces a separate network ceiling', async () => {
+    const { instance, db } = gate(1000, 100),
+      guest = 'guest:' + crypto.randomUUID(),
+      input = reserve(guest);
+    const same = await Promise.all(Array.from({ length: 12 }, () => instance.reserveAccount(input)));
+    expect(same.filter((r) => r.allowed)).toHaveLength(1);
+    const rest = await Promise.all(
+      Array.from({ length: 75 }, () => instance.reserveAccount(reserve('guest:' + crypto.randomUUID()))),
+    );
+    expect(rest.filter((r) => r.allowed)).toHaveLength(49);
+    expect(db.prepare("SELECT count FROM quota WHERE identity='global'").get()?.count).toBe(50);
+  });
+  it('rejects all auth limits atomically without consuming the other budgets', async () => {
+    const { instance, db } = gate();
+    expect(
+      (
+        await instance.consumeAuth([
+          { key: 'mailbox', window: 60, max: 1 },
+          { key: 'all-mail', window: 3600, max: 10 },
+        ])
+      ).allowed,
+    ).toBe(true);
+    const blocked = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        instance.consumeAuth([
+          { key: 'mailbox', window: 60, max: 1 },
+          { key: 'all-mail', window: 3600, max: 10 },
+        ]),
+      ),
+    );
+    expect(blocked.every((r) => !r.allowed && r.retryAfter! > 0)).toBe(true);
+    expect(db.prepare("SELECT count FROM auth_limits WHERE key='all-mail'").get()?.count).toBe(1);
+  });
+  it('does not inherit yesterday’s guest count while retaining its replay guard', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-04T15:59:00Z'));
+    const { instance } = gate(),
+      guest = crypto.randomUUID(),
+      id = crypto.randomUUID();
+    await instance.reserveAccount(reserve('guest:' + guest, 'interpret', id));
+    vi.setSystemTime(new Date('2026-10-04T16:01:00Z'));
+    await instance.claimGuest(account, guest);
+    expect((await instance.reserveAccount(reserve(account))).remaining).toBe(2);
+    expect((await instance.reserveAccount(reserve(account, 'interpret', id))).reason).toBe(
+      'request_already_reserved',
+    );
+  });
+});

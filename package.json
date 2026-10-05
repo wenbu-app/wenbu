@@ -17,10 +17,11 @@
     "format": "prettier --write .",
     "audit:site": "node scripts/audit-site.mjs",
     "audit:art": "node scripts/audit-art.mjs",
-    "verify": "npm run check && npm test && npm run build && npm run audit:site && npm run audit:art && npm run audit:knowledge && npm run audit:indexnow",
+    "verify": "npm run check && npm test && npm run test:accounts && npm run build && npm run audit:site && npm run audit:art && npm run audit:knowledge && npm run audit:indexnow",
     "audit:indexnow": "node scripts/audit-indexnow.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "audit:knowledge": "node scripts/audit-knowledge.mjs"
+    "audit:knowledge": "node scripts/audit-knowledge.mjs",
+    "test:accounts": "node scripts/test-accounts.mjs"
   },
   "dependencies": {
     "@astrojs/react": "7.0.0",
@@ -29,6 +30,7 @@
     "@js-temporal/polyfill": "0.5.1",
     "@modelcontextprotocol/sdk": "1.30.1",
     "astro": "7.3.5",
+    "better-auth": "1.7.7",
     "iztro": "2.6.1",
     "lucide-react": "1.48.0",
     "lunar-typescript": "1.8.6",
@@ -41,7 +43,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
-    "@cloudflare/workers-types": "5.20260928.1",
+    "@cloudflare/workers-types": "5.20261005.1",
     "@eslint/js": "10.0.1",
     "@types/node": "26.6.3",
     "@types/react": "19.3.0",
@@ -53,7 +55,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
     "vitest": "5.0.2",
-    "wrangler": "4.142.0"
+    "wrangler": "4.147.0"
   },
   "engines": {
     "node": ">=22.12.0"

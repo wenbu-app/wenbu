@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   ArrowUpRight,
   ArrowRight,
@@ -19,6 +19,15 @@ import FeedbackTrigger from './FeedbackTrigger';
 import { readingExcerpt, answerExcerpt } from '../lib/feedback-excerpt';
 import { analyticsHeaders, track, type Correlation } from '../lib/analytics';
 import '../styles/reading-motion.css';
+import {
+  accountSnapshot,
+  accountInstance,
+  subscribeAccount,
+  initializeAccount,
+  openAccount,
+} from '../lib/account-client';
+import CloudSaveStatus from './CloudSaveStatus';
+import { accountError } from './AccountPanel';
 
 async function post<T>(
   path: string,
@@ -26,23 +35,34 @@ async function post<T>(
   signal?: AbortSignal,
   action: 'example' | 'calculate' | 'none' = 'none',
   correlation: Correlation = {},
+  onReceipt?: (receipt: string) => void,
 ): Promise<T> {
+  await initializeAccount();
   const response = await fetch(path, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...analyticsHeaders(correlation),
       'X-Wenbu-Action': action,
+      ...(accountInstance() ? { 'X-Wenbu-Instance': accountInstance()! } : {}),
+      ...(accountSnapshot().user ? { 'X-Wenbu-Owner': accountSnapshot().user!.id } : {}),
+      'X-Wenbu-Request-Id': correlation.operation || crypto.randomUUID(),
     },
     body: JSON.stringify(input),
     signal,
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || 'Request failed');
+  if (!response.ok)
+    throw new Error(
+      data.error?.message || accountError(data.error?.code, document.documentElement.lang.startsWith('zh')),
+    );
+  const receipt = response.headers.get('X-Wenbu-Receipt');
+  if (receipt) onReceipt?.(receipt);
   return data;
 }
 export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Locale }) {
   const t = (zh: string, en: string) => choose(locale, zh, en);
+  const account = useSyncExternalStore(subscribeAccount, accountSnapshot, accountSnapshot);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [unknown, setUnknown] = useState(false);
@@ -77,6 +97,20 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
   const operation = useRef<string | undefined>(undefined);
   const interpretation = useRef<string | undefined>(undefined);
   const entryId = useRef<string | null>(null);
+  const receipt = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    void initializeAccount();
+    const reset = () => {
+      if (!accountSnapshot().user) return;
+      aiAbort.current?.abort();
+      setResult(null);
+      setAnswer(undefined);
+      setSaved(false);
+      receipt.current = undefined;
+    };
+    window.addEventListener('wenbu:account-changing', reset);
+    return () => window.removeEventListener('wenbu:account-changing', reset);
+  }, []);
   useEffect(() => () => aiAbort.current?.abort(), []);
   function invalidateAnswer() {
     aiAbort.current?.abort();
@@ -128,6 +162,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
     setConsent(false);
     setResult(null);
     entryId.current = null;
+    receipt.current = undefined;
     aiAbort.current?.abort();
     setAiBusy(false);
     let payload = input();
@@ -157,6 +192,9 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         undefined,
         demo ? 'example' : 'calculate',
         { operation: operationId },
+        (value) => {
+          receipt.current = value;
+        },
       );
       setResult(data);
       track('result_viewed', { tool: kind, operation: operationId, status: 'complete' });
@@ -208,6 +246,9 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         controller.signal,
         'none',
         correlation,
+        (value) => {
+          receipt.current = value;
+        },
       );
       if (controller.signal.aborted) return;
       setAnswer(data.answer);
@@ -244,10 +285,15 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
           question,
           note,
           answer,
+          receipt: receipt.current,
         },
         ...entries.filter((e) => e.id !== id),
       ]);
       setSaved(true);
+      if (!accountSnapshot().user && accountSnapshot().enabled) {
+        const current = readJournal().find((e) => e.id === id);
+        if (current) openAccount({ kind: 'journal', content: current });
+      }
       track('journal_saved', {
         tool: kind,
         operation: interpretation.current ?? operation.current,
@@ -661,6 +707,28 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                 <RefreshCw size={16} />
               </button>
             </div>
+            <CloudSaveStatus
+              locale={locale}
+              intent={
+                result && entryId.current
+                  ? {
+                      kind: 'journal',
+                      content: {
+                        id: entryId.current,
+                        createdAt: new Date().toISOString(),
+                        kind,
+                        result,
+                        question,
+                        context,
+                        note,
+                        answer,
+                        provenance,
+                        receipt: receipt.current,
+                      } as { id: string },
+                    }
+                  : undefined
+              }
+            />
             <ReadingView result={result} locale={locale} />
             <FeedbackTrigger
               locale={locale}
@@ -682,8 +750,16 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
             <p className="reading-saved-note" role="status">
               {saved &&
                 t(
-                  '已留在本机手记，随时回来续写。',
-                  'Saved in this browser’s journal. Return whenever you like.',
+                  account.user && account.cloudHistory
+                    ? account.pending
+                      ? '已留存，正在同步到云端。'
+                      : '已保存到云端手记，可在其他设备继续。'
+                    : '已留在本机手记，随时回来续写。',
+                  account.user && account.cloudHistory
+                    ? account.pending
+                      ? 'Saved here. Cloud sync is pending.'
+                      : 'Saved to your cloud journal. Continue on another device.'
+                    : 'Saved in this browser’s journal. Return whenever you like.',
                 )}
             </p>
             {exportOpen && (

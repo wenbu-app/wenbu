@@ -1,0 +1,450 @@
+.account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0;
+  background: none;
+  color: var(--ink, #293f35);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.55rem;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+}
+.account-trigger i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b7583e;
+}
+.account-dialog {
+  border: 1px solid #d3d5c6;
+  background: #faf8f1;
+  color: #2c4137;
+  width: min(560px, calc(100vw - 28px));
+  max-height: calc(100dvh - 40px);
+  padding: clamp(24px, 5vw, 44px);
+  border-radius: 3px;
+  box-shadow: 0 20px 90px #263b3433;
+  margin: auto;
+  overflow: auto;
+}
+.account-dialog::backdrop {
+  background: #20362e66;
+  backdrop-filter: blur(5px);
+}
+.account-dialog[open] {
+  animation: account-arrive 0.25s ease-out;
+}
+.account-close {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+}
+.account-seal {
+  color: #ad4f36;
+  border: 1px solid #b66248;
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 37px;
+  font-family: serif;
+  font-size: 23px;
+  margin-bottom: 24px;
+}
+.account-dialog h2 {
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: clamp(26px, 4.3vw, 34px);
+  font-weight: 400;
+  line-height: 1.35;
+  margin: 0.7rem 0 1rem;
+}
+.account-intro {
+  font-size: 0.92rem;
+  line-height: 1.9;
+  color: #647267;
+}
+.account-benefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 22px 0 28px;
+  font-size: 0.78rem;
+}
+.account-benefits span,
+.account-email,
+.account-actions .text-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.account-dialog .field {
+  display: grid;
+  gap: 9px;
+  font-size: 0.84rem;
+  margin: 18px 0;
+}
+.account-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #c5ccbc;
+  background: #fffef8;
+  padding: 0 14px;
+}
+.account-input input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 13px 0;
+  outline-offset: 6px;
+  min-width: 0;
+}
+.account-dialog input {
+  font: inherit;
+  color: inherit;
+}
+.account-code {
+  font-size: 27px !important;
+  letter-spacing: 12px;
+  padding: 14px 18px;
+  border: 1px solid #aebda8;
+  background: #fffef8;
+  min-width: 0;
+  width: 100%;
+}
+.account-dialog button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.account-submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 14px;
+  min-height: 48px;
+}
+.account-resend {
+  margin-top: 16px;
+}
+.account-fine {
+  font-size: 0.72rem;
+  color: #788475;
+  line-height: 1.8;
+  margin-top: 20px;
+}
+.account-fine a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.account-email {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.account-storage {
+  padding: 18px 0;
+}
+.account-storage > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+.account-storage > div > span:last-child {
+  margin-left: auto;
+  color: #788475;
+}
+.account-storage meter {
+  width: 100%;
+  height: 8px;
+  margin-top: 10px;
+  accent-color: #7d9173;
+}
+.account-toggle {
+  display: flex;
+  gap: 12px;
+  margin: 14px 0 24px;
+  font-size: 0.86rem;
+  align-items: flex-start;
+}
+.account-toggle input {
+  accent-color: #506c53;
+  margin-top: 4px;
+}
+.account-toggle small,
+.account-import small {
+  display: block;
+  color: #788475;
+  font-size: 0.74rem;
+  line-height: 1.7;
+  margin-top: 5px;
+}
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 15px 0;
+}
+.account-actions .button {
+  flex: 1;
+  justify-content: center;
+  font-size: 0.78rem;
+  white-space: normal;
+  line-height: 1.5;
+  padding: 12px;
+  min-width: 160px;
+}
+.account-import {
+  border-top: 1px solid #dadccb;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.account-import summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.account-import-list {
+  max-height: 210px;
+  overflow: auto;
+  margin: 16px 0;
+}
+.account-import-list label {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  font-size: 0.83rem;
+  padding: 10px 2px;
+  border-bottom: 1px solid #e4e6da;
+}
+.account-import-list input {
+  accent-color: #506c53;
+}
+.account-bottom {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  border-top: 1px solid #dadccb;
+  padding-top: 22px;
+  margin-top: 28px;
+  font-size: 0.8rem;
+}
+.account-bottom button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.account-pending {
+  background: #f0eee1;
+  border: 1px solid #d9d6be;
+  padding: 16px;
+  margin: 18px 0;
+  font-size: 0.82rem;
+}
+.account-pending h3 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+.account-conflict {
+  border-top: 1px solid #d6d6c4;
+  padding: 12px 0;
+  display: grid;
+  gap: 6px;
+}
+.account-conflict small {
+  color: #876346;
+}
+.account-conflict > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.account-delete {
+  background: #f6ece3;
+  border: 1px solid #dbc6b9;
+  padding: 16px;
+  margin-top: 20px;
+  font-size: 0.85rem;
+}
+.account-delete input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccb8a9;
+  background: #fffaf4;
+}
+.account-notice {
+  font-size: 0.82rem;
+  color: #4c6b4d;
+  line-height: 1.8;
+  margin-top: 18px;
+}
+.account-continue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+  margin-top: 28px;
+  font-size: 0.82rem;
+}
+.cloud-save-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  padding: 8px 0;
+  color: #76866d;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-align: start;
+  line-height: 1.7;
+}
+.cloud-save-status svg {
+  flex: none;
+}
+.account-spin {
+  animation: account-spin 1.4s linear infinite;
+}
+@keyframes account-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes account-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-dialog[open],
+  .account-spin {
+    animation: none;
+  }
+}
+@media (max-width: 600px) {
+  .header-actions {
+    gap: 3px !important;
+  }
+  .account-trigger {
+    padding: 8px 4px;
+  }
+  .account-trigger span {
+    font-size: 0.7rem;
+  }
+  .account-dialog {
+    max-height: calc(100dvh - 20px);
+  }
+}
+.account-insights {
+  border: 1px solid #d1d8c7;
+  padding: 24px;
+  margin: 24px 0;
+  background: #f7f7ed;
+}
+.account-insights-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+.account-insights-heading h2 {
+  font-size: 1.5rem;
+  margin: 7px 0;
+}
+.account-insights > p,
+.account-insights details p {
+  font-size: 0.82rem;
+  line-height: 1.8;
+  color: #6f7a68;
+}
+.account-insights-filters {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 20px 0;
+  font-size: 0.8rem;
+}
+.account-insights-filters label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.account-insights-filters select {
+  padding: 8px;
+  background: #fffef8;
+  border: 1px solid #c8d1be;
+  color: inherit;
+}
+.account-insights-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  margin: 25px 0;
+}
+.account-insights-metrics > div {
+  display: grid;
+  gap: 8px;
+  border-left: 1px solid #cbd3bf;
+  padding-left: 15px;
+  font-size: 0.83rem;
+}
+.account-insights-metrics strong {
+  font-size: 2rem;
+  font-weight: 400;
+}
+.account-insights-metrics small {
+  color: #788475;
+  line-height: 1.6;
+}
+.account-insights table {
+  width: 100%;
+  font-size: 0.83rem;
+  margin: 20px 0;
+  border-collapse: collapse;
+}
+.account-insights caption {
+  text-align: start;
+  margin-bottom: 12px;
+  color: #6d7b64;
+}
+.account-insights td,
+.account-insights th {
+  border-bottom: 1px solid #d7ddcd;
+  padding: 10px;
+  text-align: start;
+}
+.account-insights summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.account-delivery-counts {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+.account-delivery-counts strong {
+  padding-left: 5px;
+}
+@media (max-width: 700px) {
+  .account-insights {
+    padding: 16px;
+  }
+  .account-insights-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .account-insights-heading {
+    align-items: flex-start;
+  }
+  .account-insights-filters label {
+    flex-wrap: wrap;
+  }
+}

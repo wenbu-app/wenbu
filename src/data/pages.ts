@@ -163,17 +163,18 @@ export const pages: Record<string, Page> = {
         {
           heading: '你输入的资料怎样使用',
           paragraphs: [
-            '出生信息通过加密连接发送到 Cloudflare Worker，用于生成命盘。抽牌和起卦接口不需要发送你的问题。问卜不会自动把出生资料、问题或解读写入服务器数据库，也不把它们放进页面地址。只有在反馈中主动勾选分享并提交的摘录会私密保存。',
+            '出生信息通过加密连接发送到 Cloudflare Worker，用于生成命盘。抽牌和起卦接口不需要发送你的问题。未登录试用时，问卜不在业务数据库保存出生资料、问题或解读。登录并开启云端记录后，保存的手记和 Agent 对话会写入独立的 Cloudflare D1 账号数据库；这些正文不进入访问统计或 R2 事件归档，也不放进页面地址。反馈中主动勾选分享的摘录会私密保存。',
             '单次解读在勾选发送说明后，将当前命盘、问题和主动补充的背景发送给 DeepSeek 官网 API。命理 Agent 在发送消息时，会发送最多 16 条最近消息、6 份命盘、2 版报告和你主动选择的出生资料、背景与手记。DeepSeek 按其自己的隐私政策处理这些数据；问卜不能代表上游承诺零保留。',
           ],
         },
         {
           heading: '会话、手记与导出文件',
           paragraphs: [
-            '手记的保存按钮将结果写入当前浏览器的 localStorage，最多保留最近 100 条。没有默认的云端同步。共享设备上的其他使用者可能访问这些记录，清理浏览器数据会将其删除。',
-            'Agent 会话自动保存在当前浏览器，可删除整段会话、导出 JSON，报告可导出 Markdown。取消选择资料不会从旧消息或已有命盘中移除这些信息；新建对话会从空白上下文开始。页面关闭会中断任务，已成功保存的结果可在刷新后恢复。存储不足时会提示导出备份。',
+            '未登录时，手记和对话暂存在当前浏览器。邮箱验证码登录后，开启云端记录即可同步新对话和主动保存的手记；旧记录只上传你勾选的部分。浏览器缓存按账号分开，待同步内容不会自动写入另一个账号。每个账号初始提供 10 MiB 正文空间，每条手记及每条对话消息限 256 KiB；超限会提示导出，不会静默删除旧记录。',
+            'Agent 在开启云端记录时，先保存本次用户消息，再逐步保存生成内容；未登录或暂停云端记录时只保存在当前浏览器。可删除整段会话、导出 JSON，报告可导出 Markdown。取消选择资料不会从旧消息或已有命盘中移除这些信息；新建对话会从空白上下文开始。页面关闭会中断任务，已成功保存的结果可在刷新后恢复。存储不足时会提示导出备份。',
+            '暂停云端保存后，新增内容或改动只留在当前浏览器。重新开启不会自动上传这些旧内容；继续编辑某条记录时才同步该条。退出登录前，会提示导出或舍弃仅在本机的改动。',
             '研习搜索问卜资料库与精选来源目录；外部阅读仅请求目录中的公开页面地址，不把出生资料或问题附加到这些网址。来源网站仍可能处理服务器请求信息。',
-            '手记可逐条删除、在当前页面撤销，或导出 JSON 备份。工具页的「导出给 Agent」可以先预览，原始出生资料需额外勾选。完整会话导出则包含已保存的对话、资料与结果；即使没有出生日期，命盘和问题也可能涉及个人信息。',
+            '手记可逐条删除，或导出 JSON 备份。删除会留下不含正文的防恢复标记；界面的恢复操作会创建新副本。工具页的「导出给 Agent」可以先预览，原始出生资料需额外勾选。完整会话导出则包含已保存的对话、资料与结果；即使没有出生日期，命盘和问题也可能涉及个人信息。',
           ],
         },
         {
@@ -182,6 +183,7 @@ export const pages: Record<string, Page> = {
             '为了了解哪些页面和功能真正有用，我们通过本站接口向 Cloudflare D1 发送页面路径、来源类别、预先定义的推广活动、语言、国家级区域、设备与浏览器类别、功能事件、成功状态和耗时。不会发送出生日期、问题、聊天、命盘内容、笔记、原始 IP、完整来源网址或网址参数。',
             '公开网页、Markdown/JSON 手册和发现文件的 GET/HEAD 请求还会记录路径类别、响应状态、方法、耗时、客户端类别与分类依据，不附带浏览器访客或会话标识。搜索爬虫、AI 搜索、训练抓取和用户委托抓取分别归类；UA 自报可伪装，Cloudflare 验证和评分只在边缘提供时记录。不会保存完整 UA、网址参数或原始 IP。',
             '浏览器保存一个 30 天到期的随机访客标识和 30 分钟无活动后重置的会话标识。这些是浏览器访问估计，不等于真实人数。事件还记录时间、页面、操作与 Agent 回合的随机关联标识，帮助复盘使用过程。近期明细在 D1 保留 90 天；事件同时归档到私有 R2 长期保存，目前不设自动到期时间。明细、汇总和归档只对持有管理凭据的人开放。离线待发事件在本机最多暂存 7 天、1,000 条。',
+            '在允许统计时，账号数据库另保存不含正文的完成与保存回执，并使用独立随机的浏览器实例标识判断是否在另一实例继续探索；该标识按账号做带密钥哈希，不与匿名访问标识或邮箱关联到访问报表。操作回执与游客转化队列保留 90 天，账号内的实例标识保留至删除账号。关闭统计期间的操作不会在重新开启后补算。注册账号总量作为必要业务计数保留，激活和回访只统计允许测量的账号。',
             '本页可关闭本浏览器的统计，并设置仅表示关闭偏好的 cookie，让后续页面请求也停止统计；同时尊重 Do Not Track 和 Global Privacy Control。关闭后不再发送后续统计，不影响排盘或对话；已接收记录不会自动撤回，历史归档继续按上述政策保存。必要的额度与限速仍会运行。API、CLI 和 MCP 默认只记不含浏览器标识的功能、状态、耗时、国家与设备类别；可发送 X-Wenbu-Analytics: off，CLI 也可设置 WENBU_ANALYTICS=off。',
           ],
         },
@@ -189,21 +191,21 @@ export const pages: Record<string, Page> = {
           heading: '页面交互分析',
           paragraphs: [
             '我们使用 Microsoft Clarity 的热力图和会话回放，了解点击、滚动和页面交互，帮助发现难用的位置。Clarity 在无 cookie 模式下运行，不授予广告或统计 cookie 存储权限；Microsoft 仍会处理网络请求信息（包括 IP）、页面地址与设备信息，按其自己的隐私政策处理和保留数据。Clarity 数据不会存入本站 D1 或 R2。',
-            '工具、Agent 和手记的主内容区域设置了内容遮罩，包含聊天、出生资料、命盘、结果与笔记。输入框内容由 Clarity 默认遮罩；我们不使用自定义标识接口传送本站访客身份。管理后台、历史迁移页、本地预览和已标记测试会话不加载 Clarity。',
+            '工具、Agent 和手记的主内容区域设置了内容遮罩，包含聊天、出生资料、命盘、结果与笔记。账号面板也完全遮罩，打开时暂停 Clarity。输入框内容由 Clarity 默认遮罩；我们不使用自定义标识接口传送本站访客身份。管理后台、历史迁移页、本地预览和已标记测试会话不加载 Clarity。',
             '本页的统计开关同时控制 Clarity，DNT / GPC 也会阻止加载。运行中关闭会停止后续交互录制，但已经传送的数据不会撤回；无 cookie 模式下的访客与会话统计不能直接与本站统计相加。',
           ],
         },
         {
           heading: '免费额度与基础设施',
           paragraphs: [
-            '为了控制滥用，Cloudflare 会处理请求的 IP。AI 额度使用每天变化的带密钥哈希，持久层只存日期、哈希和次数，按过期清理机制移除。边缘请求限速不等于真实用户识别，共享网络可能共用额度。',
-            '除主动提交的反馈及其勾选分享的摘录外，应用不记录请求正文、不安装广告追踪脚本，也不读取浏览器以外的聊天、文件或位置。Cloudflare 的基础设施处理及 DeepSeek 的模型处理受各自政策约束。',
+            '为了控制滥用，Cloudflare 会处理请求的 IP。网络限额使用每天变化的带密钥哈希；访客试用使用 7 天有效的签名 HttpOnly cookie，登录后把当天试用用量归并到账号，避免重复赠送额度。防重复请求和归并记录最多保留 8 天，邮箱限速标识使用带密钥哈希。账号额度不等于真实人数；共享网络仍受额外防滥用限制。',
+            '账号登录保存邮箱、验证状态及必要的会话信息，不在认证数据库保存原始 IP 或完整 UA。验证码由 Cloudflare Email Service 发送，5 分钟有效，在数据库中加密保存；登录会话使用 HttpOnly、Secure、SameSite cookie，最长 30 天。账号和云端内容只在提供功能所需的私有数据库保存，不写入访问日志。应用不读取其他聊天、文件或位置。Cloudflare 的基础设施处理及 DeepSeek 的模型处理受各自政策约束。',
           ],
         },
         {
           heading: '反馈与更新',
           paragraphs: [
-            '本说明更新于 2026-10-01。页面上的反馈入口私密保存评价、建议、可选邮箱和反馈编号。相关问题或结果的摘录默认不发送；勾选分享后可预览和删改。关闭使用统计仍可主动发送反馈，但不会附带统计身份。反馈用于处理问题和产品改进，目前不设自动到期时间；可通过新的反馈提供原反馈编号，请求删除。私人摘录和邮箱不会进入事件归档。公开 GitHub 问题中请勿包含私人资料或密钥。本地记录可在手记中删除，或清除本站浏览器存储。',
+            '本说明更新于 2026-10-05。页面上的反馈入口私密保存评价、建议、可选邮箱和反馈编号。相关问题或结果的摘录默认不发送；勾选分享后可预览和删改。关闭使用统计仍可主动发送反馈，但不会附带统计身份。反馈用于处理问题和产品改进，目前不设自动到期时间；可通过新的反馈提供原反馈编号，请求删除。私人摘录和邮箱不会进入事件归档。公开 GitHub 问题中请勿包含私人资料或密钥。可在账号中导出云端记录、退出其他登录会话，或重新验证邮箱后删除账号。删除会先撤销访问并清除在线数据；Cloudflare 的数据库恢复窗口最长可能保留 30 天旧快照。独立防恢复标记保留 45 天，运维恢复时必须先重放删除并撤销旧会话，再重新开放访问。此机制不等于备份立即物理擦除。未同步或临时记录可在本机导出或清除。',
           ],
         },
       ],
@@ -216,17 +218,18 @@ export const pages: Record<string, Page> = {
         {
           heading: 'How your inputs are used',
           paragraphs: [
-            'Birth details are sent over an encrypted connection to a Cloudflare Worker to calculate the chart. Casting and card-draw endpoints do not need your question. Wenbu does not automatically store birth details, questions or readings in its server database or put them in page URLs. An excerpt is stored privately only when you explicitly choose to share it in feedback.',
+            'Birth details are sent over an encrypted connection to a Cloudflare Worker to calculate the chart. Casting and card-draw endpoints do not need your question. During a guest trial, Wenbu does not keep these inputs or results in its application database. After signing in with cloud history enabled, saved journal entries and Agent conversations are stored in a separate private Cloudflare D1 account database. Their contents are excluded from traffic analytics, R2 event archives and page URLs. Feedback excerpts are saved only when you choose to share them.',
             'AI readings on the tool pages send the chart, question and selected context to the official DeepSeek API after you select the consent checkbox. Sending an Agent message shares up to 16 recent messages, 6 recent charts, 2 report versions and the birth details, notes and journal entries you explicitly select. DeepSeek processes them under its own privacy policy; Wenbu cannot promise zero retention on the provider’s behalf.',
           ],
         },
         {
           heading: 'Conversations, local journal and exports',
           paragraphs: [
-            'Saving a journal entry writes it to this browser’s localStorage, which retains the latest 100 entries. There is no automatic cloud sync. Other users of a shared browser may access the records, and clearing browser storage removes them.',
-            'Agent conversations save automatically in this browser. You can delete a conversation, export it as JSON or download reports as Markdown. Deselecting context does not remove the information from earlier messages or charts. Start a new conversation for an empty context. Closing the page interrupts the task; results that were saved successfully return after a reload. A storage failure prompts you to export a backup.',
+            'Guest journal entries and chats stay in this browser. Email sign-in with cloud history enabled syncs new conversations and journal entries you save. Older records are imported only when selected. Browser caches and pending changes are bound to one account. Accounts initially include 10 MiB of content storage, with a 256 KiB limit per journal entry or chat message. Limits prompt an export instead of silently removing older records.',
+            'With cloud history enabled, the Agent saves your message before generation and saves checkpoints as the response arrives. Guest and paused-history conversations stay in this browser. You can delete a conversation, export it as JSON or download reports as Markdown. Deselecting context does not remove the information from earlier messages or charts. Start a new conversation for an empty context. Closing the page interrupts the task; results that were saved successfully return after a reload. A storage failure prompts you to export a backup.',
+            'Pausing cloud history keeps new changes in this browser. Resuming does not upload those changes automatically; editing a record again will sync that record. Before signing out, you can export or discard browser-only changes.',
             'Research searches Wenbu’s library and curated catalogue. External reading requests only listed public page URLs, without adding your question or birth details. Source websites may still process server request metadata.',
-            'You can delete individual journal entries, undo a deletion on the current page and export JSON backups. On a tool page, “Export for an agent” offers a preview and excludes original birth details unless you select them. A full conversation export includes the saved messages, context and results. Even without a birth date, a chart or question may contain personal information.',
+            'You can delete individual journal entries and export JSON backups. Deletion leaves a content-free marker to prevent stale uploads from restoring it. The interface’s restore action creates a new copy. On a tool page, “Export for an agent” offers a preview and excludes original birth details unless you select them. A full conversation export includes the saved messages, context and results. Even without a birth date, a chart or question may contain personal information.',
           ],
         },
         {
@@ -235,6 +238,7 @@ export const pages: Record<string, Page> = {
             'Our first-party endpoint records page paths, source categories, registered campaigns, language, country-level region, device/browser categories, feature events, outcomes and durations in Cloudflare D1. It excludes birth details, questions, chat, chart contents, notes, raw IPs, full referrer URLs and URL query parameters.',
             'Public page, Markdown/JSON guide and discovery-file GET/HEAD requests also record a known path category, response status, method, duration, client category and classification evidence, without browser visitor or session identifiers. Search crawling, AI search, training crawls and user-triggered fetches are classified separately. User agents can be spoofed; Cloudflare verification and scores are recorded only when supplied by the edge. Full user agents, URL queries and raw IPs are not stored.',
             'A random browser identifier expires after 30 days; a session resets after 30 minutes of inactivity. These estimate browser visits, not individual people. Events also carry timestamps and random page, operation and Agent-turn IDs so we can understand usage journeys. Recent detail stays in D1 for 90 days; private R2 archives currently have no automatic expiry. Reports, individual events and archives require administrator credentials. Pending events can stay on your device for up to seven days, with a 1,000-event limit.',
+            'When measurement is enabled, the account database keeps content-free completion and save receipts. A separate random browser installation identifier helps measure continuing in another browser instance; it is keyed per account and is not joined to anonymous traffic identifiers or email addresses in traffic reports. Operation receipts and guest conversion cohorts are retained for 90 days; account installation records last until account deletion. Actions during an opt-out are not backfilled after re-enabling measurement. Account totals remain an operational count; activation and return metrics include only measurable accounts.',
             'Disable measurement on this page at any time. A preference-only cookie also disables measurement of subsequent page requests. We also honor Do Not Track and Global Privacy Control. Disabling stops future analytics without affecting tools or conversations; previously received events remain subject to the archive policy above. Necessary quota and rate-limit controls continue. API, CLI and MCP record coarse feature, status, duration, country and device categories without browser identifiers by default. Send X-Wenbu-Analytics: off to disable; the CLI also accepts WENBU_ANALYTICS=off.',
           ],
         },
@@ -242,21 +246,21 @@ export const pages: Record<string, Page> = {
           heading: 'Page interaction analysis',
           paragraphs: [
             'We use Microsoft Clarity heatmaps and session replay to understand clicks, scrolling and page interactions, and identify usability problems. Clarity runs without analytics or advertising cookie storage permission. Microsoft still processes network request information, including IP addresses, page URLs and device information, under its own privacy and retention policies. Clarity data is not stored in our D1 database or R2 archive.',
-            'The main content of tool, Agent and journal pages is explicitly masked, including conversations, birth details, charts, results and notes. Clarity masks input fields by default. We do not share our visitor identifiers through its custom identity API. Clarity does not load on the admin dashboard, history migration pages, local previews or sessions marked as tests.',
+            'The main content of tool, Agent and journal pages is explicitly masked, including conversations, birth details, charts, results and notes. The entire account panel is masked, and opening it pauses Clarity. Clarity also masks input fields by default. We do not share our visitor identifiers through its custom identity API. Clarity does not load on the admin dashboard, history migration pages, local previews or sessions marked as tests.',
             'The measurement switch on this page also controls Clarity. Do Not Track and Global Privacy Control prevent it from loading. Disabling measurement during a visit stops further interaction recording; it does not withdraw data already sent. Clarity’s cookie-less visitor and session counts cannot be added to Wenbu’s own counts.',
           ],
         },
         {
           heading: 'Free allowances and infrastructure',
           paragraphs: [
-            'Cloudflare processes request IPs for abuse controls. The AI allowance uses a daily keyed hash; persistent storage holds only dates, hashes and counts with expiry cleanup. Edge rate limiting is not user identification, and people on a shared network may share an allowance.',
-            'Apart from submitted feedback and explicitly shared excerpts, the application does not log request bodies, include ad trackers or read external chats, files or location. Cloudflare infrastructure and DeepSeek model processing remain subject to their respective policies.',
+            'Cloudflare processes request IPs for abuse controls. Network limits use daily keyed hashes. Guest trials use a signed HttpOnly cookie valid for seven days; signing in carries the current day’s usage into the account. Replay and claim guards expire after eight days. Mailbox rate limits use keyed hashes. Account counts are not a count of real people, and shared networks retain an additional abuse-control ceiling.',
+            'Authentication stores your email, verification status and necessary session data, excluding raw IPs and full user agents. Cloudflare Email Service sends the code. Codes are encrypted in the database and expire after five minutes; sessions use HttpOnly, Secure, SameSite cookies and last up to 30 days. Account content is kept in private application storage, not traffic logs. The application does not read external chats, files or location. Cloudflare infrastructure and DeepSeek model processing remain subject to their respective policies.',
           ],
         },
         {
           heading: 'Feedback and updates',
           paragraphs: [
-            'Updated October 1, 2026. The feedback button privately stores your rating, note, optional email and receipt ID. Excerpts are off by default; you can review and edit one before choosing to share it. Feedback still works with analytics disabled, without analytics identifiers. Feedback currently has no automatic expiry and is used for issue resolution and product improvement. To request deletion, send a new note with the original receipt ID. Shared excerpts and email addresses are excluded from event archives. Keep private information and credentials out of public GitHub issues. Delete local records in the journal or clear this site’s browser storage.',
+            'Updated October 5, 2026. The feedback button privately stores your rating, note, optional email and receipt ID. Excerpts are off by default; you can review and edit one before choosing to share it. Feedback still works with analytics disabled, without analytics identifiers. Feedback currently has no automatic expiry and is used for issue resolution and product improvement. To request deletion, send a new note with the original receipt ID. Shared excerpts and email addresses are excluded from event archives. Keep private information and credentials out of public GitHub issues. Account controls let you export cloud records, revoke other sessions and delete your account after a fresh email verification. Deletion blocks access and removes online data. Cloudflare recovery snapshots may retain older data for up to 30 days; an independent, content-free deletion ledger lasts 45 days. Recovery procedures must replay that ledger and revoke old sessions before reopening access. This is not a claim of immediate physical backup erasure. Unsynced and temporary browser copies can be exported or cleared locally.',
           ],
         },
       ],
@@ -327,7 +331,7 @@ export const pages: Record<string, Page> = {
           heading: 'Ownership and feedback',
           paragraphs: [
             'Source code is provided under the repository LICENSE; dependencies retain their own licenses. Product names belong to their respective holders, and comparisons do not imply a partnership or endorsement.',
-            'Updated October 1, 2026. Report calculation or content issues through GitHub with reproducible examples and private information removed.',
+            'Updated October 5, 2026. Report calculation or content issues through GitHub with reproducible examples and private information removed.',
           ],
         },
       ],
@@ -337,7 +341,7 @@ export const pages: Record<string, Page> = {
     zh: {
       title: '免费功能与使用额度',
       description:
-        '八字、易经、塔罗、紫微和本地手记免费。单次 AI 解读每天 5 次，Agent 每天 12 回合，均按网络计数并受全站额度限制。',
+        '八字、易经、塔罗、紫微和本地手记免费。单次 AI 解读每天 5 次，Agent 每天 12 回合，登录后按账号计数，并受网络防滥用和全站额度限制。',
       sections: [
         {
           heading: '哪些功能免费？',
@@ -349,7 +353,7 @@ export const pages: Record<string, Page> = {
         {
           heading: 'AI 解读怎样计算额度？',
           paragraphs: [
-            '每个网络每天最多 5 次工具页 AI 解读，另有 12 回合 Agent 对话，按上海时间（UTC+08:00）零点重置。一次发送算一个对话回合，后续追问使用新回合。共享 Wi-Fi、公司网络或同一 IPv6 网段可能共用额度，不是按个人账户计数。',
+            '浏览器访客试用与登录账号每天最多 5 次工具页 AI 解读、12 回合 Agent 对话，上海时间（UTC+08:00）零点重置。登录会归并当天试用用量，不会重新赠送额度。共享网络另受每天 50 次解读、120 回合对话的防滥用限制。未登录的外部 API 客户端保留按网络计数的额度；所有调用还受全站预算约束。',
             '所有访客另共享每天 1,000 次模型请求的全站预算，其中 Agent 最多使用 600 次。一回合最多调用模型 5 次、执行工具 12 次；模型请求会在调用前预留额度。超时或服务失败也可能消耗额度。输入、上下文和输出有长度限制。',
           ],
         },
@@ -365,7 +369,7 @@ export const pages: Record<string, Page> = {
     en: {
       title: 'Free to use, with clear limits',
       description:
-        'Free charts, casts, tarot and a local journal. Optional AI readings have a daily per-network allowance and a shared site budget.',
+        'Free charts, casts, tarot and a local journal. Optional AI readings have daily trial or account allowances, network abuse controls and a shared site budget.',
       sections: [
         {
           heading: 'What is free?',
@@ -377,7 +381,7 @@ export const pages: Record<string, Page> = {
         {
           heading: 'How the AI allowance works',
           paragraphs: [
-            'Each network can use up to five AI readings on the tool pages and 12 Agent turns per day. Sending a message starts one turn; a follow-up uses another. Allowances reset at midnight in Shanghai (UTC+08:00). People on shared Wi-Fi, an office network or the same IPv6 network prefix may share this allowance. It is not an individual account limit.',
+            'Browser trials and signed-in accounts can use up to five AI readings and 12 Agent turns per Shanghai day (UTC+08:00). Signing in carries over that day’s trial usage; it does not refill the allowance. A shared network has an additional ceiling of 50 AI readings and 120 Agent turns. Unauthenticated external API clients retain the per-network allowance. Global budgets apply to everyone.',
             'All visitors also share a daily budget of 1,000 model requests, of which the Agent can use up to 600. A turn can make up to five model calls and 12 tool calls. Each model request reserves its allowance before contacting DeepSeek, so timeouts and provider failures may still use it. Input, context and output lengths are limited.',
           ],
         },

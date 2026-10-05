@@ -1,0 +1,24 @@
+{
+  "phase": "validated_not_deployed",
+  "date": "2026-10-05",
+  "base": "ce2fe06e4645906fc46511ca93a18a1ea831ce1b",
+  "local": {
+    "unit_tests": 302,
+    "native_integration_checks": 64,
+    "native_scope": "workerd, native D1, Durable Objects; synthetic email and model",
+    "browser": "guest result -> email code -> original conversation -> follow-up -> reload; zh desktop and en 375 px mobile",
+    "audit": "site, tarot assets, knowledge editions, IndexNow",
+    "lint": "passed",
+    "production_dependency_audit": "0 vulnerabilities"
+  },
+  "mail": {
+    "domain_configuration": "Cloudflare enabled/configured",
+    "real_delivery": "pending authorized test recipient"
+  },
+  "grok": {
+    "attempted": true,
+    "status": 402,
+    "verdict": null
+  },
+  "remote_restore_drill": "not performed; local restored-data masking and maintenance replay tested"
+}

@@ -28,7 +28,7 @@ describe('public edge API', () => {
   it('returns private no-store responses with calculations', async () => {
     const res = await worker.fetch(req({ date: '2005-12-23', time: '08:37' }), env);
     expect(res.status).toBe(200);
-    expect(res.headers.get('Cache-Control')).toBe('no-store');
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store');
     expect(res.headers.get('X-Robots-Tag')).toContain('noindex');
     expect(((await res.json()) as { kind: string }).kind).toBe('bazi');
   });

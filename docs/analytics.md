@@ -216,3 +216,9 @@ Names are UA declarations and may be spoofed. Browser hints do not prove a human
 扩展事件或来源先修改闭合 contract、服务端验证、报表定义、UI 标签和真实路径测试。不要添加任意正文或查询字段；保持 archive 版本与旧客户端的兼容。写入失败使用不带请求内容的固定运维日志信号；这些日志不自动进入成功率分母。
 
 Cloudflare 运维日志已开启，仅持久化固定错误信号，关闭 invocation 请求日志与 traces。D1 写入失败可在 Cloudflare 日志中查找 `WENBU_ANALYTICS_WRITE_FAILED`；未将这些错误假设为已收到的产品事件。[Cloudflare Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)。MCP 在解析前被拒绝的请求也计服务终态；正常初始化与列表不计调用。
+
+## Verified accounts (2026-10-05)
+
+The separate account section uses USERDATA, `account-v2`, its own rolling interval/language/test filters, and no joins to anonymous visitor IDs. It reports operational registrations, measurable coverage, signed-result saves, fixed guest cohorts, mature Day 1 / Day 7 activation cohorts, repeat value and cross-instance continuation. Different installation identifiers are not proof of physical devices. Tests and opt-out actions are excluded as labelled, and deleted accounts can reduce historical live cohorts. Email acceptance is not inbox delivery. See [complete definitions and data retention](accounts.md#account-measurement).
+
+Browser prompt views and auth starts are approximate optional events; backend verification, registration and accepted-provider counters are independent. `wenbu.analytics.test` is propagated to a short-lived test preference cookie before subsequent navigation. To mark the first server page request, use `X-Wenbu-Test: true`; setting sessionStorage after a page has already arrived cannot reclassify that earlier request. Preference UI remains in a loading state until the browser setting has been read.

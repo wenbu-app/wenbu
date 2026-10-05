@@ -8,11 +8,11 @@
 
 发布前完成 `verify` 与 `lint`，核对当前分支和 Cloudflare 账户。发布后分别检查页面、计算接口、MCP 和真实浏览器体验；只有需要验证模型时才发起有额度成本的 AI 请求。GitHub CI 通过不等于已部署，`/api/health` 显示已配置也不等于上游模型已经实测。
 
-会话/手记保存在用户浏览器，AI 额度在 Durable Object，近期使用事件与主动提交的反馈在 D1，长期事件归档在私有 R2。反馈摘录只有用户主动勾选并预览后才上传；行为事件不含对话正文。请求处理时 Cloudflare 与 DeepSeek 仍会接收相关数据；不要把“行为统计不存对话”写成“资料不出设备”。统计概览按北京时间或 UTC 的日历日期分组；历史与反馈仍用滚动时间窗口。AI 额度按上海时间零点重置。
+游客会话/手记保存在用户浏览器；邮箱账号可使用独立 USERDATA 数据库保存云端记录，详见 [账号与恢复](accounts.md)。AI 额度在 Durable Object，近期使用事件与主动提交的反馈在 D1，长期事件归档在私有 R2。反馈摘录只有用户主动勾选并预览后才上传；行为事件不含对话正文。请求处理时 Cloudflare 与 DeepSeek 仍会接收相关数据；不要把“行为统计不存对话”写成“资料不出设备”。统计概览按北京时间或 UTC 的日历日期分组；历史与反馈仍用滚动时间窗口。AI 额度按上海时间零点重置。
 
 ## Runtime
 
-Astro static pages and React islands are built locally or in CI. One Cloudflare Worker serves static assets, POST APIs and stateless Streamable HTTP MCP. A named SQLite Durable Object atomically reserves global and per-network daily AI allowances. Cloudflare D1 stores recent first-party product events and private feedback; private R2 retains event archives. Separate rate-limit bindings protect public computation, feedback, event collection and admin reports. Optional model calls use DeepSeek's official API. There is no separate application server or third-party analytics script.
+Astro static pages and React islands are built locally or in CI. One Cloudflare Worker serves static assets, POST APIs and stateless Streamable HTTP MCP. A named SQLite Durable Object atomically reserves global and per-network daily AI allowances. Cloudflare D1 stores recent first-party product events and private feedback; private R2 retains event archives. Separate rate-limit bindings protect public computation, feedback, event collection and admin reports. Optional model calls use DeepSeek's official API. There is no separate application server. Microsoft Clarity measures opted-in page interactions; private account surfaces are masked. Email accounts and cloud history use a separate USERDATA D1 and independent deletion ledger; see [accounts](accounts.md).
 
 ## Commands
 

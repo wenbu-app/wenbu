@@ -9,9 +9,9 @@ import type {
 import type { Locale } from './schema';
 import type { Reading } from './tools';
 import { readReportVisual, reportSourceIds } from './agent-report';
+import { readAccountCache, writeAccountCache } from './account-client';
 export { hasLaterReport } from './agent-outcome';
 
-const KEY = 'wenbu.agent.sessions.v1';
 export function newSession(locale: Locale): AgentSession {
   return {
     id: crypto.randomUUID(),
@@ -51,7 +51,7 @@ export function isSafeSource(value: unknown): value is AgentSource {
 }
 export function restoreSessions(): AgentSession[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(KEY) ?? '[]');
+    const parsed = readAccountCache<AgentSession>('session');
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter(
@@ -97,8 +97,8 @@ export function restoreSessions(): AgentSession[] {
 }
 export function persistSessions(sessions: AgentSession[]) {
   const json = JSON.stringify(sessions);
-  if (json.length > 3600000) throw new Error('storage_full');
-  localStorage.setItem(KEY, json);
+  if (new TextEncoder().encode(json).length > 3600000) throw new Error('storage_full');
+  writeAccountCache('session', sessions);
 }
 export function updateMessage(message: AgentMessage, event: AgentEvent): AgentMessage {
   if (event.type === 'delta') return { ...message, text: message.text + event.text };
