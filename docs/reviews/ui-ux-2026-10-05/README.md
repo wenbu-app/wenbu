@@ -50,4 +50,13 @@
 
 ## 发布
 
-代码、CI、Cloudflare 版本与线上 smoke 回执将在发布后记在本节。没有将上线、IndexNow 通知或页面检查视为收录和转化提升的证明。
+- [PR #14](https://github.com/wenbu-app/wenbu/pull/14) 已合并，发布源码为 `564a0cabc977778f4001a9f97e2b7d36dcd9194d`。PR 检查 [37287445864](https://github.com/wenbu-app/wenbu/actions/runs/37287445864) 与合并后检查 [37287602232](https://github.com/wenbu-app/wenbu/actions/runs/37287602232) 均通过。见 [CI 回执](ci.json)。
+- Cloudflare Worker `87be24a0-78ff-480c-a135-ee8202fe6f1b` 已发布到 `wenbu.app`、`www.wenbu.app`、`wenbu.genedai.me`。不涉及新数据库迁移或密钥变更。
+- [线上构建一致性](live-build-match.json)：10 个核心路由的 HTML 与 10 个直接引用的 JS/CSS 文件均逐字节匹配本地发布构建；线上 IndexNow 清单也一致。覆盖中英文 Agent、首页、工具、手册、Insights 和手记。
+- [线上 smoke](live-smoke.json)：96 个页面/资源检查、四种计算工具、六个 MCP 工具枚举、MCP 起卦与双语知识读取通过。这次未重新调用生产模型。
+- [统计核验](live-analytics.json)：1 / 3 / 7 / 14 / 30 / 90 天范围、时区、逐时/逐日、维度筛选、未来空值与合计对账通过，未公开生产明细。
+- [账号核验](live-accounts.json)：14 项线上接口与账号报表约束检查通过，没有发送邮件或创建真实账号。完整验证并保存路径使用本地模拟 OTP；真实邮件投递不在本次证明范围。
+- 实际浏览器确认英文 Insights、820px 折叠菜单与 Escape 恢复、320px 中文 Agent 加载完成可输入且无页面横向溢出。截图：[英文统计入口](after/live-insights-en.png)、[平板菜单](after/live-tablet-navigation.png)、[手机 Agent](after/live-agent-320.png)。这些公开页面验证没有读取私人对话。
+- [IndexNow 回执](indexnow-after-deploy.json)为 `backoff`、本次提交 `0`，现有定时任务在允许时间后继续处理；未绕过退避。本次不声称新内容已被搜索引擎接收、收录或带来流量增长。
+
+所有模拟统计截图、真实线上检查和自动化回归均在上文分别标记。上线与页面检查不构成注册转化或留存提升的证据。
