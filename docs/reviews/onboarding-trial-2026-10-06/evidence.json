@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-06",
+  "timezone": "Asia/Shanghai",
+  "product": "https://wenbu.app/",
+  "sourceBaseline": "76efb34e766b698edf0b90673e6ec61d45309f85",
+  "scope": "Research and design specification; no runtime edits or deployment",
+  "browser": "Codex in-app browser; existing guest storage; new conversation",
+  "realAgentSubmissions": 4,
+  "observedModelLabel": "deepseek-flash",
+  "realTarotDraws": 1,
+  "completedEmailVerifications": 0,
+  "productionAnalyticsQueried": false,
+  "newUserParticipants": 0,
+  "observations": [
+    {
+      "id": "F01",
+      "finding": "Three consecutive clarification-only turns before a substantive fourth answer",
+      "remainingTurns": [11, 10, 9, 8],
+      "frequency": "One observed journey; prevalence unknown",
+      "captures": [
+        "03-live-clarification-mobile.png",
+        "04-live-second-clarification-mobile.png",
+        "05-live-third-turn-mobile.png",
+        "06-live-result-mobile.png"
+      ]
+    },
+    {
+      "id": "F02",
+      "finding": "Twelve-item answer remained in chat while the result panel was empty",
+      "contentLost": false,
+      "captures": ["06-live-result-mobile.png", "07-live-empty-result-panel.png"]
+    },
+    {
+      "id": "F03",
+      "finding": "Contextual email-save entry preserved tarot result after cancellation",
+      "cloudSaveVerified": false,
+      "captures": ["11-tarot-result-mobile.png", "12-save-email-mobile.png"]
+    }
+  ],
+  "captures": [
+    {
+      "file": "01-home-desktop.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "9e49817904a2c7263d9c0d7b072cd25f050d00f63f173a7b55a34aa27e4114cd"
+    },
+    {
+      "file": "02-agent-entry-desktop.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "b60cbdad928fc99e97da96bcac2a29b8c6d3aa1cd28d6e051d7a3d6ff6764e08"
+    },
+    {
+      "file": "03-live-clarification-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "989c97aa4f9caaa244795554f01603471f41c353d01bb9ab4cb44ebced04357e"
+    },
+    {
+      "file": "04-live-second-clarification-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "b28483a57ff78d544f25ca81c299da66b0479285e461d58d5fccdc7794eae310"
+    },
+    {
+      "file": "05-live-third-turn-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "0ffaa2490050ea4d34da73672bd467e37dcdbaccbca86eae4d824c1237a1de55"
+    },
+    {
+      "file": "06-live-result-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "8680f6994b2120288b2cd64de355198ea17eeb46578049aa7e4068578cb18a1f"
+    },
+    {
+      "file": "07-live-empty-result-panel.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "2792d3fe48bbd757e8b36ef2905c10fe32482a6ab22ae972af50eb8c0958fc59"
+    },
+    {
+      "file": "08-context-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "b8c2bc037307e495004fb73399a23a2e2392a30ab1f7ba0f1f8f3bab84dfcb7c"
+    },
+    {
+      "file": "09-birth-context-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "35af8c2da4f8a63fc9e048a61ddbe953a95659bb2dbcb1e5b07d0f1e6c32c1ad"
+    },
+    {
+      "file": "10-tarot-entry-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "581374f27e360d2f7db033dfb6bd1c8c93ff874ff0760c2726ba1cbe809f62d3"
+    },
+    {
+      "file": "11-tarot-result-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "373f43e466545c8aa067c5c0121ffd34b5dc40b640b9d34efdd3e4b49c13291a"
+    },
+    {
+      "file": "12-save-email-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "0547614c2b92ddbd2646b50633df22a8bafa5bb460df951fdb395436a67d1fa3"
+    },
+    {
+      "file": "13-english-entry-mobile.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "9e944d857570be506676f5f437f638d9f0f0f2dee8644eec0e37d157fdab772e"
+    },
+    {
+      "file": "14-english-entry-narrow.png",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "369b7b3c08b6173e50ac62f7255def955fa5fd6b4dd544ccae7c505259a539d4"
+    }
+  ]
+}

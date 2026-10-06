@@ -1,5 +1,8 @@
 # Wenbu 文档导航
 
+- [引导与试用深度研究：首次结果、连续澄清、双语 UI 与验证方案](research/onboarding-trial-experience-2026-10-06.md) — 研究规格，未部署；[本轮线上截图](reviews/onboarding-trial-2026-10-06/README.md)。
+- [产品研究索引](research/README.md)
+
 - [全站 UI / UX 检查、保存流程与英文统计修复](reviews/ui-ux-2026-10-05/README.md)
 
 - [注册时机研究：完整结果、主动保存、回访与转化验证](research/registration-timing-2026-10-05.md)

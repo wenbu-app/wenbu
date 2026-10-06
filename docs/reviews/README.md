@@ -1,5 +1,7 @@
 # Quality and review evidence
 
+- [2026-10-06: onboarding and trial journey research with fresh live evidence](onboarding-trial-2026-10-06/README.md) — research and proposed design; no runtime change or deployment.
+
 - [2026-10-06: deep bilingual UI / UX research, full-route checks and systematic interaction recovery](ui-ux-depth-2026-10-06/README.md).
 
 - [2026-10-05: full UI / UX audit, contextual saves and bilingual analytics](ui-ux-2026-10-05/README.md).
