@@ -177,7 +177,18 @@ export function contextHistory(messages: AgentMessage[]) {
   const history = messages
     .filter((m) => m.text.trim())
     .slice(-16)
-    .map((m) => ({ role: m.role, content: m.text.slice(0, 7000) }));
+    .map((m) => ({
+      role: m.role,
+      content: m.text.slice(0, 7000),
+      ...(m.role === 'assistant'
+        ? {
+            delivered:
+              m.status === 'complete' &&
+              !m.question &&
+              (m.artifacts.length > 0 || m.text.trim().length >= 80),
+          }
+        : {}),
+    }));
   while (history.reduce((n, m) => n + m.content.length, 0) > 28000) history.shift();
   return history;
 }

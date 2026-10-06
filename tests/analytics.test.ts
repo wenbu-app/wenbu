@@ -8,7 +8,7 @@ import {
   pruneAnalytics,
   recordService,
 } from '../worker/analytics';
-import { pagePaths, referrerSource, safePage } from '../src/lib/analytics-contract';
+import { analyticsRelease, pagePaths, referrerSource, safePage } from '../src/lib/analytics-contract';
 import { articles } from '../src/data/articles';
 import { comparisons } from '../src/data/comparisons';
 import { pages } from '../src/data/pages';
@@ -32,6 +32,26 @@ const request = (headers: Record<string, string> = {}) =>
     headers: { 'User-Agent': 'Mozilla/5.0 Macintosh Chrome/130', ...headers },
   });
 describe('closed analytics contract', () => {
+  it('accepts onboarding observations and cached previous-release pages without collecting answers', async () => {
+    const { sql, env } = database();
+    const base = {
+      ...context(),
+      page: '/agent/',
+      tool: 'agent',
+      operation: crypto.randomUUID(),
+      conversation: crypto.randomUUID(),
+    };
+    const events = [
+      { ...base, id: crypto.randomUUID(), event: 'agent_result_visible', release: analyticsRelease },
+      { ...base, id: crypto.randomUUID(), event: 'agent_example_opened', release: analyticsRelease },
+      { ...base, id: crypto.randomUUID(), event: 'agent_started', release: '2026-09-29-feedback-v1' },
+    ];
+    await collectEvents({ events }, request(), env);
+    expect(sql.prepare('SELECT COUNT(*) n FROM events').get()?.n).toBe(3);
+    expect(sql.prepare("SELECT COUNT(*) n FROM events WHERE event = 'agent_finished'").get()?.n).toBe(0);
+    expect(() => eventBatch.parse({ events: [{ ...events[0], answer: 'private text' }] })).toThrow();
+    sql.close();
+  });
   it('summarizes guidance steps without collecting topic or answer content and excludes test traffic', async () => {
     const { sql, env } = database();
     const session = context();

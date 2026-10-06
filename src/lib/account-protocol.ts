@@ -82,7 +82,12 @@ export const messageRecord = z.object({
     .max(100)
     .optional(),
   question: z
-    .object({ question: text, options: z.array(text).max(20), form: z.literal('birth').optional() })
+    .object({
+      question: text,
+      options: z.array(text).max(20),
+      form: z.literal('birth').optional(),
+      birthKind: z.enum(['bazi', 'ziwei']).optional(),
+    })
     .optional(),
   model: text.optional(),
   error: text.optional(),

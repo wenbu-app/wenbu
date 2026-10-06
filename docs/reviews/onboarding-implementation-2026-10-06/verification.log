@@ -1,0 +1,340 @@
+
+> wenbu@1.3.1 verify
+> npm run check && npm test && npm run test:accounts && npm run build && npm run audit:site && npm run audit:art && npm run audit:knowledge && npm run audit:indexnow
+
+
+> wenbu@1.3.1 check
+> astro check && tsc -p tsconfig.worker.json --noEmit
+
+10:34:10 [types] Generated 51ms
+10:34:10 [check] Getting diagnostics for Astro files in /Users/dai/Developer/wenbu-feedback-history...
+Result (94 files):
+- 0 errors
+- 0 warnings
+- 0 hints
+
+
+> wenbu@1.3.1 test
+> vitest run
+
+
+ RUN  v5.0.2 /Users/dai/Developer/wenbu-feedback-history
+
+(node:28358) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28354) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28357) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28503) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28508) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28481) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28506) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  27 passed (27)
+      Tests  332 passed (332)
+   Start at  10:34:19
+   Duration  2.05s (import 54%, transform 25%, tests 21%, worker 1%)
+
+  Transform  transforming modules took 3.55s · 25% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+
+> wenbu@1.3.1 test:accounts
+> node scripts/test-accounts.mjs
+
+PASS private route rejects anonymous
+PASS cross-site code send denied
+PASS guest gets full result and signed receipt
+PASS send code alpha@wenbu.test
+PASS verify alpha@wenbu.test
+PASS send code beta@wenbu.test
+PASS verify beta@wenbu.test
+PASS session cookies private and secure
+PASS no plaintext session IP/UA
+PASS no email in business identity table
+PASS code replay rejected
+PASS send cooldown enforced
+PASS private route cache disabled
+PASS guest quota claim
+PASS save current guest result
+PASS activation from verified guest result
+PASS stale outbox cannot cross accounts
+PASS owner isolation reads
+PASS repeat same mutation idempotent
+PASS mutation ID payload mismatch rejected
+PASS optimistic concurrency exactly one winner
+PASS cross-site record write rejected
+PASS forged activation receipt rejected
+PASS legacy import saves without activation
+PASS legacy retry deduplicated
+PASS legacy mismatch does not overwrite
+PASS chat stores with bounded message parts
+PASS chat round trip
+PASS cloud Agent completes with acknowledged final checkpoint
+PASS server persists generated text and receipt before browser reload
+PASS cloud Agent refuses unpersisted user messages
+PASS request-level opt out records no account operation
+PASS later consent cannot retroactively activate an opted-out result
+PASS account insights queries reconcile with native D1
+PASS fixed guest cohort includes trial then signup then save
+PASS cross instance continuation requires read plus a new operation
+PASS immature retention cohort has no denominator
+PASS test registrations excluded by default
+PASS day 1 and day 7 windows are independent
+PASS completed standalone AI interpretation gets its own signed result
+PASS saved interpretation receipt validates against its exact answer
+PASS UTF-8 byte limit rejects oversized records without truncation
+PASS account byte allowance fails without partial record writes
+PASS record manifest paginates without duplicate IDs
+PASS delete current record
+PASS stale upload cannot revive deleted
+PASS external tombstone masks restored D1 content
+PASS external tombstone blocks restored write
+PASS history pause accepted
+PASS pause rejects new server save
+PASS pause enforced for valid record
+PASS unauthorized auth endpoints blocked
+PASS clarification-only turns are not completed trial results
+PASS stale owner cannot revoke the new account session
+PASS whole account deletion
+PASS deleted session revoked
+PASS deleted content erased
+PASS other account unaffected
+PASS simultaneous OTP consumption has exactly one winner
+PASS three incorrect codes invalidate the challenge
+PASS expired OTP is rejected
+PASS restored identity and session stay blocked by independent deletion intent
+PASS maintenance replay erases restored identity and revokes every stale session
+PASS provider failure not acknowledged as sent
+{"passed":true,"checks":64,"scope":"local workerd + native D1 + production auth limits + mock email; no live delivery or model calls"}
+
+> wenbu@1.3.1 build
+> astro build && node scripts/postbuild.mjs
+
+10:34:25 [types] Generated 31ms
+10:34:25 [build] output: "static"
+10:34:25 [build] mode: "static"
+10:34:25 [build] directory: /Users/dai/Developer/wenbu-feedback-history/dist/
+10:34:25 [build] Collecting build info...
+10:34:25 [build] ✓ Completed in 61ms.
+10:34:25 [build] Building static entrypoints...
+10:34:25 [vite] ✓ built in 267ms
+10:34:26 [vite] ✓ built in 559ms
+10:34:26 [build] Rearranging server assets...
+
+ generating static routes
+10:34:26   ├─ /404.html (+19ms)
+10:34:26   ├─ /knowledge/index.json (+2ms)
+10:34:26   ├─ /knowledge/zh/first-reading.json (+1ms)
+10:34:26   ├─ /knowledge/en/first-reading.json (+1ms)
+10:34:26   ├─ /knowledge/zh/ask-a-better-question.json (+1ms)
+10:34:26   ├─ /knowledge/en/ask-a-better-question.json (+1ms)
+10:34:26   ├─ /knowledge/zh/prepare-birth-details.json (+1ms)
+10:34:26   ├─ /knowledge/en/prepare-birth-details.json (+1ms)
+10:34:26   ├─ /knowledge/zh/read-ai-with-sources.json (+1ms)
+10:34:26   ├─ /knowledge/en/read-ai-with-sources.json (+1ms)
+10:34:26   ├─ /knowledge/zh/review-a-reading.json (+1ms)
+10:34:26   ├─ /knowledge/en/review-a-reading.json (+1ms)
+10:34:26   ├─ /knowledge/zh/bazi-ten-gods.json (+1ms)
+10:34:26   ├─ /knowledge/en/bazi-ten-gods.json (+1ms)
+10:34:26   ├─ /knowledge/zh/iching-trigrams.json (+1ms)
+10:34:26   ├─ /knowledge/en/iching-trigrams.json (+1ms)
+10:34:26   ├─ /knowledge/zh/tarot-suits-and-court-cards.json (+1ms)
+10:34:26   ├─ /knowledge/en/tarot-suits-and-court-cards.json (+1ms)
+10:34:26   ├─ /knowledge/zh/tarot-reversals.json (+1ms)
+10:34:26   ├─ /knowledge/en/tarot-reversals.json (+1ms)
+10:34:26   ├─ /knowledge/zh/ziwei-four-transformations.json (+0ms)
+10:34:26   ├─ /knowledge/en/ziwei-four-transformations.json (+0ms)
+10:34:26   ├─ /knowledge/zh/bazi-basics.json (+1ms)
+10:34:26   ├─ /knowledge/en/bazi-basics.json (+0ms)
+10:34:26   ├─ /knowledge/zh/five-elements.json (+1ms)
+10:34:26   ├─ /knowledge/en/five-elements.json (+1ms)
+10:34:26   ├─ /knowledge/zh/birth-time-timezone.json (+1ms)
+10:34:26   ├─ /knowledge/en/birth-time-timezone.json (+2ms)
+10:34:26   ├─ /knowledge/zh/iching-three-coins.json (+1ms)
+10:34:26   ├─ /knowledge/en/iching-three-coins.json (+0ms)
+10:34:26   ├─ /knowledge/zh/tarot-beginner.json (+0ms)
+10:34:26   ├─ /knowledge/en/tarot-beginner.json (+0ms)
+10:34:26   ├─ /knowledge/zh/ziwei-twelve-palaces.json (+1ms)
+10:34:26   ├─ /knowledge/en/ziwei-twelve-palaces.json (+1ms)
+10:34:26   ├─ /knowledge/zh/unknown-birth-time.json (+1ms)
+10:34:26   ├─ /knowledge/en/unknown-birth-time.json (+1ms)
+10:34:26   ├─ /knowledge/zh/ai-divination.json (+1ms)
+10:34:26   ├─ /knowledge/en/ai-divination.json (+1ms)
+10:34:26   ├─ /knowledge/zh/chinese-zodiac-vs-bazi.json (+0ms)
+10:34:26   ├─ /knowledge/en/chinese-zodiac-vs-bazi.json (+0ms)
+10:34:26   ├─ /knowledge/zh/bazi-vs-western-astrology.json (+0ms)
+10:34:26   ├─ /knowledge/en/bazi-vs-western-astrology.json (+1ms)
+10:34:26   ├─ /knowledge/zh/choose-a-tool.json (+0ms)
+10:34:26   ├─ /knowledge/en/choose-a-tool.json (+1ms)
+10:34:26   ├─ /knowledge/zh/first-reading.md (+1ms)
+10:34:26   ├─ /knowledge/en/first-reading.md (+0ms)
+10:34:26   ├─ /knowledge/zh/ask-a-better-question.md (+0ms)
+10:34:26   ├─ /knowledge/en/ask-a-better-question.md (+1ms)
+10:34:26   ├─ /knowledge/zh/prepare-birth-details.md (+1ms)
+10:34:26   ├─ /knowledge/en/prepare-birth-details.md (+1ms)
+10:34:26   ├─ /knowledge/zh/read-ai-with-sources.md (+1ms)
+10:34:26   ├─ /knowledge/en/read-ai-with-sources.md (+1ms)
+10:34:26   ├─ /knowledge/zh/review-a-reading.md (+0ms)
+10:34:26   ├─ /knowledge/en/review-a-reading.md (+0ms)
+10:34:26   ├─ /knowledge/zh/bazi-ten-gods.md (+0ms)
+10:34:26   ├─ /knowledge/en/bazi-ten-gods.md (+0ms)
+10:34:26   ├─ /knowledge/zh/iching-trigrams.md (+1ms)
+10:34:26   ├─ /knowledge/en/iching-trigrams.md (+1ms)
+10:34:26   ├─ /knowledge/zh/tarot-suits-and-court-cards.md (+0ms)
+10:34:26   ├─ /knowledge/en/tarot-suits-and-court-cards.md (+1ms)
+10:34:26   ├─ /knowledge/zh/tarot-reversals.md (+0ms)
+10:34:26   ├─ /knowledge/en/tarot-reversals.md (+0ms)
+10:34:26   ├─ /knowledge/zh/ziwei-four-transformations.md (+0ms)
+10:34:26   ├─ /knowledge/en/ziwei-four-transformations.md (+0ms)
+10:34:26   ├─ /knowledge/zh/bazi-basics.md (+0ms)
+10:34:26   ├─ /knowledge/en/bazi-basics.md (+1ms)
+10:34:26   ├─ /knowledge/zh/five-elements.md (+0ms)
+10:34:26   ├─ /knowledge/en/five-elements.md (+0ms)
+10:34:26   ├─ /knowledge/zh/birth-time-timezone.md (+0ms)
+10:34:26   ├─ /knowledge/en/birth-time-timezone.md (+1ms)
+10:34:26   ├─ /knowledge/zh/iching-three-coins.md (+1ms)
+10:34:26   ├─ /knowledge/en/iching-three-coins.md (+1ms)
+10:34:26   ├─ /knowledge/zh/tarot-beginner.md (+0ms)
+10:34:26   ├─ /knowledge/en/tarot-beginner.md (+1ms)
+10:34:26   ├─ /knowledge/zh/ziwei-twelve-palaces.md (+0ms)
+10:34:26   ├─ /knowledge/en/ziwei-twelve-palaces.md (+0ms)
+10:34:26   ├─ /knowledge/zh/unknown-birth-time.md (+0ms)
+10:34:26   ├─ /knowledge/en/unknown-birth-time.md (+0ms)
+10:34:26   ├─ /knowledge/zh/ai-divination.md (+0ms)
+10:34:26   ├─ /knowledge/en/ai-divination.md (+0ms)
+10:34:26   ├─ /knowledge/zh/chinese-zodiac-vs-bazi.md (+0ms)
+10:34:26   ├─ /knowledge/en/chinese-zodiac-vs-bazi.md (+0ms)
+10:34:26   ├─ /knowledge/zh/bazi-vs-western-astrology.md (+0ms)
+10:34:26   ├─ /knowledge/en/bazi-vs-western-astrology.md (+0ms)
+10:34:26   ├─ /knowledge/zh/choose-a-tool.md (+1ms)
+10:34:26   ├─ /knowledge/en/choose-a-tool.md (+1ms)
+10:34:26   ├─ /index.html (+5ms)
+10:34:26   ├─ /bazi/index.html (+4ms)
+10:34:26   ├─ /iching/index.html (+3ms)
+10:34:26   ├─ /tarot/index.html (+3ms)
+10:34:26   ├─ /tarot/deck/index.html (+17ms)
+10:34:26   ├─ /ziwei/index.html (+2ms)
+10:34:26   ├─ /journal/index.html (+2ms)
+10:34:26   ├─ /move/index.html (+2ms)
+10:34:26   ├─ /learn/index.html (+7ms)
+10:34:26   ├─ /blog/index.html (+2ms)
+10:34:26   ├─ /agents/index.html (+2ms)
+10:34:26   ├─ /agent/index.html (+5ms)
+10:34:26   ├─ /sources/index.html (+2ms)
+10:34:26   ├─ /insights/index.html (+3ms)
+10:34:26   ├─ /about/index.html (+2ms)
+10:34:26   ├─ /methodology/index.html (+1ms)
+10:34:26   ├─ /privacy/index.html (+2ms)
+10:34:26   ├─ /terms/index.html (+1ms)
+10:34:26   ├─ /free/index.html (+1ms)
+10:34:26   ├─ /blog/connect-your-agent/index.html (+2ms)
+10:34:26   ├─ /learn/first-reading/index.html (+2ms)
+10:34:26   ├─ /learn/ask-a-better-question/index.html (+2ms)
+10:34:26   ├─ /learn/prepare-birth-details/index.html (+2ms)
+10:34:26   ├─ /learn/read-ai-with-sources/index.html (+2ms)
+10:34:26   ├─ /learn/review-a-reading/index.html (+1ms)
+10:34:26   ├─ /learn/bazi-ten-gods/index.html (+2ms)
+10:34:26   ├─ /learn/iching-trigrams/index.html (+2ms)
+10:34:26   ├─ /learn/tarot-suits-and-court-cards/index.html (+2ms)
+10:34:26   ├─ /learn/tarot-reversals/index.html (+2ms)
+10:34:26   ├─ /learn/ziwei-four-transformations/index.html (+1ms)
+10:34:26   ├─ /learn/bazi-basics/index.html (+1ms)
+10:34:26   ├─ /learn/five-elements/index.html (+1ms)
+10:34:26   ├─ /learn/birth-time-timezone/index.html (+1ms)
+10:34:26   ├─ /learn/iching-three-coins/index.html (+3ms)
+10:34:26   ├─ /learn/tarot-beginner/index.html (+2ms)
+10:34:26   ├─ /learn/ziwei-twelve-palaces/index.html (+2ms)
+10:34:26   ├─ /learn/unknown-birth-time/index.html (+2ms)
+10:34:26   ├─ /learn/ai-divination/index.html (+2ms)
+10:34:26   ├─ /learn/chinese-zodiac-vs-bazi/index.html (+1ms)
+10:34:26   ├─ /learn/bazi-vs-western-astrology/index.html (+1ms)
+10:34:26   ├─ /learn/choose-a-tool/index.html (+1ms)
+10:34:26   ├─ /blog/a-reading-you-can-return-to/index.html (+1ms)
+10:34:26   ├─ /blog/why-calculation-comes-first/index.html (+1ms)
+10:34:26   ├─ /compare/fatetell/index.html (+1ms)
+10:34:26   ├─ /compare/labyrinthos/index.html (+1ms)
+10:34:26   ├─ /compare/chatbot/index.html (+1ms)
+10:34:26   ├─ /en/index.html (+2ms)
+10:34:26   ├─ /en/bazi/index.html (+2ms)
+10:34:26   ├─ /en/iching/index.html (+1ms)
+10:34:26   ├─ /en/tarot/index.html (+2ms)
+10:34:26   ├─ /en/tarot/deck/index.html (+6ms)
+10:34:26   ├─ /en/ziwei/index.html (+2ms)
+10:34:26   ├─ /en/journal/index.html (+1ms)
+10:34:26   ├─ /en/move/index.html (+2ms)
+10:34:26   ├─ /en/learn/index.html (+5ms)
+10:34:26   ├─ /en/blog/index.html (+1ms)
+10:34:27   ├─ /en/agents/index.html (+1ms)
+10:34:27   ├─ /en/agent/index.html (+2ms)
+10:34:27   ├─ /en/sources/index.html (+1ms)
+10:34:27   ├─ /en/insights/index.html (+2ms)
+10:34:27   ├─ /en/about/index.html (+1ms)
+10:34:27   ├─ /en/methodology/index.html (+1ms)
+10:34:27   ├─ /en/privacy/index.html (+1ms)
+10:34:27   ├─ /en/terms/index.html (+1ms)
+10:34:27   ├─ /en/free/index.html (+1ms)
+10:34:27   ├─ /en/blog/connect-your-agent/index.html (+1ms)
+10:34:27   ├─ /en/learn/first-reading/index.html (+1ms)
+10:34:27   ├─ /en/learn/ask-a-better-question/index.html (+1ms)
+10:34:27   ├─ /en/learn/prepare-birth-details/index.html (+2ms)
+10:34:27   ├─ /en/learn/read-ai-with-sources/index.html (+2ms)
+10:34:27   ├─ /en/learn/review-a-reading/index.html (+1ms)
+10:34:27   ├─ /en/learn/bazi-ten-gods/index.html (+1ms)
+10:34:27   ├─ /en/learn/iching-trigrams/index.html (+1ms)
+10:34:27   ├─ /en/learn/tarot-suits-and-court-cards/index.html (+1ms)
+10:34:27   ├─ /en/learn/tarot-reversals/index.html (+1ms)
+10:34:27   ├─ /en/learn/ziwei-four-transformations/index.html (+1ms)
+10:34:27   ├─ /en/learn/bazi-basics/index.html (+1ms)
+10:34:27   ├─ /en/learn/five-elements/index.html (+1ms)
+10:34:27   ├─ /en/learn/birth-time-timezone/index.html (+1ms)
+10:34:27   ├─ /en/learn/iching-three-coins/index.html (+1ms)
+10:34:27   ├─ /en/learn/tarot-beginner/index.html (+1ms)
+10:34:27   ├─ /en/learn/ziwei-twelve-palaces/index.html (+1ms)
+10:34:27   ├─ /en/learn/unknown-birth-time/index.html (+1ms)
+10:34:27   ├─ /en/learn/ai-divination/index.html (+1ms)
+10:34:27   ├─ /en/learn/chinese-zodiac-vs-bazi/index.html (+1ms)
+10:34:27   ├─ /en/learn/bazi-vs-western-astrology/index.html (+1ms)
+10:34:27   ├─ /en/learn/choose-a-tool/index.html (+1ms)
+10:34:27   ├─ /en/blog/a-reading-you-can-return-to/index.html (+1ms)
+10:34:27   ├─ /en/blog/why-calculation-comes-first/index.html (+1ms)
+10:34:27   ├─ /en/compare/fatetell/index.html (+2ms)
+10:34:27   ├─ /en/compare/labyrinthos/index.html (+1ms)
+10:34:27   ├─ /en/compare/chatbot/index.html (+1ms)
+10:34:27 ✓ Completed in 810ms.
+
+10:34:27 [build] ✓ Completed in 1.66s.
+10:34:27 [build] 93 page(s) built in 1.83s
+10:34:27 [build] Complete!
+Generated sitemap for 86 indexable pages, RSS, CSP and social image.
+
+> wenbu@1.3.1 audit:site
+> node scripts/audit-site.mjs
+
+{
+  "pages": 93,
+  "internalReferencesChecked": 4839,
+  "indexablePages": 86,
+  "result": "passed"
+}
+
+> wenbu@1.3.1 audit:art
+> node scripts/audit-art.mjs
+
+{"cards":78,"backs":1,"thumbnails":78,"maxBytes":227518,"totalBytes":15625878,"result":"passed"}
+
+> wenbu@1.3.1 audit:knowledge
+> node scripts/audit-knowledge.mjs
+
+Knowledge audit passed: 42 complete HTML/Markdown/JSON editions, anchors, sources and Article metadata.
+
+> wenbu@1.3.1 audit:indexnow
+> node scripts/audit-indexnow.mjs
+
+{"result":"passed","pages":86,"revision":"781275cd080f1f50c50d6567b8d1a1e608124b0e2fb4e2c480286dfafc460223","checks":["sitemap parity","deployed HTML fingerprints","private route exclusion","verification file"]}

@@ -12,6 +12,7 @@ import {
 } from '../worker/agent-library';
 import { newMessage, updateMessage } from '../src/lib/agent-session';
 import { traceOutcomes } from '../src/lib/agent-outcome';
+import { withoutBirthMessage } from '../src/lib/agent-guidance';
 import { agentRequestSchema, restoreReading } from '../worker/agent-schema';
 import { consumeSse, type AgentEvent, type AgentSource } from '../src/lib/agent-protocol';
 import type { Env } from '../worker/types';
@@ -69,6 +70,149 @@ async function events(response: Response) {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe('onboarding clarification bound', () => {
+  const history = [
+    { role: 'user', content: 'I am weighing a work decision.' },
+    { role: 'assistant', content: 'What would help you most?' },
+  ];
+  it('replaces a repeated optional questionnaire with a useful answer, without bundled draws', async () => {
+    const { env, reserveAgent } = testEnv();
+    const fetcher = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        model(null, [
+          { name: 'draw_tarot', args: { count: 3 } },
+          {
+            name: 'ask_user',
+            args: { question: 'Which method do you want?', options: ['Tarot', 'Checklist'] },
+          },
+        ]),
+      )
+      .mockImplementationOnce(async (_url, init) => {
+        const body = JSON.parse(init?.body as string);
+        expect(
+          body.tools.some((tool: { function: { name: string } }) => tool.function.name === 'ask_user'),
+        ).toBe(false);
+        expect(body.messages.filter((message: { role: string }) => message.role === 'tool')).toHaveLength(2);
+        return model(
+          'Start by checking the work, the team, and the practical terms of each offer. Turn each assumption into a question you can verify.',
+        );
+      });
+    const out = await events(
+      await agentResponse({ message: 'Long-term growth', history, consent: true }, request(), env),
+    );
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(reserveAgent).toHaveBeenCalledTimes(1);
+    expect(out.some((event) => ['question', 'artifact', 'tool_start'].includes(event.type))).toBe(false);
+    expect(out.at(-1)).toMatchObject({ type: 'done', status: 'complete' });
+  });
+  it.each(['bazi', 'ziwei'])(
+    'still collects indispensable %s data after a previous question',
+    async (birthKind) => {
+      const { env } = testEnv();
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        model(null, [
+          { name: 'ask_user', args: { question: 'Add your birth details.', form: 'birth', birthKind } },
+        ]),
+      );
+      const out = await events(
+        await agentResponse({ message: 'Read my chart', history, consent: true }, request(), env),
+      );
+      expect(out.find((event) => event.type === 'question')).toMatchObject({ question: { birthKind } });
+      expect(out.at(-1)).toMatchObject({ status: 'waiting' });
+    },
+  );
+  it.each(['bazi', 'ziwei'])('does not recollect already sufficient %s data', async (birthKind) => {
+    const { env } = testEnv();
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        model(null, [
+          { name: 'ask_user', args: { question: 'Add details again.', form: 'birth', birthKind } },
+        ]),
+      )
+      .mockResolvedValueOnce(model('I can continue from your selected details.'));
+    const out = await events(
+      await agentResponse(
+        {
+          message: 'Continue',
+          history,
+          consent: true,
+          context: {
+            birth: {
+              date: '1990-05-12',
+              time: birthKind === 'bazi' ? null : '09:30',
+              timezone: 'Asia/Shanghai',
+              dayBoundary: 'midnight',
+              solarTime: false,
+              sex: 'female',
+            },
+          },
+        },
+        request(),
+        env,
+      ),
+    );
+    expect(out.some((event) => event.type === 'question')).toBe(false);
+    expect(out.at(-1)).toMatchObject({ status: 'complete' });
+  });
+  it('allows a fresh clarification after delivered work without passing UI metadata to DeepSeek', async () => {
+    const { env, reserveAgent } = testEnv();
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, init) => {
+      const body = JSON.parse(init?.body as string);
+      expect(body.messages.some((message: Record<string, unknown>) => 'delivered' in message)).toBe(false);
+      return model(null, [
+        {
+          name: 'ask_user',
+          args: {
+            question: 'What would help with this new topic?',
+            options: ['A comparison', 'A definition'],
+          },
+        },
+      ]);
+    });
+    const out = await events(
+      await agentResponse(
+        {
+          message: 'A new topic',
+          history: [{ role: 'assistant', content: 'A completed answer.', delivered: true }],
+          consent: true,
+        },
+        request(),
+        env,
+      ),
+    );
+    expect(out.at(-1)).toMatchObject({ status: 'waiting' });
+    expect(reserveAgent).toHaveBeenCalledTimes(1);
+  });
+  it.each(withoutBirthMessage)('honors the explicit option to skip personal data: %s', async (message) => {
+    const { env } = testEnv();
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        model(null, [
+          { name: 'ask_user', args: { question: 'Add a time.', form: 'birth', birthKind: 'ziwei' } },
+        ]),
+      )
+      .mockResolvedValueOnce(model('Here is a general explanation, without calculating a personal chart.'));
+    const out = await events(await agentResponse({ message, history, consent: true }, request(), env));
+    expect(out.some((event) => event.type === 'question' || event.type === 'artifact')).toBe(false);
+    expect(out.at(-1)).toMatchObject({ status: 'complete' });
+  });
+  it('bounds a model that keeps requesting a disallowed question', async () => {
+    const { env } = testEnv();
+    const fetcher = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () =>
+        model(null, [{ name: 'ask_user', args: { question: 'Another preference?', options: ['A', 'B'] } }]),
+      );
+    const out = await events(
+      await agentResponse({ message: 'Unsure', history, consent: true }, request(), env),
+    );
+    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(out.some((event) => event.type === 'question' || event.type === 'done')).toBe(false);
+    expect(out.at(-1)?.type).toBe('error');
+  });
 });
 
 describe('bounded citation recovery', () => {

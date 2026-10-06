@@ -53,10 +53,15 @@ export default function AgentConversationGuide({
           <span>
             {t('补充出生资料', 'Add birth details')}
             <small>
-              {t(
-                '已有资料会保留；时刻不确定可如实说明。',
-                'Existing details are kept. It’s OK if you don’t know the time.',
-              )}
+              {question.birthKind === 'ziwei'
+                ? t(
+                    '紫微需要已知时刻；不确定时可以先了解通用结构。',
+                    'Zi Wei needs a known time. If unsure, start with a general explanation.',
+                  )
+                : t(
+                    '已有资料会保留；时刻不确定可如实说明。',
+                    'Existing details are kept. It’s OK if you don’t know the time.',
+                  )}
             </small>
           </span>
           <ArrowUpRight size={13} aria-hidden="true" />

@@ -28,11 +28,13 @@ export default function AgentOnboarding({
   disabled,
   hasDraft,
   onStart,
+  onExample,
 }: {
   locale: Locale;
   disabled: boolean;
   hasDraft: boolean;
   onStart: (choice: ConversationChoice) => void;
+  onExample: () => void;
 }) {
   const t = (zh: string, en: string) => choose(locale, zh, en);
   const unsure = t('还没想好，陪我找个切入点', 'Help me find a starting point');
@@ -51,6 +53,14 @@ export default function AgentOnboarding({
           'Choose a message to start, or write your own below.',
         )}
       </p>
+      <button type="button" className="agent-example-link" onClick={onExample}>
+        <BookOpen size={16} aria-hidden="true" />
+        <span>
+          {t('先看一份完整示例', 'See a complete example')}
+          <small>{t('不用填写资料，不消耗回合', 'No details needed. No turns used.')}</small>
+        </span>
+        <ArrowUpRight size={15} aria-hidden="true" />
+      </button>
       <div className="agent-starting-points" aria-label={t('开始对话', 'Start a conversation')}>
         {conversationStarters.map((item) => {
           const Icon = topicIcons[item.id];

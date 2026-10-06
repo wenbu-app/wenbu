@@ -4,6 +4,11 @@ import type { Locale } from './schema';
 type Copy = readonly [string, string];
 export const guideText = (copy: Copy, locale: Locale) => copy[locale === 'zh' ? 0 : 1];
 
+export const withoutBirthMessage: Copy = [
+  '先不提供出生资料，请用通用示例解释命盘结构。',
+  'I’ll skip birth details for now. Explain the chart structure with a general example.',
+];
+
 export type ConversationChoice = {
   text: string;
   action: 'guided' | 'clarification' | 'followup' | 'example';
@@ -26,22 +31,34 @@ export const conversationStarters = [
   {
     id: 'work',
     category: ['工作与选择', 'Work & decisions'],
-    prompt: ['我在工作选择上有些犹豫', 'I’m weighing a decision at work'],
+    prompt: [
+      '我在工作选择上有些犹豫，先帮我找出最该核实的三件事。',
+      'I’m weighing a work decision. Help me identify three things to check first.',
+    ],
   },
   {
     id: 'relationships',
     category: ['关系与沟通', 'Relationships'],
-    prompt: ['我想理清一段关系', 'I’d like to think through a relationship'],
+    prompt: [
+      '我想理清一段关系，帮我找到沟通的切入点。',
+      'Help me find a starting point for a difficult conversation.',
+    ],
   },
   {
     id: 'self',
     category: ['认识自己', 'Know yourself'],
-    prompt: ['我想读懂自己的命盘', 'I’d like to understand my birth chart'],
+    prompt: [
+      '我想读懂自己的八字命盘，带我从基础开始。',
+      'Help me understand my BaZi chart, starting with the basics.',
+    ],
   },
   {
     id: 'learn',
     category: ['从零入门', 'Learn the basics'],
-    prompt: ['我想了解命理与占卜', 'I’m curious about divination'],
+    prompt: [
+      '用一个简单例子，讲讲塔罗可以怎样帮助反思。',
+      'Show me a simple example of using tarot for reflection.',
+    ],
   },
 ] as const;
 

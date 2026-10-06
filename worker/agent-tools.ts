@@ -31,6 +31,10 @@ const questionSchema = z
     question: z.string().min(1).max(700),
     options: z.array(z.string().trim().min(1).max(160)).max(4).default([]),
     form: z.literal('birth').optional(),
+    birthKind: z
+      .enum(['bazi', 'ziwei'])
+      .optional()
+      .describe('For form=birth, name the requested calculation so only necessary fields are shown.'),
   })
   .strict();
 const schemas = {

@@ -232,3 +232,16 @@ Cloudflare 运维日志已开启，仅持久化固定错误信号，关闭 invoc
 The separate account section uses USERDATA, `account-v2`, its own rolling interval/language/test filters, and no joins to anonymous visitor IDs. It reports operational registrations, measurable coverage, signed-result saves, fixed guest cohorts, mature Day 1 / Day 7 activation cohorts, repeat value and cross-instance continuation. Different installation identifiers are not proof of physical devices. Tests and opt-out actions are excluded as labelled, and deleted accounts can reduce historical live cohorts. Email acceptance is not inbox delivery. See [complete definitions and data retention](accounts.md#account-measurement).
 
 Browser prompt views and auth starts are approximate optional events; backend verification, registration and accepted-provider counters are independent. `wenbu.analytics.test` is propagated to a short-lived test preference cookie before subsequent navigation. To mark the first server page request, use `X-Wenbu-Test: true`; setting sessionStorage after a page has already arrived cannot reclassify that earlier request. Preference UI remains in a loading state until the browser setting has been read.
+
+
+## 2026-10-06 引导体验观测
+
+发布标记为 `2026-10-06-onboarding-v2`。接口继续接受前一版本 `2026-09-29-feedback-v1`，已有打开页面的事件不会因版本更新被拒收。
+
+- `agent_example_opened`：主动点击完整示例入口或切换示例。桌面默认展示不自动计为打开；这是操作次数，不是曝光、真实试用或完成。`mode` 区分反思与资料示例，不收集示例正文。
+- `agent_result_visible`：已完成、无待答问题且正文至少 80 字符的 Agent 答复，其首个内容块至少 50% 位于视口，前台连续 1 秒。以 assistant message UUID 作为 `operation`，同一页面生命周期去重，最多保留 500 个内存标识；重新加载可能产生另一次曝光，分析时按 operation 去重。它不是“读懂”或“满意”。后台接收、汇总与英文标签已接入。
+- 已有 `agent_started` 的 `action=guided/clarification/followup` 继续说明发送来源；`agent_received` 是客户端接收终态；服务端 `agent_finished` 保留真实 `waiting/complete/limited`。不能把 waiting 当完成。
+- 账号激活仍由服务端签名结果、邮箱验证和实际保存回执判断。静态示例及上述两个观察事件均不触发激活；`delivered` 对话提示只是 UX 上下文，不作为额度、计费或统计完成凭证。
+- 两个新增事件沿用第一方退出、DNT/GPC、测试流量和封闭字段校验，不记录输入、生日、邮箱、选项正文。生产转化提升需要后续数据，不从本轮测试推算。
+
+English: `agent_example_opened` counts an explicit example-opening or switching action, not an impression or a trial. `agent_result_visible` observes the opening block of a completed answer at 50% visibility for one uninterrupted foreground second. It does not establish reading or comprehension; deduplicate by operation across page reloads. Account completion, signup and saving remain separate server-backed outcomes.
