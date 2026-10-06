@@ -1,0 +1,9 @@
+Source: 8514cbdfe8225f333198b3a28f57df6037936433
+Uploaded wenbu (10.74 sec)
+Deployed wenbu triggers (2.19 sec)
+  wenbu.app (custom domain)
+  www.wenbu.app (custom domain)
+  wenbu.genedai.me (custom domain)
+  schedule: 15 * * * *
+  schedule: */15 * * * *
+Current Version ID: 87309831-5af3-4e91-b4c5-084a595cf26d

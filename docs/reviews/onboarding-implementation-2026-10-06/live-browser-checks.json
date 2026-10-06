@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-06T03:02:03.209Z",
+  "sourceSha": "8514cbdfe8225f333198b3a28f57df6037936433",
+  "workerVersion": "87309831-5af3-4e91-b4c5-084a595cf26d",
+  "syntheticConversation": true,
+  "answerAndResultMatch": true,
+  "answerCharacters": 449,
+  "draftPreserved": true,
+  "noHorizontalOverflow": true,
+  "cancelSavePreservesResult": true,
+  "cancelSavePreservesDraft": true,
+  "downloadReceived": true,
+  "exportMatchesRenderedAnswer": true,
+  "downloadEvent": "The automation event timed out; the newly created Markdown file was located and its content verified.",
+  "english320NoOverflow": true,
+  "motionCanBePaused": true,
+  "motionRestored": true,
+  "tablet768NoOverflow": true,
+  "consoleErrors": [],
+  "mailSent": false,
+  "accountCreated": false,
+  "notes": [
+    "Browser live follow-up returned three verification points and one next action without another intake.",
+    "Answer was 449 rendered characters; the soft 150–300 Chinese character target is not a guarantee.",
+    "No real-device software keyboard, screen-reader or conversion experiment was performed."
+  ]
+}
