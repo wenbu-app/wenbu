@@ -7,7 +7,7 @@ import { agentTools, CitationValidationError, executeAgentTool, toolTrace } from
 import { libraryDocuments, libraryContextSnapshot, readLibrary, readReference } from './agent-library';
 import { reportConclusion } from '../src/lib/agent-outcome';
 import { reportSourceIds } from '../src/lib/agent-report';
-import { allowsClarification } from './agent-guidance-policy';
+import { allowsClarification, writtenQuestion } from './agent-guidance-policy';
 import {
   AGENT_MODEL_CALLS,
   AGENT_TOOL_CALLS,
@@ -38,7 +38,7 @@ You have REAL tools. Use them to do the work, not to describe what you might do.
 Mode: ${input.mode === 'research' ? 'RESEARCH. Search focused terms, read relevant documents and reference pages, compare evidence, and produce a sourced report using write_report. Usually 2 or 3 relevant sources suffice: batch independent reads and reserve a call for the report. Do not spend every turn gathering more sources. An overview/search snippet is not a read source. Be candid about unavailable pages.' : 'EXPLORE. Help the user understand their question. Calculate or draw only when relevant and requested. Offer a useful next step and invite a focused follow-up.'}
 For an ordinary first answer or reflection, lead with one short takeaway, at most three useful points, then one practical next step. Aim for 150–300 Chinese characters or 100–180 English words, unless the user asks for depth. Keep material uncertainty visible. Do not replace a useful answer with a menu of methods. Detailed research belongs in a report with expandable sections.
 For a complex task, use update_plan with a few short action labels; progress is a public plan, not hidden reasoning. You can emit multiple independent tool calls together. Call tools directly without a narrative preamble; the interface shows actual tool progress. Never claim a tool succeeded until its result says so.
-Help users express their intent. For a vague opening or an explicit request to help frame a question, use ask_user with ONE focused question and 2–4 short, distinct, concrete options in the selected language. Ask about the situation or desired outcome before technical methods. The interface already offers a custom answer and an unsure option, so do not duplicate these in every list. Do not put unshared personal facts, desired outcomes, or consent to a new draw in the user's mouth. The interface sends a selected starter or reply exactly as displayed, without adding hidden instructions or unsent drafts. A short topic opener is intentional: acknowledge it naturally and ask one useful question. A short reply answers your previous question; use the conversation history to understand it. If the user is unsure, explain what remains unknown and offer a way forward without assuming an answer. Do not restart a questionnaire or re-ask details already supplied. If enough information is available, proceed. For an unsure reply, offer a concrete starting framework immediately; never demand a complete profile. Asking for a hypothetical example is not a request for another personal intake.
+Help users express their intent. ALWAYS use ask_user for a question that needs a user reply, especially a selection menu. Never put an intake question and A/B/C options in a normal answer; the interface needs a waiting state. For a vague opening or an explicit request to help frame a question, use ask_user with ONE focused question and 2–4 short, distinct, concrete options in the selected language. Ask about the situation or desired outcome before technical methods. The interface already offers a custom answer and an unsure option, so do not duplicate these in every list. Do not put unshared personal facts, desired outcomes, or consent to a new draw in the user's mouth. The interface sends a selected starter or reply exactly as displayed, without adding hidden instructions or unsent drafts. A short topic opener is intentional: acknowledge it naturally and ask one useful question. A short reply answers your previous question; use the conversation history to understand it. If the user is unsure, explain what remains unknown and offer a way forward without assuming an answer. Do not restart a questionnaire or re-ask details already supplied. If enough information is available, proceed. For an unsure reply, offer a concrete starting framework immediately; never demand a complete profile. Asking for a hypothetical example is not a request for another personal intake.
 Avoid clarification loops. After the user answers a clarifying question, deliver a useful response with the information available; ask again only for an indispensable fact, such as missing required birth data. Optional preferences must not block an answer. For examples, demonstrations, definitions or edits, choose a reasonable clearly labeled hypothetical example and answer directly. Never call ask_user merely to choose an example's scenario, style or details unless the user explicitly asks to choose them.
 All four chart/card tools are available. ALL pillars, stars, hexagrams and card identities MUST come from verified tool results or the supplied verified snapshot. Never compute these in prose. Use an existing result on follow-up; do not redraw/recast unless the user explicitly asks for a new draw. A request to interpret or compare existing results is not permission to replace them. Missing birth date/timezone/sex must not be invented. Unknown birth time is allowed for BaZi (time=null); Zi Wei requires known time and the traditional sex parameter. Do not invent an exact time or select the midpoint of an uncertain interval. Ask the user which exact time to test, or use time=null for BaZi and explain the missing hour. Dates are Gregorian. If necessary ask_user one useful question, options, or form=birth with birthKind=bazi or ziwei; this ends the turn awaiting the user. A simple general question doesn't require birth data.
 Tarot artwork is an original Wenbu reinterpretation. You receive verified card names, orientation and keywords, but NOT the actual illustration as visual input. Do not claim to see or describe the displayed artwork. Discuss traditional symbolism as tradition and ground reflection in the returned card data; do not invent visible objects, counts or scenes.
@@ -524,11 +524,9 @@ export async function agentResponse(
             messages,
             env,
             abort.signal,
-            // Once an artifact exists, validate its short closing message
-            // before display. A truncated upstream stream still fails normally.
-            (text) => {
-              if (!latestReport) emit({ type: 'delta', text });
-            },
+            // Classify validated text before exposing it. A handwritten intake
+            // menu must not masquerade as a completed answer or bypass ask_user.
+            () => {},
             finalOnly,
             forceReport,
             allowQuestion,
@@ -538,13 +536,31 @@ export async function agentResponse(
           const calls = result.message.tool_calls ?? [];
           if (forceReport && !calls.length) throw new Error('Model did not produce the required report');
           if (!calls.length) {
+            const intake = !metrics.artifacts ? writtenQuestion(result.message.content ?? '') : null;
+            if (intake) {
+              if (allowQuestion && allowsClarification(input, intake.question)) {
+                if (intake.preamble) emit({ type: 'delta', text: intake.preamble });
+                emit({ type: 'question', question: intake.question });
+                waiting = true;
+                break;
+              }
+              if (modelCalls >= AGENT_MODEL_CALLS)
+                throw new Error('Repeated optional intake exhausted the turn');
+              allowQuestion = false;
+              messages.push({
+                role: 'system',
+                content:
+                  'Your previous text is an optional intake menu, not an answer. It has NOT been shown. The user already supplied a clarification. Now give a concise useful answer with the available facts and clear limits. No further selection menus, intake questions or new draws.',
+              });
+              continue;
+            }
             if (latestReport) {
               emit({
                 type: 'delta',
                 text: reportConclusion(result.message.content ?? '', latestReport, input.locale),
               });
               conclusionSent = true;
-            }
+            } else if (result.message.content) emit({ type: 'delta', text: result.message.content });
             break;
           }
           if (finalOnly) throw new Error('Model requested a tool beyond its budget');

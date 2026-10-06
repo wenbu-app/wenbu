@@ -1,6 +1,7 @@
 import { agentBirthSchema, type AgentRequest } from './agent-schema';
 import { ziweiSchema } from '../src/lib/schema';
 import { withoutBirthMessage } from '../src/lib/agent-guidance';
+export { writtenQuestion } from '../src/lib/agent-written-question';
 
 /** A UX bound, never an entitlement or quota signal. Every request still reserves a turn. */
 export function allowsClarification(input: AgentRequest, value: unknown): boolean {

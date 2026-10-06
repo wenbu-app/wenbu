@@ -13,6 +13,7 @@ import {
 import { newMessage, updateMessage } from '../src/lib/agent-session';
 import { traceOutcomes } from '../src/lib/agent-outcome';
 import { withoutBirthMessage } from '../src/lib/agent-guidance';
+import { writtenQuestion } from '../worker/agent-guidance-policy';
 import { agentRequestSchema, restoreReading } from '../worker/agent-schema';
 import { consumeSse, type AgentEvent, type AgentSource } from '../src/lib/agent-protocol';
 import type { Env } from '../worker/types';
@@ -77,6 +78,73 @@ describe('onboarding clarification bound', () => {
     { role: 'user', content: 'I am weighing a work decision.' },
     { role: 'assistant', content: 'What would help you most?' },
   ];
+  const intake =
+    '先把衡量标准理清楚。\n\n**如果一年后回头看，你希望自己是因为什么原因做了这个决定？**\n\n- A. 因为成长和能力的提升\n- B. 因为生活的稳定与可控\n- C. 因为收入或现实条件的改善\n\n选一个最接近的就好，也可以补充你自己的说法。';
+  it.each([
+    intake,
+    'One detail will help.\n\n**What matters most to you?**\n\nA. Growth\nB. Stability\n\nChoose one, or reply in your own words.',
+  ])('normalizes a written selection menu into a waiting state: %s', async (text) => {
+    const { env } = testEnv();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(model(text));
+    const out = await events(
+      await agentResponse({ message: 'Help me choose', consent: true }, request(), env),
+    );
+    expect(out.at(-1)).toMatchObject({ status: 'waiting', toolCalls: 0 });
+    expect(out.find((event) => event.type === 'question')?.question.options.length).toBeGreaterThanOrEqual(2);
+    const message = out.reduce(updateMessage, newMessage('assistant', ''));
+    expect(message.question).toBeDefined();
+    expect(message.text).not.toContain('- A.');
+  });
+  it('does not expose a repeated written intake or count it as a completed result', async () => {
+    const { env } = testEnv();
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(model(intake))
+      .mockResolvedValueOnce(
+        model(
+          'Check the scope of the work, the evidence for growth, and the practical cost of changing. Start with one question you can ask a future colleague.',
+        ),
+      );
+    const out = await events(
+      await agentResponse({ message: 'Growth', history, consent: true }, request(), env),
+    );
+    expect(out.some((event) => event.type === 'question')).toBe(false);
+    expect(
+      out
+        .filter((event) => event.type === 'delta')
+        .map((event) => event.text)
+        .join(''),
+    ).not.toContain('衡量标准');
+    expect(out.at(-1)).toMatchObject({ status: 'complete', modelCalls: 2 });
+  });
+  it('fails within the original budget if the model repeats written intake indefinitely', async () => {
+    const { env } = testEnv();
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => model(intake));
+    const out = await events(
+      await agentResponse({ message: 'Growth', history, consent: true }, request(), env),
+    );
+    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(
+      out.some((event) => event.type === 'done' || event.type === 'question' || event.type === 'delta'),
+    ).toBe(false);
+    expect(out.at(-1)?.type).toBe('error');
+  });
+  it('does not reinterpret recommendations or quoted teaching examples as intake', () => {
+    expect(
+      writtenQuestion(
+        'What should you check?\n1. Work scope\n2. Growth evidence\n3. Exit costs\n\nAsk a future colleague about a typical week.',
+      ),
+    ).toBeNull();
+    expect(writtenQuestion('> What matters?\n> A. Growth\n> B. Stability\n> Choose one.')).toBeNull();
+    expect(writtenQuestion('```\n' + intake + '\n```')).toBeNull();
+    expect(
+      writtenQuestion(
+        'What can you check this week?\n1. Work scope\n2. Growth evidence\n3. Exit costs\n\nChoose one to try this week.',
+      ),
+    ).toBeNull();
+    expect(
+      writtenQuestion('下一步可以做什么？\n1. 核实职责\n2. 询问团队节奏\n\n选一个在本周核实。'),
+    ).toBeNull();
+  });
   it('replaces a repeated optional questionnaire with a useful answer, without bundled draws', async () => {
     const { env, reserveAgent } = testEnv();
     const fetcher = vi
@@ -671,11 +739,11 @@ describe('DeepSeek Agent harness', () => {
     expect(result.some((e) => e.type === 'artifact')).toBe(false);
     expect(result.at(-1)).toMatchObject({ type: 'done', status: 'waiting', modelCalls: 2 });
   });
-  it('marks truncated model output as an error, never a completion', async () => {
+  it('withholds truncated model output and reports an error, never a completion', async () => {
     const { env } = testEnv();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(model('部分内容', [], 'length'));
     const result = await events(await agentResponse({ message: 'hi', consent: true }, request(), env));
-    expect(result.some((e) => e.type === 'delta')).toBe(true);
+    expect(result.some((e) => e.type === 'delta')).toBe(false);
     expect(result.at(-1)?.type).toBe('error');
     expect(result.some((e) => e.type === 'done')).toBe(false);
   });

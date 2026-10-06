@@ -1,0 +1,132 @@
+{
+  "base": "https://wenbu.app",
+  "checkedAt": "2026-10-06T02:40:18.285Z",
+  "sourceSha": "c3d8ffa5397953096086d503b95b5adda3e9b8b9",
+  "workerVersion": "d39e5e22-0499-42af-a347-4ebf6dac0a31",
+  "pages": [
+    {
+      "path": "/",
+      "sha256": "a11f5385070e58770a09d4dc4bc4a150058e23a04a097d04dc1602845e0c7c9c"
+    },
+    {
+      "path": "/agent/",
+      "sha256": "1a19d746d31ba91228a864fb4151df8612a4257b00748c5302a88365d68a7771"
+    },
+    {
+      "path": "/bazi/",
+      "sha256": "4b59a6cc4135ec316d9d14380364171eb8f6cfe2a81c9b33c0004c4a2ea5ae99"
+    },
+    {
+      "path": "/en/",
+      "sha256": "4ea0fe4e36a4e61fed6ee9da52a0cd8c5500c78b7d78ab6ab450aec763810631"
+    },
+    {
+      "path": "/en/agent/",
+      "sha256": "43c7715a3e9cfd42d0997a9b7ad20099884300f3070a5e3a9dae42f067f66389"
+    },
+    {
+      "path": "/en/bazi/",
+      "sha256": "f84a0b5c199b3a14eba1324036fcab359ad7aa9176d3c93d2bd12ffbb8a3a649"
+    },
+    {
+      "path": "/en/iching/",
+      "sha256": "607749d9ae0f807cbc9d72fce9bd2920645076662ccbd8a51d6c9778b805eb6b"
+    },
+    {
+      "path": "/en/insights/",
+      "sha256": "11f979b02b7bc5a7e918b458b15d6fab1f01d01dc561668aca654fe36aa9ed10"
+    },
+    {
+      "path": "/en/journal/",
+      "sha256": "67f6b3c1628084ad588702a01bd41c75b4c51e6e3e754d18ad5d38252e6d1105"
+    },
+    {
+      "path": "/en/learn/",
+      "sha256": "ac46094a3f15d9daaa7397fb578f384cd32b15945d4f40022fc3ad9f4241ca5a"
+    },
+    {
+      "path": "/en/learn/five-elements/",
+      "sha256": "b89f25206fefcf2f9075174e5c35e33a500984b032f473ee4e30b4d0ae88f779"
+    },
+    {
+      "path": "/en/tarot/",
+      "sha256": "475e80ab50888c54909eb4975d0b5573c0b3e0b32627e454ff8b789a3ce892b5"
+    },
+    {
+      "path": "/en/tarot/deck/",
+      "sha256": "c41e270e34387fd39fabd1964deeaa2fa750a10e3636c9382470fcc2f3f211cb"
+    },
+    {
+      "path": "/en/ziwei/",
+      "sha256": "02cb9cf3c10df52f28ea804b2152a1c2b210fca2dd896a5c3833dff933dd3028"
+    },
+    {
+      "path": "/insights/",
+      "sha256": "18a5ff6c7ccfe491626b5ba0b107194adc542d114f85b4f2ce3b47d2af976aac"
+    },
+    {
+      "path": "/journal/",
+      "sha256": "eafa3db6227dd3b7e862d3512f1f60906c7006fc06dc16cf569906d6c0fc75f6"
+    },
+    {
+      "path": "/learn/",
+      "sha256": "4d02f637da1c3d10505a4d57c753932bac8e22d1ef03e632d01b1b804c699e51"
+    },
+    {
+      "path": "/learn/first-reading/",
+      "sha256": "346e4061cbe7a99546a56d3d54a374585229b9161beffbb1b59b51a7d3793b13"
+    }
+  ],
+  "assets": [
+    {
+      "path": "/_astro/_..CxdEvchz.css",
+      "sha256": "3fc655ecd40eb93d28ab027e858e1845b994474cc72d4d2e922e3c1ef30afef1"
+    },
+    {
+      "path": "/_astro/AccountPanel.uqUkdrEg.js",
+      "sha256": "2c1a5955e8c6fe8b5d6f80c5bef8b1d004ac681c8c9ac72be12f9d869475c201"
+    },
+    {
+      "path": "/_astro/AgentWorkspace.D3GrLI8y.js",
+      "sha256": "a70d5dcbdb5fa64ea94c2c151db57687a27f1223cf3669f7e17cecf4caf40cff"
+    },
+    {
+      "path": "/_astro/AnalyticsDashboard.ClZIxjXA.js",
+      "sha256": "7bc9cf6fe5927fddc1496217cd7023aed8e1b1fd3c460e15a994b656317a0671"
+    },
+    {
+      "path": "/_astro/client.DLrVKEOT.js",
+      "sha256": "111d707c30b73aee59ce760b1a4f3791743372adf57a9e10e390e18be856df7c"
+    },
+    {
+      "path": "/_astro/FeedbackWidget.astro_astro_type_script_index_0_lang.DCnZTSGA.js",
+      "sha256": "d906428acc50f427e361fd8a3c1a6e4f7b1509282896d021750164e71a5cba29"
+    },
+    {
+      "path": "/_astro/Journal.D9tFp-NE.js",
+      "sha256": "c3ee0562242cdfa20451f28ac930a1e2b1f094fd710c4c632d49de5d657a5da6"
+    },
+    {
+      "path": "/_astro/KnowledgeLibrary.astro_astro_type_script_index_0_lang.GL6X2EWZ.js",
+      "sha256": "f7fe34d8ff47aecf6797cbe6d918d39fb42b34cd80b88a0f3e1392b08a4cfd0a"
+    },
+    {
+      "path": "/_astro/Layout.astro_astro_type_script_index_0_lang.Ce5QPDj4.js",
+      "sha256": "6d4e624d0cf4a4ba3aaff91bfbd900f8a8bf71c4e77f165939173daad02c9af3"
+    },
+    {
+      "path": "/_astro/Layout.CEt_P7ac.css",
+      "sha256": "ebf3305f0c6ee99d4033d8ebd4398dc2cc5ea69d881d8a42e5573e7b7e1a5b19"
+    },
+    {
+      "path": "/_astro/TarotGallery.BdsxKn8T.js",
+      "sha256": "b317e7ba7bdfabaa61ac80b62c7b9abfbf44125d2bcd958237d1dd107b9318a1"
+    },
+    {
+      "path": "/_astro/ToolDesk.ca1MHA3c.js",
+      "sha256": "240afaecdbc6e142e9671e4eebe9e02e265da50f7682447112290fd97ad11223"
+    }
+  ],
+  "manifestRevision": "781275cd080f1f50c50d6567b8d1a1e608124b0e2fb4e2c480286dfafc460223",
+  "result": "passed"
+}

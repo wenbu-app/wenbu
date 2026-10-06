@@ -39,6 +39,19 @@ describe('original conversation answers in the result panel', () => {
     ];
     expect(sessionDeliverables(session)).toEqual([]);
   });
+  it('does not promote an older written questionnaire to a result', () => {
+    const session = newSession('en');
+    session.messages = [
+      {
+        ...newMessage(
+          'assistant',
+          'Let us clarify what matters before continuing.\nWhat matters most to you?\nA. Growth and learning\nB. Stability and a predictable schedule\nChoose one that fits.',
+        ),
+        status: 'complete',
+      },
+    ];
+    expect(sessionDeliverables(session)).toEqual([]);
+  });
   it('preserves verified artifacts without duplicating their closing summary', () => {
     const session = newSession('en');
     const report = {
