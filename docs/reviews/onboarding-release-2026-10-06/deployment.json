@@ -1,21 +1,19 @@
 {
-  "verifiedAt": "2026-10-06T04:25:32.102Z",
-  "pullRequest": "https://github.com/wenbu-app/wenbu/pull/19",
-  "sourceCommit": "56fd6905db359c9e501893549bbef95a06fd2540",
+  "verifiedAt": "2026-10-06T04:37:00.087132Z",
+  "pullRequest": "https://github.com/wenbu-app/wenbu/pull/20",
+  "sourceCommit": "ef9dd0c536f46cb28f8b41d1e4264a89eb94b2f3",
   "ci": {
-    "head": "32a7c75fe46dd9e420d7dfb39fb9624c4e6d0c28",
-    "url": "https://github.com/wenbu-app/wenbu/actions/runs/37413207062",
-    "status": "success",
-    "mainUrl": "https://github.com/wenbu-app/wenbu/actions/runs/37413327349",
-    "mainStatus": "success"
+    "head": "ef9dd0c536f46cb28f8b41d1e4264a89eb94b2f3",
+    "url": "https://github.com/wenbu-app/wenbu/actions/runs/37414321196",
+    "status": "success"
   },
   "cloudflare": {
     "worker": "wenbu",
-    "version": "7d974058-237a-4a64-88f5-764126681271",
+    "version": "84b42c96-5bf3-4647-9511-a29ff0650d4d",
     "domains": ["wenbu.app", "www.wenbu.app", "wenbu.genedai.me"]
   },
   "validation": {
-    "unit": 351,
+    "unit": 352,
     "nativeAccountChecks": 67,
     "htmlPages": 93,
     "siteAudits": "passed",
@@ -30,5 +28,30 @@
   "grok": {
     "completed": false,
     "attemptTimeoutsSeconds": [90, 180]
-  }
+  },
+  "initialRelease": {
+    "verifiedAt": "2026-10-06T04:25:32.102Z",
+    "pullRequest": "https://github.com/wenbu-app/wenbu/pull/19",
+    "sourceCommit": "56fd6905db359c9e501893549bbef95a06fd2540",
+    "ci": {
+      "head": "32a7c75fe46dd9e420d7dfb39fb9624c4e6d0c28",
+      "url": "https://github.com/wenbu-app/wenbu/actions/runs/37413207062",
+      "status": "success",
+      "mainUrl": "https://github.com/wenbu-app/wenbu/actions/runs/37413327349",
+      "mainStatus": "success"
+    },
+    "cloudflare": {
+      "worker": "wenbu",
+      "version": "7d974058-237a-4a64-88f5-764126681271",
+      "domains": ["wenbu.app", "www.wenbu.app", "wenbu.genedai.me"]
+    },
+    "validation": {
+      "unit": 351,
+      "nativeAccountChecks": 67,
+      "htmlPages": 93,
+      "siteAudits": "passed",
+      "lint": "passed"
+    }
+  },
+  "sourceNote": "Runtime was deployed from the verified PR code commit. Subsequent PR changes only add documentation and verification evidence."
 }

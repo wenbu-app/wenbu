@@ -23,11 +23,15 @@
 
 ## 发布与生产证据
 
-发布后的 exact SHA、Cloudflare 版本、CI、线上截图与烟测结果在 `deployment.json` / `live-verification.json` 中单独记录；本段本身不宣称已部署。实际增长、真实邮箱送达、跨设备真实用户回访和搜索收录不由本轮界面或烟测推定。
+已部署到 wenbu.app。首轮版本完成 96 个页面与资源烟测、四类计算 API、MCP 与知识读取、两个真实 Agent 回合和 1／3／7／14／30 天账号统计结构检查。补充修复以代码提交 `ef9dd0c536f46cb28f8b41d1e4264a89eb94b2f3` 部署，Cloudflare 版本为 `84b42c96-5bf3-4647-9511-a29ff0650d4d`，对应 CI 通过。后续只增加文档和验证记录，未改变已部署的运行代码。
+
+最终新开生产标签页验证中文／英文 Agent、英文塔罗、账号弹层打开与退出；控制台无警告或错误，320／390 像素无横向溢出。临时测试 cookie、视口设置和本轮标签页已清理。详细分层证据见 `deployment.json` / `live-verification.json`；最终首屏见 `08-live-final-zh-390.jpg`。
+
+IndexNow 当前仍在服务端退避窗口，本轮未提交 URL；现有 Cloudflare 定时重试保持启用。实际增长、真实邮箱送达、跨设备真实用户回访和搜索收录不由本轮界面或烟测推定。
 
 ## 发布后补充修复
 
-线上控制台发现 React 418 初始化渲染差异：多个 Astro React 区块共用账号 store，较早加载的区块可能在另一区块 hydrate 前更新账号状态。`useSyncExternalStore` 的 server snapshot 原来直接读取实时状态，因而与构建 HTML 不同。统一改为稳定的初始 server snapshot，完成 hydrate 后再订阅实时状态。四处账号 UI 一并修复；新增账号已提前加载时的回归测试。本地带真实账号 API 的预览，中英文 Agent 与英文塔罗连续导航不再产生该错误。
+线上控制台发现 React 418 初始化渲染差异：多个 Astro React 区块共用账号 store，较早加载的区块可能在另一区块 hydrate 前更新账号状态。`useSyncExternalStore` 的 server snapshot 原来直接读取实时状态，因而与构建 HTML 不同。统一改为稳定的初始 server snapshot，完成 hydrate 后再订阅实时状态。四处账号 UI 一并修复；新增账号已提前加载时的回归测试。本地带真实账号 API 的预览，以及补丁后的生产新标签页，中英文 Agent 与英文塔罗连续导航均不再产生该错误。
 
 ## 后续深化
 

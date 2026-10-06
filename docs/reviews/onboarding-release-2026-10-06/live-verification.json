@@ -5,7 +5,8 @@
     "passed": true,
     "pageAndResourceRequests": 96,
     "calculationApis": ["bazi", "iching", "tarot", "ziwei"],
-    "mcp": "initialize, tool list, calculation and bilingual library reads passed"
+    "mcp": "initialize, tool list, calculation and bilingual library reads passed",
+    "testedCloudflareVersion": "7d974058-237a-4a64-88f5-764126681271"
   },
   "accountReports": {
     "passed": true,
@@ -54,10 +55,25 @@
     "supplierBrandVisible": false,
     "horizontalOverflow": false,
     "testTelemetry": true,
-    "initialConsoleFinding": "React 418 hydration mismatch in shared account store; repaired in follow-up code, production follow-up verification pending"
+    "initialConsoleFinding": "React 418 hydration mismatch in shared account store; repaired and verified in production follow-up"
   },
   "limitations": [
     "No real email delivery or live account signup tested in this release. Native workerd/D1 tests use mock email.",
     "No claims about search inclusion, traffic lift or conversion lift."
-  ]
+  ],
+  "productionFollowup": {
+    "checkedAt": "2026-10-06T04:37:00.087132Z",
+    "sourceCommit": "ef9dd0c536f46cb28f8b41d1e4264a89eb94b2f3",
+    "cloudflareVersion": "84b42c96-5bf3-4647-9511-a29ff0650d4d",
+    "pages": ["/en/agent/", "/en/tarot/", "/agent/"],
+    "viewports": ["en 320x812", "zh 390x844"],
+    "consoleErrorsOrWarnings": 0,
+    "accountPanelOpenAndCancel": true,
+    "supplierBrandVisible": false,
+    "horizontalOverflow": false,
+    "testCookieRemoved": true,
+    "viewportReset": true,
+    "taskOwnedTabsClosed": true,
+    "additionalAiTurns": 0
+  }
 }
