@@ -27,6 +27,17 @@ for (const f of htmlFiles) {
   if (/\bDeepSeek\b|deepseek-v\d/i.test(visibleCopy))
     errors.push(f + ': supplier branding must not appear in product copy');
   const url = f === 'dist/404.html' ? '/404/' : '/' + f.slice(5).replace(/index.html$/, '');
+  // SSR can paint before React loads. An enabled control would accept and lose the first interaction.
+  if (/^\/(en\/)?agent\/$/.test(url)) {
+    const exampleEntry = html.match(/<button\b[^>]*class="agent-example-link"[^>]*>/)?.[0] || '';
+    if (!/\bdisabled(?:="")?(?:\s|>)/.test(exampleEntry) || !exampleEntry.includes('aria-busy="true"'))
+      errors.push(f + ': example entry must wait for client interaction readiness');
+  }
+  if (/^\/(en\/)?(bazi|iching|tarot|ziwei)\/$/.test(url)) {
+    const inputGroup = html.match(/<fieldset\b[^>]*class="tool-inputs"[^>]*>/)?.[0] || '';
+    if (!/\bdisabled(?:="")?(?:\s|>)/.test(inputGroup))
+      errors.push(f + ': tool input must not accept values before hydration');
+  }
   if (
     /^\/(en\/)?(agent|bazi|iching|tarot|ziwei|journal)\/$/.test(url) &&
     !/<main\b[^>]*data-clarity-mask="true"/.test(html)

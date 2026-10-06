@@ -16,6 +16,8 @@ import type { Reading } from '../lib/tools';
 import { choose, href } from '../lib/i18n';
 import { agentContext, downloadJson, readJournal, writeJournal, type Answer } from '../lib/journal';
 import ReadingView from './ReadingView';
+import { BirthDateTimeFields, BirthTimezoneField } from './BirthFields';
+import { useClientReady } from '../lib/use-client-ready';
 import FeedbackTrigger from './FeedbackTrigger';
 import { readingExcerpt, answerExcerpt } from '../lib/feedback-excerpt';
 import { analyticsHeaders, track, type Correlation } from '../lib/analytics';
@@ -64,6 +66,7 @@ async function post<T>(
   return data;
 }
 export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Locale }) {
+  const interactive = useClientReady();
   const t = (zh: string, en: string) => choose(locale, zh, en);
   const account = useSyncExternalStore(subscribeAccount, accountSnapshot, accountServerSnapshot);
   const [date, setDate] = useState('');
@@ -97,6 +100,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
   const [exportOpen, setExportOpen] = useState(false);
   const [includeBirth, setIncludeBirth] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const aiAbort = useRef<AbortController | null>(null);
   const lock = useRef(false);
   const operation = useRef<string | undefined>(undefined);
@@ -427,339 +431,292 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
           )}
         </div>
         <form
+          ref={formRef}
+          aria-busy={!interactive}
           onSubmit={(e) => {
             e.preventDefault();
             void run();
           }}
         >
-          {kind === 'bazi' || kind === 'ziwei' ? (
-            <>
-              <div className="field-pair">
-                <label className="field">
-                  {t('公历出生日期', 'Birth date · Gregorian')}
-                  <input
-                    aria-label={t('公历出生日期', 'Birth date')}
-                    type="date"
-                    min="1901-01-01"
-                    max="2099-12-31"
-                    required
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  {t('出生时间', 'Birth time')}
-                  <input
-                    aria-label={t('出生时间', 'Birth time')}
-                    type="time"
-                    required={!unknown}
-                    disabled={unknown}
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                  />
-                </label>
-              </div>
-              {kind === 'bazi' ? (
-                <>
-                  <label className="check-field">
-                    <input type="checkbox" checked={unknown} onChange={(e) => setUnknown(e.target.checked)} />
-                    {t('不确定出生时间（不生成时柱）', 'I do not know the time (omit hour pillar)')}
-                  </label>
-                  <label className="field">
-                    {t('出生地时区', 'Time zone at birth')}
-                    <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
-                      {[
-                        ['Asia/Shanghai', '中国大陆 / China'],
-                        ['Asia/Hong_Kong', '香港 / Hong Kong'],
-                        ['Asia/Taipei', '台北 / Taipei'],
-                        ['Asia/Singapore', '新加坡 / Singapore'],
-                        ['Asia/Tokyo', '东京 / Tokyo'],
-                        ['Asia/Seoul', '首尔 / Seoul'],
-                        ['Asia/Kolkata', '印度 / India'],
-                        ['Europe/London', '伦敦 / London'],
-                        ['Europe/Paris', '巴黎 / Paris'],
-                        ['America/New_York', '纽约 / New York'],
-                        ['America/Los_Angeles', '洛杉矶 / Los Angeles'],
-                        ['Australia/Sydney', '悉尼 / Sydney'],
-                        ['UTC', 'UTC'],
-                        ['+08:00', 'UTC+08:00 · 固定偏移 / fixed offset'],
-                      ].map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <details className="advanced">
-                    <summary>
-                      <SlidersHorizontal size={14} />
-                      {t('历法选项', 'Calendar options')}
-                    </summary>
+          <fieldset className="tool-inputs" disabled={!interactive}>
+            {kind === 'bazi' || kind === 'ziwei' ? (
+              <>
+                <BirthDateTimeFields
+                  locale={locale}
+                  date={date}
+                  time={unknown ? null : time}
+                  allowUnknown={kind === 'bazi'}
+                  onDateChange={setDate}
+                  onTimeChange={(value) => {
+                    setUnknown(value === null);
+                    if (value !== null) setTime(value);
+                  }}
+                />
+                {kind === 'bazi' ? (
+                  <>
+                    <BirthTimezoneField locale={locale} value={timezone} onChange={setTimezone} />
+                    <details className="advanced">
+                      <summary>
+                        <SlidersHorizontal size={14} />
+                        {t('历法选项', 'Calendar options')}
+                      </summary>
+                      <label className="field">
+                        {t('换日规则', 'Day boundary')}
+                        <select
+                          value={boundary}
+                          onChange={(e) => setBoundary(e.target.value as 'midnight' | 'zi')}
+                        >
+                          <option value="midnight">{t('零点换日（默认）', 'Midnight (default)')}</option>
+                          <option value="zi">{t('子初 23:00 换日', 'Zi hour · 23:00')}</option>
+                        </select>
+                      </label>
+                      <label className="check-field">
+                        <input
+                          type="checkbox"
+                          checked={solar}
+                          disabled={unknown}
+                          onChange={(e) => setSolar(e.target.checked)}
+                        />
+                        {t('使用近似真太阳时', 'Approximate apparent solar time')}
+                      </label>
+                      {solar && !unknown && (
+                        <label className="field">
+                          {t('出生地经度（东正西负）', 'Longitude (east + / west −)')}
+                          <input
+                            type="number"
+                            min="-180"
+                            max="180"
+                            step="any"
+                            required
+                            value={longitude}
+                            onChange={(e) => setLongitude(e.target.value)}
+                            placeholder="121.47"
+                          />
+                        </label>
+                      )}
+                      <p>
+                        {t(
+                          '节气按绝对时刻判断。夏令时模糊时间需输入明确偏移。真太阳时是近似值，边界时刻建议对照。',
+                          'Solar terms use absolute instants. Ambiguous DST times require an explicit offset. Solar correction is approximate; compare charts near boundaries.',
+                        )}
+                      </p>
+                    </details>
+                  </>
+                ) : (
+                  <>
                     <label className="field">
-                      {t('其他 IANA 时区或 UTC 偏移', 'Other IANA time zone or UTC offset')}
-                      <input
-                        value={timezone}
-                        maxLength={80}
-                        onChange={(e) => setTimezone(e.target.value)}
-                        placeholder="Asia/Shanghai"
-                      />
-                    </label>
-                    <label className="field">
-                      {t('换日规则', 'Day boundary')}
-                      <select
-                        value={boundary}
-                        onChange={(e) => setBoundary(e.target.value as 'midnight' | 'zi')}
-                      >
-                        <option value="midnight">{t('零点换日（默认）', 'Midnight (default)')}</option>
-                        <option value="zi">{t('子初 23:00 换日', 'Zi hour · 23:00')}</option>
+                      {t('传统排盘参数', 'Traditional chart parameter')}
+                      <select value={sex} onChange={(e) => setSex(e.target.value as 'male' | 'female')}>
+                        <option value="female">{t('女', 'Female')}</option>
+                        <option value="male">{t('男', 'Male')}</option>
                       </select>
                     </label>
+                    <p className="form-note">
+                      {t(
+                        '用于传统顺逆行计算。输入当地钟表时间，本工具不做太阳时校正。',
+                        'Used for the traditional direction rule. Enter local civil time; this tool does not apply solar correction.',
+                      )}
+                    </p>
+                  </>
+                )}
+                <button className="button primary full" type="submit" disabled={busy}>
+                  {busy ? (
+                    <LoaderCircle className="spin" size={18} />
+                  ) : (
+                    <>
+                      {t('展开我的命盘', 'Reveal my chart')}
+                      <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
+                <button
+                  className="text-button demo-button"
+                  type="button"
+                  onClick={() => void run(true)}
+                  disabled={busy}
+                >
+                  {t('先看一份示例命盘', 'Explore an example first')} <ArrowUpRight size={14} />
+                </button>
+              </>
+            ) : (
+              <>
+                <label className="field">
+                  {t('此刻，你想问什么？（可选）', 'What is on your mind? (optional)')}
+                  <textarea
+                    value={question}
+                    onChange={(e) => changeQuestion(e.target.value)}
+                    maxLength={600}
+                    rows={3}
+                    placeholder={t(
+                      '例如：面对新的机会，我可以注意什么？',
+                      'For example: what could I pay attention to as I consider a new opportunity?',
+                    )}
+                  />
+                </label>
+                <p className="form-note">
+                  {t(
+                    '起卦或抽牌时，问题留在本页。只有主动请求解读才会发送。',
+                    'Your question stays on this page until you request an AI reading.',
+                  )}
+                </p>
+                {kind === 'tarot' ? (
+                  <>
+                    <div className="segmented" aria-label={t('牌阵', 'Spread')}>
+                      <button
+                        type="button"
+                        aria-pressed={count === 1}
+                        onClick={() => {
+                          setCount(1);
+                          track('setting_changed', { tool: kind, setting: 'tarot-count', variant: 'one' });
+                          setSelected([]);
+                        }}
+                      >
+                        {t('一张 · 当下', 'One · Reflection')}
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={count === 3}
+                        onClick={() => {
+                          setCount(3);
+                          track('setting_changed', { tool: kind, setting: 'tarot-count', variant: 'three' });
+                          setSelected([]);
+                        }}
+                      >
+                        {t('三张 · 探索', 'Three · Perspective')}
+                      </button>
+                    </div>
                     <label className="check-field">
                       <input
                         type="checkbox"
-                        checked={solar}
-                        disabled={unknown}
-                        onChange={(e) => setSolar(e.target.checked)}
+                        checked={reversals}
+                        onChange={(e) => {
+                          setReversals(e.target.checked);
+                          track('setting_changed', {
+                            tool: kind,
+                            setting: 'tarot-reversals',
+                            variant: e.target.checked ? 'reversals' : 'upright',
+                          });
+                        }}
                       />
-                      {t('使用近似真太阳时', 'Approximate apparent solar time')}
+                      {t('包含逆位', 'Include reversed cards')}
                     </label>
-                    {solar && !unknown && (
-                      <label className="field">
-                        {t('出生地经度（东正西负）', 'Longitude (east + / west −)')}
-                        <input
-                          type="number"
-                          min="-180"
-                          max="180"
-                          step="any"
-                          required
-                          value={longitude}
-                          onChange={(e) => setLongitude(e.target.value)}
-                          placeholder="121.47"
-                        />
-                      </label>
-                    )}
-                    <p>
-                      {t(
-                        '节气按绝对时刻判断。夏令时模糊时间需输入明确偏移。真太阳时是近似值，边界时刻建议对照。',
-                        'Solar terms use absolute instants. Ambiguous DST times require an explicit offset. Solar correction is approximate; compare charts near boundaries.',
-                      )}
+                    <div className="tarot-deck" aria-label={t('选牌区', 'Card selection')}>
+                      {Array.from({ length: 7 }, (_, i) => (
+                        <button
+                          type="button"
+                          key={i}
+                          className={`card-back ${selected.includes(i) ? 'selected' : ''}`}
+                          style={{ '--card-i': i - 3 } as React.CSSProperties}
+                          aria-label={t(`选择第 ${i + 1} 张牌`, `Choose card ${i + 1}`)}
+                          disabled={busy || selected.includes(i)}
+                          onClick={() => selectCard(i)}
+                        >
+                          <span>✦</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="deck-instruction" aria-live="polite">
+                      {busy
+                        ? t('正在展开牌面…', 'Revealing your cards…')
+                        : t(
+                            `从完整 78 张中抽 ${count} 张 · 已选 ${selected.length} 张`,
+                            `Choose ${count} · ${selected.length} selected`,
+                          )}
                     </p>
-                  </details>
-                </>
-              ) : (
-                <>
-                  <label className="field">
-                    {t('传统排盘参数', 'Traditional chart parameter')}
-                    <select value={sex} onChange={(e) => setSex(e.target.value as 'male' | 'female')}>
-                      <option value="female">{t('女', 'Female')}</option>
-                      <option value="male">{t('男', 'Male')}</option>
-                    </select>
-                  </label>
-                  <p className="form-note">
-                    {t(
-                      '用于传统顺逆行计算。输入当地钟表时间，本工具不做太阳时校正。',
-                      'Used for the traditional direction rule. Enter local civil time; this tool does not apply solar correction.',
-                    )}
-                  </p>
-                </>
-              )}
-              <button className="button primary full" type="submit" disabled={busy}>
-                {busy ? (
-                  <LoaderCircle className="spin" size={18} />
+                    <a className="deck-gallery-link" href={href(locale, 'tarot/deck')}>
+                      {t('翻阅 78 张牌图鉴', 'Browse all 78 cards')} ↗
+                    </a>
+                    <button type="submit" className="button primary full" disabled={busy}>
+                      {t('为我抽牌', 'Draw for me')}
+                      <ArrowRight size={18} />
+                    </button>
+                  </>
                 ) : (
                   <>
-                    {t('展开我的命盘', 'Reveal my chart')}
-                    <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
-              <button
-                className="text-button demo-button"
-                type="button"
-                onClick={() => void run(true)}
-                disabled={busy}
-              >
-                {t('先看一份示例命盘', 'Explore an example first')} <ArrowUpRight size={14} />
-              </button>
-            </>
-          ) : (
-            <>
-              <label className="field">
-                {t('此刻，你想问什么？（可选）', 'What is on your mind? (optional)')}
-                <textarea
-                  value={question}
-                  onChange={(e) => changeQuestion(e.target.value)}
-                  maxLength={600}
-                  rows={3}
-                  placeholder={t(
-                    '例如：面对新的机会，我可以注意什么？',
-                    'For example: what could I pay attention to as I consider a new opportunity?',
-                  )}
-                />
-              </label>
-              <p className="form-note">
-                {t(
-                  '起卦或抽牌时，问题留在本页。只有主动请求解读才会发送。',
-                  'Your question stays on this page until you request an AI reading.',
-                )}
-              </p>
-              {kind === 'tarot' ? (
-                <>
-                  <div className="segmented" aria-label={t('牌阵', 'Spread')}>
-                    <button
-                      type="button"
-                      aria-pressed={count === 1}
-                      onClick={() => {
-                        setCount(1);
-                        track('setting_changed', { tool: kind, setting: 'tarot-count', variant: 'one' });
-                        setSelected([]);
-                      }}
-                    >
-                      {t('一张 · 当下', 'One · Reflection')}
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={count === 3}
-                      onClick={() => {
-                        setCount(3);
-                        track('setting_changed', { tool: kind, setting: 'tarot-count', variant: 'three' });
-                        setSelected([]);
-                      }}
-                    >
-                      {t('三张 · 探索', 'Three · Perspective')}
-                    </button>
-                  </div>
-                  <label className="check-field">
-                    <input
-                      type="checkbox"
-                      checked={reversals}
-                      onChange={(e) => {
-                        setReversals(e.target.checked);
-                        track('setting_changed', {
-                          tool: kind,
-                          setting: 'tarot-reversals',
-                          variant: e.target.checked ? 'reversals' : 'upright',
-                        });
-                      }}
-                    />
-                    {t('包含逆位', 'Include reversed cards')}
-                  </label>
-                  <div className="tarot-deck" aria-label={t('选牌区', 'Card selection')}>
-                    {Array.from({ length: 7 }, (_, i) => (
+                    <div className="segmented">
                       <button
                         type="button"
-                        key={i}
-                        className={`card-back ${selected.includes(i) ? 'selected' : ''}`}
-                        style={{ '--card-i': i - 3 } as React.CSSProperties}
-                        aria-label={t(`选择第 ${i + 1} 张牌`, `Choose card ${i + 1}`)}
-                        disabled={busy || selected.includes(i)}
-                        onClick={() => selectCard(i)}
+                        aria-pressed={castMode === 'random'}
+                        onClick={() => {
+                          setCastMode('random');
+                          track('setting_changed', { tool: kind, setting: 'iching-cast', variant: 'random' });
+                        }}
                       >
-                        <span>✦</span>
+                        {t('在线起卦', 'Cast online')}
                       </button>
-                    ))}
-                  </div>
-                  <p className="deck-instruction" aria-live="polite">
-                    {busy
-                      ? t('正在展开牌面…', 'Revealing your cards…')
-                      : t(
-                          `从完整 78 张中抽 ${count} 张 · 已选 ${selected.length} 张`,
-                          `Choose ${count} · ${selected.length} selected`,
-                        )}
-                  </p>
-                  <a className="deck-gallery-link" href={href(locale, 'tarot/deck')}>
-                    {t('翻阅 78 张牌图鉴', 'Browse all 78 cards')} ↗
-                  </a>
-                  <button type="submit" className="button primary full" disabled={busy}>
-                    {t('为我抽牌', 'Draw for me')}
-                    <ArrowRight size={18} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="segmented">
-                    <button
-                      type="button"
-                      aria-pressed={castMode === 'random'}
-                      onClick={() => {
-                        setCastMode('random');
-                        track('setting_changed', { tool: kind, setting: 'iching-cast', variant: 'random' });
-                      }}
-                    >
-                      {t('在线起卦', 'Cast online')}
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={castMode === 'manual'}
-                      onClick={() => {
-                        setCastMode('manual');
-                        track('setting_changed', { tool: kind, setting: 'iching-cast', variant: 'manual' });
-                      }}
-                    >
-                      {t('录入铜钱结果', 'Enter coin results')}
-                    </button>
-                  </div>
-                  {castMode === 'manual' ? (
-                    <div className="manual-lines">
-                      {lines.map((v, i) => (
-                        <label className="field" key={i}>
-                          {t(
-                            `第 ${i + 1} 爻${i === 0 ? '（最下方）' : ''}`,
-                            `Line ${i + 1}${i === 0 ? ' (bottom)' : ''}`,
-                          )}
-                          <select
-                            value={v}
-                            onChange={(e) =>
-                              setLines(lines.map((x, j) => (i === j ? Number(e.target.value) : x)))
-                            }
-                          >
-                            {[6, 7, 8, 9].map((n) => (
-                              <option value={n} key={n}>
-                                {n} ·{' '}
-                                {t(
-                                  ['老阴', '少阳', '少阴', '老阳'][n - 6],
-                                  ['Old yin', 'Young yang', 'Young yin', 'Old yang'][n - 6],
-                                )}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      ))}
+                      <button
+                        type="button"
+                        aria-pressed={castMode === 'manual'}
+                        onClick={() => {
+                          setCastMode('manual');
+                          track('setting_changed', { tool: kind, setting: 'iching-cast', variant: 'manual' });
+                        }}
+                      >
+                        {t('录入铜钱结果', 'Enter coin results')}
+                      </button>
                     </div>
-                  ) : (
-                    <div className={`coin-ritual ${busy ? 'casting' : ''}`} aria-hidden="true">
-                      {[0, 1, 2].map((i) => (
-                        <span key={i} style={{ '--i': i } as React.CSSProperties}>
-                          <i />
-                          通宝
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <button className="button primary full" type="submit" disabled={busy}>
-                    {busy ? (
-                      <LoaderCircle className="spin" size={18} />
+                    {castMode === 'manual' ? (
+                      <div className="manual-lines">
+                        {lines.map((v, i) => (
+                          <label className="field" key={i}>
+                            {t(
+                              `第 ${i + 1} 爻${i === 0 ? '（最下方）' : ''}`,
+                              `Line ${i + 1}${i === 0 ? ' (bottom)' : ''}`,
+                            )}
+                            <select
+                              value={v}
+                              onChange={(e) =>
+                                setLines(lines.map((x, j) => (i === j ? Number(e.target.value) : x)))
+                              }
+                            >
+                              {[6, 7, 8, 9].map((n) => (
+                                <option value={n} key={n}>
+                                  {n} ·{' '}
+                                  {t(
+                                    ['老阴', '少阳', '少阴', '老阳'][n - 6],
+                                    ['Old yin', 'Young yang', 'Young yin', 'Old yang'][n - 6],
+                                  )}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ))}
+                      </div>
                     ) : (
-                      <>
-                        {castMode === 'manual'
-                          ? t('读取这组六爻', 'Read these lines')
-                          : t('静心，起一卦', 'Pause. Cast a hexagram.')}
-                        <ArrowRight size={18} />
-                      </>
+                      <div className={`coin-ritual ${busy ? 'casting' : ''}`} aria-hidden="true">
+                        {[0, 1, 2].map((i) => (
+                          <span key={i} style={{ '--i': i } as React.CSSProperties}>
+                            <i />
+                            通宝
+                          </span>
+                        ))}
+                      </div>
                     )}
-                  </button>
-                  <p className="form-note centered">
-                    {t('六爻自下而上，记录每一处变化。', 'Six lines, bottom to top. Each change recorded.')}
-                  </p>
-                </>
-              )}
-            </>
-          )}
-          {error && (
-            <p role="alert" className="error-message">
-              {error}
-            </p>
-          )}
+                    <button className="button primary full" type="submit" disabled={busy}>
+                      {busy ? (
+                        <LoaderCircle className="spin" size={18} />
+                      ) : (
+                        <>
+                          {castMode === 'manual'
+                            ? t('读取这组六爻', 'Read these lines')
+                            : t('静心，起一卦', 'Pause. Cast a hexagram.')}
+                          <ArrowRight size={18} />
+                        </>
+                      )}
+                    </button>
+                    <p className="form-note centered">
+                      {t('六爻自下而上，记录每一处变化。', 'Six lines, bottom to top. Each change recorded.')}
+                    </p>
+                  </>
+                )}
+              </>
+            )}
+            {error && (
+              <p role="alert" className="error-message">
+                {error}
+              </p>
+            )}
+          </fieldset>
         </form>
         <div className="privacy-note">
           <span>◌</span>
@@ -833,6 +790,14 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                   invalidateAnswer();
                   setNote('');
                   entryId.current = null;
+                  requestAnimationFrame(() => {
+                    formRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+                    formRef.current
+                      ?.querySelector<HTMLElement>(
+                        'input:not(:disabled), textarea, select, button:not(:disabled)',
+                      )
+                      ?.focus({ preventScroll: true });
+                  });
                 }}
                 aria-label={t('重新开始', 'Start again')}
               >

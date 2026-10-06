@@ -981,6 +981,18 @@ html[lang='en'] .section-heading h2 {
   border-right: 1px solid var(--line);
   container-type: inline-size;
 }
+.tool-form-panel form {
+  scroll-margin-top: 110px;
+}
+.tool-inputs {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.tool-inputs:disabled {
+  opacity: 0.65;
+}
 .step-label {
   font-size: 11px;
   letter-spacing: 0.5px;

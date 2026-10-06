@@ -63,6 +63,7 @@ import { isolatedTrialSession } from '../lib/reading-conversation';
 import { readReportVisual } from '../lib/agent-report';
 import { prepareAgentSubmission, quickTrialChoice, type ConversationChoice } from '../lib/agent-guidance';
 import { shouldSendMessage } from '../lib/agent-keyboard';
+import { useClientReady } from '../lib/use-client-ready';
 import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
 import AgentOnboarding from './AgentOnboarding';
 import AgentConversationGuide from './AgentConversationGuide';
@@ -101,13 +102,14 @@ class ChartBoundary extends Component<{ children: ReactNode; fallback: string },
 }
 const defaultBirth: AgentBirth = {
   date: '',
-  time: null,
+  time: '',
   timezone: 'Asia/Shanghai',
   dayBoundary: 'midnight',
   solarTime: false,
 };
 
 export default function AgentWorkspace({ locale }: { locale: Locale }) {
+  const interactive = useClientReady();
   const t = (zh: string, en: string) => choose(locale, zh, en);
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [activeId, setActiveId] = useState('');
@@ -126,6 +128,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const previousPane = useRef(mobilePane);
   const showResults = useRef<HTMLButtonElement>(null);
   const backToConversation = useRef<HTMLButtonElement>(null);
+  const [exampleOpen, setExampleOpen] = useState(false);
+  const exampleDialog = useRef<HTMLDialogElement>(null);
   const [panel, setPanel] = useState<'results' | 'sources'>('results');
   const [selectedArtifact, setSelectedArtifact] = useState('');
   const [sessionSearch, setSessionSearch] = useState('');
@@ -280,6 +284,25 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     textarea.current.style.height = 'auto';
     textarea.current.style.height = Math.min(170, Math.max(58, textarea.current.scrollHeight)) + 'px';
   }, [draft]);
+  useEffect(() => {
+    if (exampleOpen) exampleDialog.current?.showModal();
+    else exampleDialog.current?.close();
+  }, [exampleOpen]);
+  function closeExample() {
+    // Close the top-layer dialog before handing off to another dialog or the composer.
+    exampleDialog.current?.close();
+    setExampleOpen(false);
+  }
+  function startFromExample(kind: 'tarot' | 'research') {
+    closeExample();
+    setMobilePane('chat');
+    if (kind === 'tarot') void send(quickTrialChoice(locale));
+    else openContext(true, 'bazi');
+  }
+  function focusComposer() {
+    setMobilePane('chat');
+    requestAnimationFrame(() => textarea.current?.focus());
+  }
   useEffect(() => {
     if (contextOpen) dialog.current?.showModal();
     else {
@@ -908,12 +931,12 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                   key={activeId}
                   locale={locale}
                   disabled={!loaded || busy}
+                  exampleReady={interactive}
                   hasDraft={!!draft.trim()}
                   onStart={(choice) => void send(choice)}
                   onBirth={() => openContext(true, 'bazi')}
                   onExample={() => {
-                    setPanel('results');
-                    setMobilePane('results');
+                    setExampleOpen(true);
                     track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'explore' });
                   }}
                 />
@@ -1532,8 +1555,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                           className="text-button"
                           type="button"
                           onClick={() => {
-                            setMobilePane('chat');
-                            textarea.current?.focus();
+                            focusComposer();
                           }}
                         >
                           {t('带着这个结果继续聊', 'Continue with this result')} <ArrowUpRight size={14} />
@@ -1600,15 +1622,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           ) : (
             <AgentExample
               locale={locale}
-              onPractice={(kind) => {
-                setMobilePane('chat');
-                if (kind === 'tarot') void send(quickTrialChoice(locale));
-                else openContext(true, 'bazi');
-              }}
-              onStart={() => {
-                setMobilePane('chat');
-                setTimeout(() => textarea.current?.focus(), 0);
-              }}
+              ready={interactive}
+              disabled={!loaded || busy}
+              onPractice={startFromExample}
+              onStart={focusComposer}
             />
           )}
         </div>
@@ -1617,6 +1634,42 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           <a href={href(locale, 'methodology')}>{t('计算与依据', 'Our methods')} ↗</a>
         </div>
       </aside>
+      <dialog
+        ref={exampleDialog}
+        className="agent-example-dialog"
+        aria-labelledby="agent-example-title"
+        onCancel={() => setExampleOpen(false)}
+        onClose={() => setExampleOpen(false)}
+        onClick={(event) => {
+          if (event.target === exampleDialog.current) closeExample();
+        }}
+      >
+        <div className="agent-example-dialog-heading">
+          <h2 id="agent-example-title">{t('完整示例', 'Complete example')}</h2>
+          <button
+            className="agent-icon-button"
+            type="button"
+            aria-label={t('关闭示例', 'Close example')}
+            onClick={closeExample}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        {exampleOpen && (
+          <div className="agent-example-dialog-body">
+            <AgentExample
+              locale={locale}
+              ready={interactive}
+              disabled={!loaded || busy}
+              onPractice={startFromExample}
+              onStart={() => {
+                closeExample();
+                focusComposer();
+              }}
+            />
+          </div>
+        )}
+      </dialog>
       <dialog
         className="agent-context-dialog"
         ref={dialog}

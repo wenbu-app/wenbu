@@ -1,5 +1,7 @@
 # Quality and review evidence
 
+- [2026-10-06：示例入口、出生日期与时间填写、返回路径修复](example-birth-inputs-2026-10-06/README.md)。
+
 - [2026-10-06: single-card trial, linked outcomes, provider-neutral UI and mature account cohorts](onboarding-release-2026-10-06/README.md).
 
 - [2026-10-06: post-release onboarding research, nine fresh journey steps](onboarding-next-2026-10-06/README.md) — 11 screenshots, one real DeepSeek turn, a separate tool draw, source inspection and private aggregate analysis; recommendations only, no runtime change or deployment.

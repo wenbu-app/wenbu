@@ -1,0 +1,124 @@
+.birth-input-fields {
+  display: grid;
+  gap: 22px;
+  margin: 0 0 22px;
+  min-width: 0;
+}
+.birth-input-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.birth-input-group legend,
+.birth-timezone-field > label {
+  display: block;
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.birth-segments {
+  display: grid;
+  gap: 10px;
+}
+.birth-segments-date {
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
+}
+.birth-segments-time {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 230px;
+}
+.birth-segments label,
+.birth-custom-zone {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+.birth-segments label > span {
+  color: var(--muted);
+}
+.birth-segments input,
+.birth-timezone-field select,
+.birth-timezone-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid #c9cbbf;
+  background: var(--paper-light);
+  color: var(--ink);
+  border-radius: 5px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  outline-offset: 3px;
+}
+.birth-segments input {
+  font-variant-numeric: tabular-nums;
+}
+.birth-segments input:focus,
+.birth-timezone-field input:focus,
+.birth-timezone-field select:focus {
+  border-color: var(--sage);
+  outline: 2px solid var(--sage);
+}
+.birth-segments input:disabled {
+  background: #e6e6dc;
+  color: var(--muted);
+}
+.birth-time-unknown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 12px;
+  min-height: 44px;
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.birth-time-unknown input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--sage);
+}
+.birth-input-help {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.birth-input-error {
+  margin: 8px 0 0;
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.birth-timezone-field {
+  min-width: 0;
+  margin-bottom: 20px;
+}
+.birth-custom-zone {
+  margin-top: 12px;
+}
+.agent-birth-fields > .birth-input-fields {
+  margin-top: 18px;
+}
+.agent-context-dialog .birth-segments input,
+.agent-context-dialog .birth-timezone-field select,
+.agent-context-dialog .birth-timezone-field input {
+  font-size: 16px;
+}
+@media (max-width: 360px) {
+  .birth-segments {
+    gap: 8px;
+  }
+  .birth-segments input {
+    padding-inline: 9px;
+  }
+}

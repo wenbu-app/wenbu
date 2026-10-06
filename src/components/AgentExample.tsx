@@ -9,8 +9,12 @@ export default function AgentExample({
   locale,
   onStart,
   onPractice,
+  disabled = false,
+  ready,
 }: {
   locale: Locale;
+  disabled?: boolean;
+  ready: boolean;
   onStart: () => void;
   onPractice: (kind: 'tarot' | 'research') => void;
 }) {
@@ -23,6 +27,7 @@ export default function AgentExample({
         <button
           type="button"
           aria-pressed={kind === 'tarot'}
+          disabled={!ready}
           onClick={() => {
             setKind('tarot');
             track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'explore' });
@@ -34,6 +39,7 @@ export default function AgentExample({
         <button
           type="button"
           aria-pressed={kind === 'research'}
+          disabled={!ready}
           onClick={() => {
             setKind('research');
             track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'research' });
@@ -49,7 +55,12 @@ export default function AgentExample({
           'Editorial example · No turns used · Not a personal reading',
         )}
       </p>
-      <button className="agent-example-practice" type="button" onClick={() => onPractice(kind)}>
+      <button
+        className="agent-example-practice"
+        type="button"
+        disabled={disabled}
+        onClick={() => onPractice(kind)}
+      >
         <Compass size={16} aria-hidden="true" />
         {kind === 'tarot'
           ? t('抽一张自己的牌 · 1 回合', 'Try your own card · 1 turn')
@@ -142,8 +153,8 @@ export default function AgentExample({
             </strong>
             <p>
               {t(
-                '在问卜中可以将出生时间留空，不会擅自补一个时柱。年、月、日的结果也可能在换日或节气附近存在不确定性。',
-                'Wenbu lets you leave the time blank and does not invent an hour pillar. The year, month or day may still be uncertain near a day or solar-term boundary.',
+                '在问卜中可以选择“时间未知”，不会擅自补一个时柱。年、月、日的结果也可能在换日或节气附近存在不确定性。',
+                'Choose “Time unknown” in Wenbu to continue without an invented hour pillar. The year, month or day may still be uncertain near a day or solar-term boundary.',
               )}
             </p>
           </div>
@@ -152,8 +163,8 @@ export default function AgentExample({
               <strong>{t('需要的资料', 'What you need')}</strong>
               <p>
                 {t(
-                  '公历出生日期和出生地时区；不知道时刻就如实留空。',
-                  'A Gregorian birth date and the timezone at the place of birth. Leave an unknown time blank.',
+                  '公历出生日期和出生地时区；不知道时刻就选择“时间未知”。',
+                  'A Gregorian birth date and the timezone at the place of birth. Select “Time unknown” if needed.',
                 )}
               </p>
             </li>
@@ -197,7 +208,7 @@ export default function AgentExample({
           </div>
         </>
       )}
-      <button type="button" className="agent-example-start" onClick={onStart}>
+      <button type="button" className="agent-example-start" disabled={disabled} onClick={onStart}>
         <ArrowLeft size={16} />
         {t('开始我的问题', 'Start with my own question')}
       </button>

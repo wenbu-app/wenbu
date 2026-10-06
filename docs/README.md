@@ -1,5 +1,7 @@
 # Wenbu 文档导航
 
+- [2026-10-06：示例入口、出生日期与时间填写、返回路径修复](reviews/example-birth-inputs-2026-10-06/README.md)。
+
 - [上线后下一阶段体验研究：轻试用、统一成果与测量校准](research/onboarding-next-experience-2026-10-06.md) — 新采集的 [9 步体验证据与 11 张截图](reviews/onboarding-next-2026-10-06/README.md)；本轮落地见[轻试用与统计校准](reviews/onboarding-release-2026-10-06/README.md)。
 
 - [引导与试用深度研究：首次结果、连续澄清、双语 UI 与验证方案](research/onboarding-trial-experience-2026-10-06.md) — 第一阶段实施见[发布与验收记录](reviews/onboarding-implementation-2026-10-06/README.md)；[本轮线上截图](reviews/onboarding-trial-2026-10-06/README.md)。

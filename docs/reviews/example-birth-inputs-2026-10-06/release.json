@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-06",
+  "pullRequest": "https://github.com/wenbu-app/wenbu/pull/21",
+  "deployedCodeCommit": "a8724e374eed74e7c6ed4d364cbd55dbcd549149",
+  "cloudflareWorker": "wenbu",
+  "cloudflareVersion": "be584579-b5a6-4a55-a734-e37f79bd2303",
+  "ci": {
+    "url": "https://github.com/wenbu-app/wenbu/actions/runs/37426775216",
+    "result": "passed",
+    "unitTests": 357,
+    "nativeAccountChecks": 67
+  },
+  "buildPages": 93,
+  "localViewportWidths": [1280, 820, 390, 320],
+  "productionViewportWidths": [1280, 390, 320],
+  "productionChecks": {
+    "firstClickOpensExample": true,
+    "exampleBrowsingAgentRequests": 0,
+    "invalidDateAgentRequests": 0,
+    "invalidDateFocusesDay": true,
+    "leapDateAccepted": true,
+    "knownTimePreservedAfterUnknownToggle": true,
+    "englishNarrowLayoutNoHorizontalOverflow": true,
+    "unknownTimeBaziCalculationCompleted": true,
+    "startAgainFocusesVisibleYear": true,
+    "consoleErrorsOrWarnings": 0,
+    "productionModelGenerationTested": false,
+    "testCookieRemoved": true,
+    "temporaryBrowserStateRestored": true
+  },
+  "manifest": {
+    "httpStatus": 200,
+    "liveMatchesBuild": true,
+    "revision": "a9e61a76b4892ac47cd0eb92e99b65ec2e3e02efc141028c8b40c84c1ac6a856"
+  },
+  "indexNow": {
+    "manualSubmission": "not sent by after-deploy check",
+    "existingCron": "*/15 * * * *",
+    "searchIndexingVerified": false
+  },
+  "grokReview": {
+    "result": "no verdict",
+    "reason": "90-second timeout with network export errors"
+  },
+  "screenshots": ["05-production-birth-mobile.png", "06-production-bazi-en-320.png"]
+}
