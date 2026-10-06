@@ -29,6 +29,28 @@ describe('Agent local recovery and context', () => {
         .delivered,
     ).toBe(false);
   });
+  it('does not treat an older written intake as delivered work, but preserves real artifacts', () => {
+    const message = {
+      ...newMessage(
+        'assistant',
+        'One detail will help us find a useful next step.\nWhat matters most to you?\nA. Growth and learning\nB. Stability\nChoose one that fits.',
+      ),
+      status: 'complete' as const,
+    };
+    expect(contextHistory([message])[0].delivered).toBe(false);
+    message.artifacts = [
+      {
+        type: 'report',
+        id: 'report',
+        title: 'Verified work',
+        summary: 'Done',
+        sections: [],
+        questions: [],
+        createdAt: '2026-10-06',
+      },
+    ];
+    expect(contextHistory([message])[0].delivered).toBe(true);
+  });
   it('preserves partial content but does not resume abandoned executions on reload', () => {
     let saved = '';
     vi.stubGlobal('localStorage', {

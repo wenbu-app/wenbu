@@ -1,0 +1,36 @@
+{
+  "base": "https://wenbu.app",
+  "checkedAt": "2026-10-06T02:40:18.285Z",
+  "synthetic": true,
+  "turns": [
+    {
+      "message": "这是虚构的交互测试情境。我想聊工作与选择，希望比较继续现在的工作和接受一个新机会，还没想清自己最在意什么。先通过对话帮我梳理，暂不抽牌、起卦或排盘。信息不够时一次问一个关键问题，给几个可选回答。",
+      "events": [
+        {
+          "type": "start",
+          "runId": "df7973b5-dc82-4892-83ef-bafb24f73560",
+          "remaining": 11
+        },
+        {
+          "type": "delta",
+          "text": "我明白了——先不抽牌、不起卦，也不排盘，我们就用对话把这件事理清楚。\n\n你说还没想清自己最在意什么，这其实是最关键的一步：**选择难，往往不是选项本身的问题，而是衡量标准还没浮出水面。**\n\n在往下聊之前，我想先问一个最关键的问题：\n\n**如果一年后回头看，你希望自己是因为什么原因做了这个决定？**\n\n- A. 因为成长和能力的提升，哪怕过程更辛苦\n- B. 因为生活的稳定与可控，少一些不确定性\n- C. 因为收入或现实条件的改善\n- D. 因为和谁一起工作、被怎样对待\n\n选一个最接近的就好，也可以补充你自己的说法。"
+        },
+        {
+          "type": "cloud",
+          "status": "local",
+          "receipt": "eyJhdCI6MTc5MTI1NDQyMjU4MywiYmFzaXMiOiJyZXN1bHQiLCJkaWdlc3QiOiJmODliMDQyMTI5Y2M3ZGMwY2U4ZjE0YjhjOTQzMDRiZDRjOGIwYzNiMmUwZjIzNjcwZTEwZTc5NmIyYzdkN2Y3Iiwia2luZCI6InNlc3Npb24iLCJtZWFzdXJlZCI6ZmFsc2UsIm9wZXJhdGlvbiI6IjViZjEyZDVlLWZlMTUtNDk1Mi05N2RlLTc3NzMxNWRhMzEzOCIsInN1YmplY3QiOiJndWVzdDo3MDVhMDRkMC1iYmI0LTQ1NTktOWFkMy01YjgxOTRiMTk1ZWIifQ.beb2100d9678792fb6c80adfd4fb0edff84c1804575a42d3c73a99a0614a96a5"
+        },
+        {
+          "type": "done",
+          "status": "complete",
+          "servedModel": "deepseek-flash",
+          "requestedModel": "deepseek-v4-flash",
+          "modelCalls": 1,
+          "toolCalls": 0
+        }
+      ]
+    }
+  ],
+  "result": "failed",
+  "error": "AssertionError [ERR_ASSERTION]: An ambiguous opening should offer a focused clarification"
+}

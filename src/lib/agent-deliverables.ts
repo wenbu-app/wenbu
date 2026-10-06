@@ -1,4 +1,5 @@
 import type { AgentArtifact, AgentMessage, AgentSession } from './agent-protocol';
+import { writtenQuestion } from './agent-written-question';
 
 export type AnswerNote = {
   type: 'answer';
@@ -16,7 +17,8 @@ export function isCompletedAnswer(message: AgentMessage) {
     message.role === 'assistant' &&
     message.status === 'complete' &&
     !message.question &&
-    message.text.trim().length >= 80
+    message.text.trim().length >= 80 &&
+    !writtenQuestion(message.text)
   );
 }
 

@@ -7,6 +7,7 @@ import type {
   ReadingInput,
 } from './agent-protocol';
 import type { Locale } from './schema';
+import { writtenQuestion } from './agent-written-question';
 import type { Reading } from './tools';
 import { readReportVisual, reportSourceIds } from './agent-report';
 import { readAccountCache, writeAccountCache } from './account-client';
@@ -185,7 +186,7 @@ export function contextHistory(messages: AgentMessage[]) {
             delivered:
               m.status === 'complete' &&
               !m.question &&
-              (m.artifacts.length > 0 || m.text.trim().length >= 80),
+              (m.artifacts.length > 0 || (m.text.trim().length >= 80 && !writtenQuestion(m.text))),
           }
         : {}),
     }));
