@@ -217,6 +217,8 @@ export const reportLabels: Record<string, string> = {
   ai_result_viewed: '收到 AI 解读',
   agent_started: '开始 Agent 回合',
   agent_received: '接收 Agent 结果',
+  agent_result_visible: 'Agent 答复首块可见 1 秒',
+  agent_example_opened: '打开静态示例',
   agent_stopped: '停止 Agent',
   registration_offer_viewed: '保存邀请可见',
   registration_offer_clicked: '点击保存邀请',

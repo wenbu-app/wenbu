@@ -31,7 +31,7 @@ export const contextSchema = z
     operation: z.uuid().optional(),
     parentOperation: z.uuid().optional(),
     conversation: z.uuid().optional(),
-    release: z.enum(['legacy', analyticsRelease]).default('legacy'),
+    release: z.enum(['legacy', '2026-09-29-feedback-v1', analyticsRelease]).default('legacy'),
   })
   .strict();
 export const eventSchema = contextSchema

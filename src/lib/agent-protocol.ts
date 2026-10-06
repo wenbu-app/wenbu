@@ -33,7 +33,12 @@ export type AgentSource = {
   readAt: string;
 };
 export type PlanStep = { title: string; status: 'pending' | 'active' | 'complete' };
-export type AgentQuestion = { question: string; options: string[]; form?: 'birth' };
+export type AgentQuestion = {
+  question: string;
+  options: string[];
+  form?: 'birth';
+  birthKind?: 'bazi' | 'ziwei';
+};
 export type ChartArtifact = {
   type: 'chart';
   id: string;

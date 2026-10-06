@@ -421,6 +421,8 @@ export const insightsEnglish: Record<string, string> = {
   '展示 AI 解读': 'AI reading received',
   '开始 Agent 回合': 'Agent turn started',
   '接收 Agent 结果': 'Agent result received',
+  'Agent 答复首块可见 1 秒': 'Agent answer opening block visible for 1 second',
+  打开静态示例: 'Static example opened',
   '停止 Agent': 'Agent stopped',
   '旧版：打开引导': 'Legacy: guide opened',
   '旧版：引导步骤': 'Legacy: guidance step',

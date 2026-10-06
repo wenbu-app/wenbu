@@ -19,6 +19,16 @@ vi.mock('../src/lib/account-client', () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 describe('Agent local recovery and context', () => {
+  it('only resets clarification after completed work, never after a question or partial stream', () => {
+    const message = newMessage('assistant', 'A useful original answer. '.repeat(8));
+    expect(contextHistory([{ ...message, status: 'complete' }])[0].delivered).toBe(true);
+    for (const status of ['waiting', 'running', 'error', 'limited', 'stopped'] as const)
+      expect(contextHistory([{ ...message, status }])[0].delivered).toBe(false);
+    expect(
+      contextHistory([{ ...message, status: 'complete', question: { question: 'Which?', options: [] } }])[0]
+        .delivered,
+    ).toBe(false);
+  });
   it('preserves partial content but does not resume abandoned executions on reload', () => {
     let saved = '';
     vi.stubGlobal('localStorage', {

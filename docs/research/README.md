@@ -1,5 +1,7 @@
 # Wenbu 产品研究索引
 
+- [引导与试用第一阶段：执行约束、完整示例、原文结果与验收](../reviews/onboarding-implementation-2026-10-06/README.md)
+
 研究区保存可核实来源、当前诊断与待验证方案。实现、发布和生产验收分别查阅[审查记录](../reviews/README.md)；研究结论不能替代实验效果。
 
 - [2026-10-06：引导、试用与首次结果体验](onboarding-trial-experience-2026-10-06.md) — 真实对话中的连续澄清、结果承接、双语文案、资料输入、指标及验证计划。[本轮截图](../reviews/onboarding-trial-2026-10-06/README.md)。

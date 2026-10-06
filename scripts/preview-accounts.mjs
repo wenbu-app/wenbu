@@ -67,7 +67,7 @@ const mf = new Miniflare({
             const last = users.at(-1)?.content || '';
             const zh = /[\u4e00-\u9fff]/.test(last);
             const first = users.length === 1;
-            const birth = /命盘|birth chart/.test(last);
+            const birth = /命盘|八字|紫微|birth chart|BaZi|Zi Wei/i.test(last);
             const reporting = !first && input.messages.at(-1)?.role !== 'tool';
             const delta = first
               ? {
@@ -95,7 +95,9 @@ const mf = new Miniflare({
                                   'Understand what is holding me back',
                                   'Find a practical next step',
                                 ],
-                          ...(birth ? { form: 'birth' } : {}),
+                          ...(birth
+                            ? { form: 'birth', birthKind: /紫微|Zi Wei/i.test(last) ? 'ziwei' : 'bazi' }
+                            : {}),
                         }),
                       },
                     },

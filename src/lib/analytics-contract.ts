@@ -19,6 +19,8 @@ export const clientEvents = [
   'ai_result_viewed',
   'agent_started',
   'agent_received',
+  'agent_result_visible',
+  'agent_example_opened',
   'agent_stopped',
   'guide_opened',
   'guide_step',
@@ -109,7 +111,7 @@ export const actions = [
   'agent-report',
   'agent-clarify',
 ] as const;
-export const analyticsRelease = '2026-09-29-feedback-v1';
+export const analyticsRelease = '2026-10-06-onboarding-v2';
 export const settings = ['none', 'tarot-count', 'tarot-reversals', 'iching-cast', 'agent-mode'] as const;
 export const variants = [
   'none',

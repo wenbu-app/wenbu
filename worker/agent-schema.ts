@@ -77,6 +77,7 @@ export const agentRequestSchema = z
           .object({
             role: z.enum(['user', 'assistant']),
             content: z.string().max(7000),
+            delivered: z.boolean().optional(),
           })
           .strict(),
       )

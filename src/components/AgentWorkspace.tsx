@@ -68,6 +68,11 @@ import '../styles/agent.css';
 import '../styles/agent-motion.css';
 import '../styles/agent-visuals.css';
 import '../styles/agent-guidance.css';
+import '../styles/agent-entry.css';
+import AgentExample from './AgentExample';
+import AgentBirthFields from './AgentBirthFields';
+import AgentAnswerText from './AgentAnswerText';
+import { isCompletedAnswer, sessionDeliverables } from '../lib/agent-deliverables';
 import {
   initializeAccount,
   accountSnapshot,
@@ -124,6 +129,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const [storageError, setStorageError] = useState(false);
   const [notice, setNotice] = useState('');
   const [contextOpen, setContextOpen] = useState(false);
+  const [birthKind, setBirthKind] = useState<'bazi' | 'ziwei'>('bazi');
   const [resumeAfterContext, setResumeAfterContext] = useState(false);
   const [contextDraft, setContextDraft] = useState<AgentSession['context']>({
     note: '',
@@ -151,11 +157,13 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const active = sessions.find((s) => s.id === activeId);
   const artifacts = active ? sessionArtifacts(active) : [];
+  const deliverables = active ? sessionDeliverables(active) : [];
   const sourceMap = new Map<string, AgentSource>();
   for (const message of active?.messages ?? [])
     for (const source of message.sources) sourceMap.set(source.id, source);
   const sources = [...sourceMap.values()];
-  const artifact = artifacts.find((a) => a.id === selectedArtifact) ?? artifacts[artifacts.length - 1];
+  const artifact =
+    deliverables.find((a) => a.id === selectedArtifact) ?? deliverables[deliverables.length - 1];
   const birth = contextDraft.birth ?? defaultBirth;
   const contextCount =
     (active?.context.useBirth ? 1 : 0) +
@@ -370,7 +378,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     if (activeId === id) selectSession(rest[0].id);
     setDeleteId('');
   }
-  function openContext(resume = false) {
+  function openContext(resume = false, kind: 'bazi' | 'ziwei' = 'bazi') {
+    setBirthKind(kind);
     track('context_opened', { tool: 'agent', action: 'context' });
     if (!active) return;
     setResumeAfterContext(resume);
@@ -397,7 +406,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     track('artifact_opened', {
       tool: 'agent',
       conversation: activeId,
-      operation: active?.messages.find((m) => m.artifacts.some((a) => a.id === id))?.id,
+      operation: active?.messages.find((m) => m.artifacts.some((a) => a.id === id) || `answer:${m.id}` === id)
+        ?.id,
     });
     setArrivingArtifacts([]);
     setSelectedArtifact(id);
@@ -536,6 +546,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             return;
           }
           if (event.type === 'start') setRemaining(event.remaining);
+          if (event.type === 'done' && event.status === 'complete') setSelectedArtifact('');
           if (event.type === 'done' || event.type === 'error') {
             terminal = true;
             track('agent_received', {
@@ -794,7 +805,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               onClick={() => setMobilePane('results')}
             >
               <PanelRight size={18} />
-              {artifacts.length > 0 && <span className="agent-count">{artifacts.length}</span>}
+              {deliverables.length > 0 && <span className="agent-count">{deliverables.length}</span>}
             </button>
           </div>
         </div>
@@ -841,6 +852,11 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               disabled={!loaded || busy}
               hasDraft={!!draft.trim()}
               onStart={(choice) => void send(choice)}
+              onExample={() => {
+                setPanel('results');
+                setMobilePane('results');
+                track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'explore' });
+              }}
             />
           ) : (
             <div className="agent-message-list">
@@ -958,17 +974,25 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                     </AgentTrace>
                   )}
                   {message.text && (
-                    <div
-                      className={`agent-prose agent-answer ${message.status === 'running' ? 'is-streaming' : ''}`}
-                    >
-                      <AgentMarkdown
-                        locale={locale}
-                        text={message.text}
-                        allowedUrls={sources.map((s) => s.url)}
-                      />
-                      {message.status === 'running' && (
-                        <span className="agent-writing-cursor" aria-hidden="true" />
-                      )}
+                    <AgentAnswerText
+                      message={message}
+                      conversation={active.id}
+                      locale={locale}
+                      allowedUrls={sources.map((source) => source.url)}
+                    />
+                  )}
+                  {isCompletedAnswer(message) && !message.artifacts.length && (
+                    <div className="agent-artifact-links">
+                      <button onClick={() => openArtifact(`answer:${message.id}`)}>
+                        <InstrumentGlyph kind="report" size={38} />
+                        <span>
+                          <small>
+                            {t('保留原文，无需重新生成', 'The original answer, ready to revisit')}
+                          </small>
+                          <strong>{t('查看这份答复', 'Open this answer')}</strong>
+                        </span>
+                        <ArrowUpRight size={15} />
+                      </button>
                     </div>
                   )}
                   {message.role === 'assistant' &&
@@ -1040,14 +1064,14 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                         setMobilePane('chat');
                         textarea.current?.focus();
                       }}
-                      onBirth={() => openContext(true)}
+                      onBirth={() => openContext(true, message.question?.birthKind ?? 'bazi')}
                     />
                   )}
                   {i === active.messages.length - 1 &&
                     !busy &&
                     message.status === 'complete' &&
                     !message.question &&
-                    message.artifacts.length > 0 && (
+                    (message.artifacts.length > 0 || isCompletedAnswer(message)) && (
                       <AccountSavePrompt
                         key={active.id}
                         locale={locale}
@@ -1148,6 +1172,19 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                 }
               }}
             />
+            {!active?.messages.length && (
+              <p className="agent-mode-help">
+                {active?.mode === 'research'
+                  ? t(
+                      '研习：查阅资料与出处，整理有依据的札记。',
+                      'Research: read sources and build a referenced note.',
+                    )
+                  : t(
+                      '对话：先理清问题，需要时再使用排盘与抽取工具。',
+                      'Explore: think through a question, with reading tools when useful.',
+                    )}
+              </p>
+            )}
             <div className="agent-composer-controls">
               <div className="agent-mode-picker" role="group" aria-label={t('探索方式', 'Exploration mode')}>
                 <button
@@ -1260,7 +1297,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               }}
             >
               {t('探索结果', 'Results')}
-              <span>{artifacts.length || '—'}</span>
+              <span>{deliverables.length || '—'}</span>
             </button>
             <button
               className={panel === 'sources' ? 'selected' : ''}
@@ -1324,7 +1361,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             )
           ) : artifact ? (
             <div className="agent-artifact-view">
-              {artifacts.length > 1 && (
+              {deliverables.length > 1 && (
                 <label className="agent-artifact-select">
                   <History size={14} />
                   <select
@@ -1335,7 +1372,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       setSelectedArtifact(e.target.value);
                     }}
                   >
-                    {artifacts.map((a, i) => (
+                    {deliverables.map((a, i) => (
                       <option key={a.id} value={a.id}>
                         {String(i + 1).padStart(2, '0')} · {a.title}
                       </option>
@@ -1363,10 +1400,15 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                           '由排盘工具生成 · 可复核原始结构',
                           'Generated by the calculation tools · inspect the structure',
                         )
-                      : t(
-                          '本次对话的整理，引用与适用范围见下方',
-                          'A note from this conversation. Review the sources and limits below.',
-                        )}
+                      : artifact.type === 'answer'
+                        ? t(
+                            '本次对话的原文答复，与聊天记录保持一致。',
+                            'The original answer from this conversation, unchanged.',
+                          )
+                        : t(
+                            '本次对话的整理，引用与适用范围见下方',
+                            'A note from this conversation. Review the sources and limits below.',
+                          )}
                   </p>
                 </div>
                 {artifact.type === 'chart' ? (
@@ -1381,6 +1423,14 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       <ReadingView key={artifact.id} result={artifact.reading} locale={locale} />
                     </ChartBoundary>
                   </div>
+                ) : artifact.type === 'answer' ? (
+                  <div className="agent-prose agent-answer-note">
+                    <AgentMarkdown
+                      locale={locale}
+                      text={artifact.text}
+                      allowedUrls={sources.map((source) => source.url)}
+                    />
+                  </div>
                 ) : (
                   <AgentReport
                     key={artifact.id}
@@ -1394,7 +1444,9 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                 <div className="agent-artifact-actions">
                   <button
                     onClick={() => {
-                      downloadMarkdown(artifactMarkdown(artifact, sources));
+                      downloadMarkdown(
+                        artifact.type === 'answer' ? artifact.text : artifactMarkdown(artifact, sources),
+                      );
                       track('report_exported', { tool: 'agent', action: 'export', conversation: activeId });
                     }}
                   >
@@ -1412,7 +1464,13 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
               </div>
             </div>
           ) : (
-            <EmptyPanel locale={locale} kind="results" />
+            <AgentExample
+              locale={locale}
+              onStart={() => {
+                setMobilePane('chat');
+                setTimeout(() => textarea.current?.focus(), 0);
+              }}
+            />
           )}
         </div>
         <div className="agent-panel-foot">
@@ -1482,98 +1540,13 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             </span>
           </label>
           {contextDraft.useBirth && (
-            <div className="agent-birth-grid">
-              <label>
-                {t('公历出生日期', 'Gregorian birth date')}
-                <input
-                  type="date"
-                  min="1901-01-01"
-                  max="2099-12-31"
-                  required
-                  value={birth.date}
-                  onChange={(e) => patchBirth({ date: e.target.value })}
-                />
-              </label>
-              <label>
-                {t('出生时间（可留空）', 'Birth time (optional)')}
-                <input
-                  type="time"
-                  value={birth.time ?? ''}
-                  onChange={(e) => patchBirth({ time: e.target.value || null })}
-                />
-              </label>
-              <label>
-                {t('出生时区', 'Birth timezone')}
-                <input
-                  required
-                  list="agent-timezones"
-                  value={birth.timezone}
-                  onChange={(e) => patchBirth({ timezone: e.target.value })}
-                />
-                <datalist id="agent-timezones">
-                  {[
-                    'Asia/Shanghai',
-                    'Asia/Hong_Kong',
-                    'Asia/Taipei',
-                    'Asia/Tokyo',
-                    'Asia/Singapore',
-                    'America/New_York',
-                    'America/Los_Angeles',
-                    'Europe/London',
-                    'Australia/Sydney',
-                  ].map((zone) => (
-                    <option key={zone} value={zone} />
-                  ))}
-                </datalist>
-              </label>
-              <label>
-                {t('紫微排盘参数', 'Zi Wei calculation parameter')}
-                <select
-                  value={birth.sex ?? ''}
-                  onChange={(e) =>
-                    patchBirth({ sex: e.target.value ? (e.target.value as 'male' | 'female') : undefined })
-                  }
-                >
-                  <option value="">{t('暂不提供', 'Not supplied')}</option>
-                  <option value="female">{t('女', 'Female')}</option>
-                  <option value="male">{t('男', 'Male')}</option>
-                </select>
-              </label>
-              <label>
-                {t('八字换日规则', 'BaZi day boundary')}
-                <select
-                  value={birth.dayBoundary}
-                  onChange={(e) => patchBirth({ dayBoundary: e.target.value as 'midnight' | 'zi' })}
-                >
-                  <option value="midnight">{t('零点换日（默认）', 'Midnight (default)')}</option>
-                  <option value="zi">{t('子初 23:00 换日', 'Zi hour, 23:00')}</option>
-                </select>
-              </label>
-              <label>
-                {t('真太阳时经度（选填）', 'Solar-time longitude (optional)')}
-                <input
-                  type="number"
-                  min="-180"
-                  max="180"
-                  step="any"
-                  disabled={!birth.time}
-                  placeholder={t('留空使用民用时间', 'Empty = civil time')}
-                  value={birth.solarTime ? (birth.longitude ?? '') : ''}
-                  onChange={(e) =>
-                    patchBirth({
-                      solarTime: e.target.value !== '',
-                      longitude: e.target.value === '' ? undefined : Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <p>
-                {t(
-                  '未知出生时间可用八字三柱；紫微需要已知时间与排盘参数。',
-                  'BaZi can omit the hour. Zi Wei needs a known time and the calculation parameter.',
-                )}
-              </p>
-            </div>
+            <AgentBirthFields
+              locale={locale}
+              birth={birth}
+              kind={birthKind}
+              onKind={setBirthKind}
+              onChange={patchBirth}
+            />
           )}
           <label className="agent-context-note">
             {t('你希望 Agent 知道的背景', 'What would you like the agent to know?')}

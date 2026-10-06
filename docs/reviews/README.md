@@ -1,5 +1,7 @@
 # Quality and review evidence
 
+- [引导与试用第一阶段：执行约束、完整示例、原文结果与验收](onboarding-implementation-2026-10-06/README.md)
+
 - [2026-10-06: onboarding and trial journey research with fresh live evidence](onboarding-trial-2026-10-06/README.md) — research and proposed design; no runtime change or deployment.
 
 - [2026-10-06: deep bilingual UI / UX research, full-route checks and systematic interaction recovery](ui-ux-depth-2026-10-06/README.md).
