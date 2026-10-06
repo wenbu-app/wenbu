@@ -1,0 +1,27 @@
+[
+  {
+    "path": "/api/v1/agent",
+    "contextTest": true,
+    "release": "2026-10-06-onboarding-v3"
+  },
+  {
+    "path": "/api/events",
+    "events": [
+      {
+        "event": "agent_started",
+        "test": true,
+        "release": "2026-10-06-onboarding-v3"
+      }
+    ]
+  },
+  {
+    "path": "/api/events",
+    "events": [
+      {
+        "event": "agent_received",
+        "test": true,
+        "release": "2026-10-06-onboarding-v3"
+      }
+    ]
+  }
+]

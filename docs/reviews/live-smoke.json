@@ -1,6 +1,6 @@
 {
-  "base": "https://wenbu.genedai.me",
-  "checkedAt": "2026-09-29T07:36:32.156Z",
+  "base": "https://wenbu.app",
+  "checkedAt": "2026-10-06T04:22:56.300Z",
   "pages": [
     {
       "path": "/",
@@ -36,6 +36,10 @@
     },
     {
       "path": "/blog/a-reading-you-can-return-to/",
+      "status": 200
+    },
+    {
+      "path": "/blog/connect-your-agent/",
       "status": 200
     },
     {
@@ -80,6 +84,10 @@
     },
     {
       "path": "/en/blog/a-reading-you-can-return-to/",
+      "status": 200
+    },
+    {
+      "path": "/en/blog/connect-your-agent/",
       "status": 200
     },
     {
@@ -397,14 +405,7 @@
       "status": 200
     }
   ],
-  "mcp": [
-    "calculate_bazi",
-    "cast_iching",
-    "draw_tarot",
-    "calculate_ziwei",
-    "search_library",
-    "read_library"
-  ],
+  "mcp": ["calculate_bazi", "cast_iching", "draw_tarot", "calculate_ziwei", "search_library", "read_library"],
   "library": [
     {
       "locale": "zh",
@@ -420,7 +421,8 @@
   "ai": null,
   "health": {
     "status": "ok",
-    "version": "1.1.0",
+    "version": "1.3.1",
+    "measurementVersion": "2026-10-03-v2",
     "aiConfigured": true,
     "requestedModel": "deepseek-v4-flash"
   },

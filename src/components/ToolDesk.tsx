@@ -21,6 +21,7 @@ import { readingExcerpt, answerExcerpt } from '../lib/feedback-excerpt';
 import { analyticsHeaders, track, type Correlation } from '../lib/analytics';
 import '../styles/reading-motion.css';
 import {
+  accountServerSnapshot,
   accountSnapshot,
   accountInstance,
   subscribeAccount,
@@ -64,7 +65,7 @@ async function post<T>(
 }
 export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Locale }) {
   const t = (zh: string, en: string) => choose(locale, zh, en);
-  const account = useSyncExternalStore(subscribeAccount, accountSnapshot, accountSnapshot);
+  const account = useSyncExternalStore(subscribeAccount, accountSnapshot, accountServerSnapshot);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [unknown, setUnknown] = useState(false);
