@@ -27,6 +27,7 @@ const topicIcons = {
 export default function AgentOnboarding({
   locale,
   disabled,
+  exampleReady,
   hasDraft,
   onStart,
   onExample,
@@ -34,6 +35,7 @@ export default function AgentOnboarding({
 }: {
   locale: Locale;
   disabled: boolean;
+  exampleReady: boolean;
   hasDraft: boolean;
   onStart: (choice: ConversationChoice) => void;
   onExample: () => void;
@@ -76,11 +78,22 @@ export default function AgentOnboarding({
           <ArrowUpRight size={14} aria-hidden="true" />
         </button>
       </div>
-      <button type="button" className="agent-example-link" aria-haspopup="dialog" onClick={onExample}>
+      <button
+        type="button"
+        className="agent-example-link"
+        aria-haspopup="dialog"
+        disabled={!exampleReady}
+        aria-busy={!exampleReady}
+        onClick={onExample}
+      >
         <BookOpen size={16} aria-hidden="true" />
         <span>
           {t('先看一份完整示例', 'See a complete example')}
-          <small>{t('不用填写资料，不消耗回合', 'No details needed. No turns used.')}</small>
+          <small>
+            {exampleReady
+              ? t('不用填写资料，不消耗回合', 'No details needed. No turns used.')
+              : t('正在准备示例…', 'Preparing the example…')}
+          </small>
         </span>
         <ArrowUpRight size={15} aria-hidden="true" />
       </button>

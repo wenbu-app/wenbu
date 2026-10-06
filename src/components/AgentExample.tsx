@@ -10,9 +10,11 @@ export default function AgentExample({
   onStart,
   onPractice,
   disabled = false,
+  ready,
 }: {
   locale: Locale;
   disabled?: boolean;
+  ready: boolean;
   onStart: () => void;
   onPractice: (kind: 'tarot' | 'research') => void;
 }) {
@@ -25,6 +27,7 @@ export default function AgentExample({
         <button
           type="button"
           aria-pressed={kind === 'tarot'}
+          disabled={!ready}
           onClick={() => {
             setKind('tarot');
             track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'explore' });
@@ -36,6 +39,7 @@ export default function AgentExample({
         <button
           type="button"
           aria-pressed={kind === 'research'}
+          disabled={!ready}
           onClick={() => {
             setKind('research');
             track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'research' });
@@ -204,7 +208,7 @@ export default function AgentExample({
           </div>
         </>
       )}
-      <button type="button" className="agent-example-start" onClick={onStart}>
+      <button type="button" className="agent-example-start" disabled={disabled} onClick={onStart}>
         <ArrowLeft size={16} />
         {t('开始我的问题', 'Start with my own question')}
       </button>

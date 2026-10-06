@@ -63,6 +63,7 @@ import { isolatedTrialSession } from '../lib/reading-conversation';
 import { readReportVisual } from '../lib/agent-report';
 import { prepareAgentSubmission, quickTrialChoice, type ConversationChoice } from '../lib/agent-guidance';
 import { shouldSendMessage } from '../lib/agent-keyboard';
+import { useClientReady } from '../lib/use-client-ready';
 import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
 import AgentOnboarding from './AgentOnboarding';
 import AgentConversationGuide from './AgentConversationGuide';
@@ -108,6 +109,7 @@ const defaultBirth: AgentBirth = {
 };
 
 export default function AgentWorkspace({ locale }: { locale: Locale }) {
+  const interactive = useClientReady();
   const t = (zh: string, en: string) => choose(locale, zh, en);
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [activeId, setActiveId] = useState('');
@@ -929,6 +931,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                   key={activeId}
                   locale={locale}
                   disabled={!loaded || busy}
+                  exampleReady={interactive}
                   hasDraft={!!draft.trim()}
                   onStart={(choice) => void send(choice)}
                   onBirth={() => openContext(true, 'bazi')}
@@ -1619,6 +1622,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           ) : (
             <AgentExample
               locale={locale}
+              ready={interactive}
               disabled={!loaded || busy}
               onPractice={startFromExample}
               onStart={focusComposer}
@@ -1655,6 +1659,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           <div className="agent-example-dialog-body">
             <AgentExample
               locale={locale}
+              ready={interactive}
               disabled={!loaded || busy}
               onPractice={startFromExample}
               onStart={() => {
