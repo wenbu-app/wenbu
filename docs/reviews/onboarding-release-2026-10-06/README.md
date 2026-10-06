@@ -15,7 +15,7 @@
 
 ## 本地验证
 
-- `npm run verify`：Astro／Worker TypeScript 无错误；351 项单元测试；67 项原生 workerd／D1 账号检查；93 页构建、站内链接、78 张牌与缩略图、42 份双语知识版本、86 条 IndexNow 路由检查通过。
+- `npm run verify`：Astro／Worker TypeScript 无错误；352 项单元测试；67 项原生 workerd／D1 账号检查；93 页构建、站内链接、78 张牌与缩略图、42 份双语知识版本、86 条 IndexNow 路由检查通过。
 - `npm run lint` 通过。新增回归覆盖 cookie-only 测试流量、存储异常、原文回合关联、签名内容不变、轻试用上下文隔离、成熟队列和不同回访窗口。
 - 本地可重复预览：`WENBU_PREVIEW_PORT=8792 WENBU_PREVIEW_TRIAL=1 node scripts/preview-accounts.mjs`，原计算工具配合明确标注的合成模型答复。不是生产模型质量评估，不发送真实邮件。
 - 浏览器：中文 390×844、英文 320×812；英文无横向溢出，单牌入口在首屏；示例→实践后保留未发送草稿；结果包含牌面和同回合原文；保存弹层显示具体范围，取消后结果保留；八字资料表单可退出；独立塔罗的 Strength 正位正确带入对话，用户点击解释后未重抽。
@@ -24,6 +24,10 @@
 ## 发布与生产证据
 
 发布后的 exact SHA、Cloudflare 版本、CI、线上截图与烟测结果在 `deployment.json` / `live-verification.json` 中单独记录；本段本身不宣称已部署。实际增长、真实邮箱送达、跨设备真实用户回访和搜索收录不由本轮界面或烟测推定。
+
+## 发布后补充修复
+
+线上控制台发现 React 418 初始化渲染差异：多个 Astro React 区块共用账号 store，较早加载的区块可能在另一区块 hydrate 前更新账号状态。`useSyncExternalStore` 的 server snapshot 原来直接读取实时状态，因而与构建 HTML 不同。统一改为稳定的初始 server snapshot，完成 hydrate 后再订阅实时状态。四处账号 UI 一并修复；新增账号已提前加载时的回归测试。本地带真实账号 API 的预览，中英文 Agent 与英文塔罗连续导航不再产生该错误。
 
 ## 后续深化
 

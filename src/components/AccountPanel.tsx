@@ -16,6 +16,7 @@ import { track } from '../lib/analytics';
 import type { Locale } from '../lib/schema';
 import type { RecordKind } from '../lib/account-protocol';
 import {
+  accountServerSnapshot,
   accountSnapshot,
   subscribeAccount,
   initializeAccount,
@@ -168,7 +169,7 @@ type ImportItem = AccountIntent;
 export default function AccountPanel({ locale }: { locale: Locale }) {
   const zh = locale === 'zh',
     t = (a: string, b: string) => (zh ? a : b);
-  const state = useSyncExternalStore(subscribeAccount, accountSnapshot, accountSnapshot);
+  const state = useSyncExternalStore(subscribeAccount, accountSnapshot, accountServerSnapshot);
   const dialog = useRef<HTMLDialogElement>(null),
     intent = useRef<ImportItem | undefined>(undefined),
     entry = useRef<AccountEntry>('account-header'),

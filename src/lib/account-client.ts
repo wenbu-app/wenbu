@@ -31,7 +31,7 @@ type Pending = {
   error?: string;
 };
 type Index = Record<string, { revision: number; json: string }>;
-let state: AccountState = {
+const initialAccountState: AccountState = {
   ready: false,
   enabled: false,
   user: null,
@@ -42,6 +42,10 @@ let state: AccountState = {
   error: '',
   syncing: false,
 };
+let state = initialAccountState;
+// Every independently hydrated Astro island must start from the same SSR state,
+// even if another island has already completed account initialization.
+export const accountServerSnapshot = () => initialAccountState;
 let initialized: Promise<void> | undefined,
   flushing: Promise<void> | undefined,
   timer: ReturnType<typeof setTimeout> | undefined;

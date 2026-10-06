@@ -1,0 +1,63 @@
+{
+  "checkedAt": "2026-10-06T04:26:36.393Z",
+  "url": "https://wenbu.app",
+  "smoke": {
+    "passed": true,
+    "pageAndResourceRequests": 96,
+    "calculationApis": ["bazi", "iching", "tarot", "ziwei"],
+    "mcp": "initialize, tool list, calculation and bilingual library reads passed"
+  },
+  "accountReports": {
+    "passed": true,
+    "checks": [
+      {
+        "days": 1,
+        "version": "account-v3",
+        "windowLengths": true,
+        "matchedDenominators": true
+      },
+      {
+        "days": 3,
+        "version": "account-v3",
+        "windowLengths": true,
+        "matchedDenominators": true
+      },
+      {
+        "days": 7,
+        "version": "account-v3",
+        "windowLengths": true,
+        "matchedDenominators": true
+      },
+      {
+        "days": 14,
+        "version": "account-v3",
+        "windowLengths": true,
+        "matchedDenominators": true
+      },
+      {
+        "days": 30,
+        "version": "account-v3",
+        "windowLengths": true,
+        "matchedDenominators": true
+      }
+    ],
+    "notes": "Schema and denominator invariants only. Private account counts are not included."
+  },
+  "browser": {
+    "initialRelease": "verified",
+    "viewports": ["zh 390x844", "en 320x812"],
+    "realAgentTurns": 2,
+    "singleTrial": "The High Priestess upright; no birth, notes, prior messages or readings sent",
+    "handoff": "Seven of Pentacles upright retained from independent tool through Agent interpretation",
+    "sameTurnOriginalAnswerInResult": true,
+    "savePreviewAndCancel": true,
+    "supplierBrandVisible": false,
+    "horizontalOverflow": false,
+    "testTelemetry": true,
+    "initialConsoleFinding": "React 418 hydration mismatch in shared account store; repaired in follow-up code, production follow-up verification pending"
+  },
+  "limitations": [
+    "No real email delivery or live account signup tested in this release. Native workerd/D1 tests use mock email.",
+    "No claims about search inclusion, traffic lift or conversion lift."
+  ]
+}

@@ -95,6 +95,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('account-owned outbox and local recovery', () => {
+  it('keeps the server snapshot stable when another island has already loaded the account', async () => {
+    const snapshot = client.accountServerSnapshot();
+    expect(client.accountSnapshot().ready).toBe(true);
+    expect(client.accountSnapshot().user?.id).toBe('account-a');
+    expect(snapshot.ready).toBe(false);
+    expect(snapshot.user).toBeNull();
+    expect(client.accountServerSnapshot()).toBe(snapshot);
+    expect(client.accountServerSnapshot()).not.toBe(client.accountSnapshot());
+  });
   it('an empty first flush does not permanently lock subsequent saves', async () => {
     client.writeAccountCache('journal', [{ id: 'one', note: 'first' }] as { id: string }[]);
     await client.flushAccount();

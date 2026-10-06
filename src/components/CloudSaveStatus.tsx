@@ -1,6 +1,12 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { Cloud, CloudOff, LoaderCircle } from 'lucide-react';
-import { accountSnapshot, subscribeAccount, initializeAccount, openAccount } from '../lib/account-client';
+import {
+  accountServerSnapshot,
+  accountSnapshot,
+  subscribeAccount,
+  initializeAccount,
+  openAccount,
+} from '../lib/account-client';
 import type { Locale } from '../lib/schema';
 import type { RecordKind } from '../lib/account-protocol';
 export default function CloudSaveStatus({
@@ -10,7 +16,7 @@ export default function CloudSaveStatus({
   locale: Locale;
   intent?: { kind: RecordKind; content: { id: string } };
 }) {
-  const state = useSyncExternalStore(subscribeAccount, accountSnapshot, accountSnapshot),
+  const state = useSyncExternalStore(subscribeAccount, accountSnapshot, accountServerSnapshot),
     zh = locale === 'zh';
   useEffect(() => {
     void initializeAccount();

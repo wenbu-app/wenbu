@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { BookmarkPlus, ArrowRight, X } from 'lucide-react';
-import { accountSnapshot, subscribeAccount, openAccount, type AccountIntent } from '../lib/account-client';
+import {
+  accountServerSnapshot,
+  accountSnapshot,
+  subscribeAccount,
+  openAccount,
+  type AccountIntent,
+} from '../lib/account-client';
 import { track } from '../lib/analytics';
 import type { Locale } from '../lib/schema';
 
 /** An optional affordance after a result. Never opens authentication on its own. */
 export default function AccountSavePrompt({ locale, intent }: { locale: Locale; intent: AccountIntent }) {
-  const state = useSyncExternalStore(subscribeAccount, accountSnapshot, accountSnapshot);
+  const state = useSyncExternalStore(subscribeAccount, accountSnapshot, accountServerSnapshot);
   const [dismissed, setDismissed] = useState(true);
   const root = useRef<HTMLDivElement>(null);
   const seen = useRef(false);
