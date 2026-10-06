@@ -13,7 +13,23 @@ export type ConversationChoice = {
   text: string;
   action: 'guided' | 'clarification' | 'followup' | 'example';
   mode?: AgentMode;
+  freshContext?: boolean;
 };
+
+export function quickTrialChoice(locale: Locale): ConversationChoice {
+  return {
+    freshContext: true,
+    action: 'guided',
+    mode: 'explore',
+    text: guideText(
+      [
+        '请实际抽一张正位塔罗，带我做一次简单的反思练习。先讲这张牌的传统含义，再给一个今天能尝试的小步骤，不预测未来。我暂不提供个人资料。',
+        'Draw one upright tarot card for a simple reflection exercise. Explain its traditional meanings, then suggest one small step I could try today, without predicting the future. I’ll skip personal details for now.',
+      ],
+      locale,
+    ),
+  };
+}
 
 // A shortcut is a complete message. It never incorporates or replaces unsent writing.
 export function prepareAgentSubmission(draft: string, choice?: ConversationChoice) {
@@ -97,7 +113,34 @@ export function followupSuggestions(message: AgentMessage, locale: Locale): { id
     const questions = reportFollowupQuestions(report.questions).slice(0, 2);
     if (questions.length) return questions.map((text, i) => ({ id: `report-${i}`, text }));
   }
-  const hasReading = message.artifacts.some((a) => a.type === 'chart');
+  const reading = message.artifacts.find((a) => a.type === 'chart');
+  const hasReading = !!reading;
+  if (reading?.reading.kind === 'tarot') {
+    const single = reading.reading.cards.length === 1;
+    return [
+      {
+        id: 'explain',
+        text: guideText(
+          single
+            ? [
+                '沿用这张牌，讲讲传统象征与牌义的联系',
+                'Use this card to explain how its traditional symbolism relates to its meanings',
+              ]
+            : ['沿用这些牌，讲讲它们之间的联系', 'Use these cards to explain how they relate to each other'],
+          locale,
+        ),
+      },
+      {
+        id: 'next',
+        text: guideText(
+          /一周|one.week|weekly/i.test(message.text)
+            ? ['把刚才的建议整理成一周练习清单', 'Turn that advice into a one-week practice plan']
+            : ['把刚才的建议缩小成今天能做的一步', 'Turn that advice into one step I can take today'],
+          locale,
+        ),
+      },
+    ];
+  }
   const alreadyHasExample = /例子|案例|示范|example|hypothetical/i.test(message.text);
   const items: { id: string; text: Copy }[] = hasReading
     ? [

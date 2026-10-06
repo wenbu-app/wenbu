@@ -572,6 +572,49 @@ try {
   const retained = await call('/api/admin/accounts/analytics?days=30&test=include', 'GET', undefined, '', {
     headers: { Authorization: 'Bearer local-test-only' },
   });
+  // A selected 7-day report must still contain a fully observed trial cohort.
+  const matureAt = Date.now() - 10 * day;
+  for (const [key, registered, savedAt, testFlag] of [
+    ['mature-in-window', matureAt + day, matureAt + 2 * day, 0],
+    ['mature-too-late', matureAt + 8 * day, matureAt + 8 * day, 0],
+    ['mature-marked-test', matureAt + day, matureAt + day, 1],
+  ]) {
+    await db
+      .prepare(
+        'INSERT INTO wb_trial_cohorts(guest_hash,first_completed_at,locale,is_test,registered_at,saved_at) VALUES(?,?,?,?,?,?)',
+      )
+      .bind(key, matureAt, 'en', testFlag, registered, savedAt)
+      .run();
+  }
+  const mature = await call('/api/admin/accounts/analytics?days=7&locale=en', 'GET', undefined, '', {
+    headers: { Authorization: 'Bearer local-test-only' },
+  });
+  check(
+    'mature conversion uses an older complete window with matched denominators',
+    mature.data.version === 'account-v3' &&
+      mature.data.trial.completed === 0 &&
+      mature.data.matureTrial.completed === 2 &&
+      mature.data.matureTrial.registered === 1 &&
+      mature.data.matureTrial.saved === 1 &&
+      mature.data.matureTrial.to - mature.data.matureTrial.from === 7 * day,
+  );
+  const matureIncluded = await call(
+    '/api/admin/accounts/analytics?days=7&locale=en&test=include',
+    'GET',
+    undefined,
+    '',
+    {
+      headers: { Authorization: 'Bearer local-test-only' },
+    },
+  );
+  check(
+    'mature trial and retention respect test inclusion and independent complete windows',
+    matureIncluded.data.matureTrial.completed === 3 &&
+      matureIncluded.data.matureTrial.registered === 2 &&
+      matureIncluded.data.cohorts[1].eligible === 1 &&
+      matureIncluded.data.cohorts[0].eligible === 0 &&
+      matureIncluded.data.cohorts[0].to - matureIncluded.data.cohorts[1].to === 6 * day,
+  );
   check(
     'day 1 and day 7 windows are independent',
     retained.data.cohorts[0].eligible === 1 &&

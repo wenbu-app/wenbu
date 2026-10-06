@@ -238,8 +238,12 @@ export default function ReadingView({ result, locale }: { result: Reading; local
           <span>{t('留给自己的问题', 'A QUESTION FOR YOU')}</span>
           <p>
             {t(
-              '哪张牌最让你在意？是牌面的意思，还是它让你想起的某件事？',
-              'Which card holds your attention? Is it the symbol, or something it brings to mind?',
+              result.cards.length === 1
+                ? '这张牌的哪个细节让你在意？它让你想起了什么？'
+                : '哪张牌最让你在意？是牌面的意思，还是它让你想起的某件事？',
+              result.cards.length === 1
+                ? 'Which detail in this card catches your eye? What does it bring to mind?'
+                : 'Which card holds your attention? Is it the symbol, or something it brings to mind?',
             )}
           </p>
         </div>

@@ -27,7 +27,7 @@ export const integrationArticles: Article[] = [
         {
           heading: '先选连接方式，再谈模型',
           paragraphs: [
-            '已经有自己的 Agent，可以连接 https://wenbu.app/mcp。问卜提供六个工具，返回实际计算、抽取结果和原始学习内容；你的宿主仍使用自己的模型。MCP 不会替你调用问卜的 DeepSeek，也不需要问卜账户或模型密钥。',
+            '已经有自己的 Agent，可以连接 https://wenbu.app/mcp。问卜提供六个工具，返回实际计算、抽取结果和原始学习内容；你的宿主仍使用自己的模型。MCP 不会替你调用问卜的 AI，也不需要问卜账户或模型密钥。',
             '如果希望在终端或程序中读取 JSON，选无需依赖的 CLI。Skill 则是操作说明，帮助 Agent 选择工具、核验来源与处理你决定分享的资料；安装 Skill 不会自动配置 MCP。想让问卜自己研究问题，可以直接打开内置 Agent。接入页同时提供这三种入口。',
           ],
         },
@@ -49,7 +49,7 @@ export const integrationArticles: Article[] = [
           heading: '从合成示例转向自己的问题',
           paragraphs: [
             '易经与塔罗不要求出生信息。八字需要公历日期、当地时刻或明确的未知时辰、IANA 时区，以及可核对的换日约定。紫微需要已知的当地时刻和传统排盘参数，目前不自动修正真太阳时。不要为了完成调用猜测缺失信息。',
-            '真实资料在 CLI 中应通过指定文件或标准输入传入，避免留在命令历史。问卜 CLI 不会自动扫描文件、读取其他对话或同步手记。内置 Agent 会将你选择发送的消息与上下文交给 DeepSeek，调用前应理解这一数据流。',
+            '真实资料在 CLI 中应通过指定文件或标准输入传入，避免留在命令历史。问卜 CLI 不会自动扫描文件、读取其他对话或同步手记。内置 Agent 会将你选择发送的消息与上下文交给 AI，调用前应理解这一数据流。',
           ],
         },
         {
@@ -69,7 +69,7 @@ export const integrationArticles: Article[] = [
         {
           heading: 'Choose the connection before the model',
           paragraphs: [
-            'If you already use an agent, connect it to https://wenbu.app/mcp. Six tools return actual calculations, draws and original learning content. Your host keeps using its own model. Wenbu MCP does not call Wenbu’s DeepSeek service and requires no account or model key.',
+            'If you already use an agent, connect it to https://wenbu.app/mcp. Six tools return actual calculations, draws and original learning content. Your host keeps using its own model. Wenbu MCP does not call Wenbu’s AI service and requires no account or model key.',
             'Use the dependency-free CLI when a script or terminal needs JSON. The Skill is an instruction file: it helps an agent choose tools, check sources and handle context you choose to share. Installing it does not configure MCP. For Wenbu to research a question itself, open the built-in Agent. The integration page explains all three paths.',
           ],
         },
@@ -91,7 +91,7 @@ export const integrationArticles: Article[] = [
           heading: 'Move from a synthetic example to your own question',
           paragraphs: [
             'Tarot and the I Ching need no birth details. BaZi needs a Gregorian date, recorded local time or explicitly unknown time, an IANA time zone and a visible day-boundary convention. Zi Wei needs a known local civil time and the traditional calculation parameter; it does not automatically apply a solar-time correction. Do not guess missing information to finish a call.',
-            'For personal CLI input, use a named file or stdin to keep it out of shell history. The CLI does not scan folders, read other conversations or sync a journal. The built-in Agent sends the message and context you select to DeepSeek. Understand that data flow before choosing it.',
+            'For personal CLI input, use a named file or stdin to keep it out of shell history. The CLI does not scan folders, read other conversations or sync a journal. The built-in Agent sends the message and context you select to AI. Understand that data flow before choosing it.',
           ],
         },
         {

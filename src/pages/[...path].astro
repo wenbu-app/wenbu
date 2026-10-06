@@ -105,8 +105,8 @@ const descriptions: Record<string, [string, string]> = {
     'Open calculation tools and context you choose. Bring the chart and question to an agent you already know.',
   ],
   agent: [
-    '与 DeepSeek 驱动的命理 Agent 对话，调用八字、易经、塔罗与紫微工具，查阅资料、查看命盘、整理带出处的研究札记，并持续追问。',
-    'Explore with a DeepSeek-powered agent: calculate BaZi and Zi Wei, cast I Ching, draw tarot, read sources and create research notes with optional email sign-in to save your conversations across browsers.',
+    '与 AI 驱动的命理 Agent 对话，调用八字、易经、塔罗与紫微工具，查阅资料、查看命盘、整理带出处的研究札记，并持续追问。',
+    'Explore with a AI-powered agent: calculate BaZi and Zi Wei, cast I Ching, draw tarot, read sources and create research notes with optional email sign-in to save your conversations across browsers.',
   ],
   sources: [
     '把经典、计算依据、研究和产品自述分开，知道每一种说法从哪里来。',
@@ -300,8 +300,8 @@ const ctaLabels: Record<string, [string, string]> = {
                 <summary>{t('资料会被公开吗？', 'Will my information be public?')}</summary>
                 <p>
                   {t(
-                    '不会自动公开。排盘输入通过 POST 发送；试用手记暂存在当前浏览器，登录并开启云端记录后可同步。AI 解读需你主动确认将当前信息发送给 DeepSeek。',
-                    'Nothing is published automatically. Guest records stay in this browser; optional email sign-in enables cloud history. Requesting an AI reading sends the current information to DeepSeek.',
+                    '不会自动公开。排盘输入通过 POST 发送；试用手记暂存在当前浏览器，登录并开启云端记录后可同步。AI 解读需你主动确认将当前信息发送给 AI。',
+                    'Nothing is published automatically. Guest records stay in this browser; optional email sign-in enables cloud history. Requesting an AI reading sends the current information to AI.',
                   )}
                 </p>
               </details>
@@ -484,7 +484,7 @@ const ctaLabels: Record<string, [string, string]> = {
             {path === 'privacy' && (
               <div class="source-list">
                 <a href="https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html">
-                  DeepSeek Privacy Policy ↗
+                  {t('AI 服务商隐私政策', 'AI provider privacy policy')} ↗
                 </a>
                 <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare Privacy Policy ↗</a>
                 <a href="https://clarity.microsoft.com/privacy/">Microsoft Clarity Privacy ↗</a>

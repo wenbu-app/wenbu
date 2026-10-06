@@ -64,7 +64,7 @@ export const pages: Record<string, Page> = {
         {
           heading: '先分清结果和解释',
           paragraphs: [
-            '八字和紫微根据输入资料排盘；塔罗和在线起卦由程序随机抽取。页面会保留原始结果。你可以自己阅读，也可以请求 DeepSeek 解读，或与 Agent 继续讨论。',
+            '八字和紫微根据输入资料排盘；塔罗和在线起卦由程序随机抽取。页面会保留原始结果。你可以自己阅读，也可以请求 AI 解读，或与 Agent 继续讨论。',
             '计算能按约定复现，不代表解释已经得到科学验证。传统含义、AI 推断和你提供的现实情况需要分开看。比较两份结果时，先核对输入与计算规则。',
           ],
         },
@@ -99,7 +99,7 @@ export const pages: Record<string, Page> = {
         {
           heading: '模型与验证',
           paragraphs: [
-            'AI 请求发往 DeepSeek 官网 API，当前配置名为 deepseek-v4-flash。服务方可能更新别名对应的模型；结果会显示其返回的模型名称，这不是对底层模型身份的独立验证。模型负责对话与解释，也可能误读结果或来源，重要说法仍需核对。',
+            'AI 请求发往 AI 模型服务，计算与语言解读分别处理，服务版本保留在技术记录中。模型负责对话与解释，也可能误读结果或来源，重要说法仍需核对。',
             '工程检查包括历法样例、时区与夏令时边界、全部 64 种卦象映射、牌组去重、API 输入校验与 MCP 协议测试。通过软件测试仅说明这些已测试行为符合约定，不等于命理预测得到验证。',
           ],
         },
@@ -113,7 +113,7 @@ export const pages: Record<string, Page> = {
         {
           heading: 'The result and the interpretation',
           paragraphs: [
-            'BaZi and Zi Wei use your inputs to calculate a chart. Tarot and online I Ching casts use random draws. Wenbu keeps that result visible. Read it yourself, ask DeepSeek for an interpretation or discuss it with the Agent.',
+            'BaZi and Zi Wei use your inputs to calculate a chart. Tarot and online I Ching casts use random draws. Wenbu keeps that result visible. Read it yourself, ask AI for an interpretation or discuss it with the Agent.',
             'A reproducible calculation does not establish that an interpretation predicts events. Keep the calculation, traditional meanings and AI suggestions distinct. When two results differ, compare the inputs and conventions first.',
           ],
         },
@@ -148,7 +148,7 @@ export const pages: Record<string, Page> = {
         {
           heading: 'The model and the checks',
           paragraphs: [
-            'AI requests use the official DeepSeek API with the configured name deepseek-v4-flash. The provider can change which model a name refers to. Results show the model name returned by the service, not an independent verification of the underlying model. The model handles conversation and interpretation; it can still misread a result or a source.',
+            'Wenbu handles calculation and AI interpretation separately. Technical records retain the service version. The model handles conversation and interpretation; it can still misread a result or a source.',
             'Software checks cover calendar fixtures, time-zone transitions, all 64 hexagram mappings, unique card draws, API input validation and MCP protocol behavior. Passing those tests supports the tested implementation conventions, not claims of divinatory accuracy.',
           ],
         },
@@ -164,7 +164,7 @@ export const pages: Record<string, Page> = {
           heading: '你输入的资料怎样使用',
           paragraphs: [
             '出生信息通过加密连接发送到 Cloudflare Worker，用于生成命盘。抽牌和起卦接口不需要发送你的问题。未登录试用时，问卜不在业务数据库保存出生资料、问题或解读。登录并开启云端记录后，保存的手记和 Agent 对话会写入独立的 Cloudflare D1 账号数据库；这些正文不进入访问统计或 R2 事件归档，也不放进页面地址。反馈中主动勾选分享的摘录会私密保存。',
-            '单次解读在勾选发送说明后，将当前命盘、问题和主动补充的背景发送给 DeepSeek 官网 API。命理 Agent 在发送消息时，会发送最多 16 条最近消息、6 份命盘、2 版报告和你主动选择的出生资料、背景与手记。DeepSeek 按其自己的隐私政策处理这些数据；问卜不能代表上游承诺零保留。',
+            '单次解读在勾选发送说明后，将当前命盘、问题和主动补充的背景发送给 AI 模型服务。命理 Agent 在发送消息时，会发送最多 16 条最近消息、6 份命盘、2 版报告和你主动选择的出生资料、背景与手记。模型服务商按其隐私政策处理这些数据；问卜不能代表上游承诺零保留。',
           ],
         },
         {
@@ -199,7 +199,7 @@ export const pages: Record<string, Page> = {
           heading: '免费额度与基础设施',
           paragraphs: [
             '为了控制滥用，Cloudflare 会处理请求的 IP。网络限额使用每天变化的带密钥哈希；访客试用使用 7 天有效的签名 HttpOnly cookie，登录后把当天试用用量归并到账号，避免重复赠送额度。防重复请求和归并记录最多保留 8 天，邮箱限速标识使用带密钥哈希。账号额度不等于真实人数；共享网络仍受额外防滥用限制。',
-            '账号登录保存邮箱、验证状态及必要的会话信息，不在认证数据库保存原始 IP 或完整 UA。验证码由 Cloudflare Email Service 发送，5 分钟有效，在数据库中加密保存；登录会话使用 HttpOnly、Secure、SameSite cookie，最长 30 天。账号和云端内容只在提供功能所需的私有数据库保存，不写入访问日志。应用不读取其他聊天、文件或位置。Cloudflare 的基础设施处理及 DeepSeek 的模型处理受各自政策约束。',
+            '账号登录保存邮箱、验证状态及必要的会话信息，不在认证数据库保存原始 IP 或完整 UA。验证码由 Cloudflare Email Service 发送，5 分钟有效，在数据库中加密保存；登录会话使用 HttpOnly、Secure、SameSite cookie，最长 30 天。账号和云端内容只在提供功能所需的私有数据库保存，不写入访问日志。应用不读取其他聊天、文件或位置。Cloudflare 的基础设施处理及 AI 服务商的数据处理受各自政策约束。',
           ],
         },
         {
@@ -219,7 +219,7 @@ export const pages: Record<string, Page> = {
           heading: 'How your inputs are used',
           paragraphs: [
             'Birth details are sent over an encrypted connection to a Cloudflare Worker to calculate the chart. Casting and card-draw endpoints do not need your question. During a guest trial, Wenbu does not keep these inputs or results in its application database. After signing in with cloud history enabled, saved journal entries and Agent conversations are stored in a separate private Cloudflare D1 account database. Their contents are excluded from traffic analytics, R2 event archives and page URLs. Feedback excerpts are saved only when you choose to share them.',
-            'AI readings on the tool pages send the chart, question and selected context to the official DeepSeek API after you select the consent checkbox. Sending an Agent message shares up to 16 recent messages, 6 recent charts, 2 report versions and the birth details, notes and journal entries you explicitly select. DeepSeek processes them under its own privacy policy; Wenbu cannot promise zero retention on the provider’s behalf.',
+            'AI readings on the tool pages send the chart, question and selected context to the model provider’s API after you select the consent checkbox. Sending an Agent message shares up to 16 recent messages, 6 recent charts, 2 report versions and the birth details, notes and journal entries you explicitly select. The model provider processes them under its own privacy policy; Wenbu cannot promise zero retention on the provider’s behalf.',
           ],
         },
         {
@@ -254,7 +254,7 @@ export const pages: Record<string, Page> = {
           heading: 'Free allowances and infrastructure',
           paragraphs: [
             'Cloudflare processes request IPs for abuse controls. Network limits use daily keyed hashes. Guest trials use a signed HttpOnly cookie valid for seven days; signing in carries the current day’s usage into the account. Replay and claim guards expire after eight days. Mailbox rate limits use keyed hashes. Account counts are not a count of real people, and shared networks retain an additional abuse-control ceiling.',
-            'Authentication stores your email, verification status and necessary session data, excluding raw IPs and full user agents. Cloudflare Email Service sends the code. Codes are encrypted in the database and expire after five minutes; sessions use HttpOnly, Secure, SameSite cookies and last up to 30 days. Account content is kept in private application storage, not traffic logs. The application does not read external chats, files or location. Cloudflare infrastructure and DeepSeek model processing remain subject to their respective policies.',
+            'Authentication stores your email, verification status and necessary session data, excluding raw IPs and full user agents. Cloudflare Email Service sends the code. Codes are encrypted in the database and expire after five minutes; sessions use HttpOnly, Secure, SameSite cookies and last up to 30 days. Account content is kept in private application storage, not traffic logs. The application does not read external chats, files or location. Cloudflare infrastructure and AI model processing remain subject to their respective policies.',
           ],
         },
         {
@@ -360,7 +360,7 @@ export const pages: Record<string, Page> = {
         {
           heading: '额度结束之后',
           paragraphs: [
-            'AI 额度用完后，仍可排盘、抽牌、起卦、保存手记和导出结果。也可以通过 MCP 把计算结果交给你自己的 AI 助手；外部助手使用的模型与费用按其服务计算，Wenbu 的计算接口不需要你的 DeepSeek 密钥。',
+            'AI 额度用完后，仍可排盘、抽牌、起卦、保存手记和导出结果。也可以通过 MCP 把计算结果交给你自己的 AI 助手；外部助手使用的模型与费用按其服务计算，Wenbu 的计算接口不需要你的 AI 密钥。',
             '额度以当前运行配置为准。若有调整，会更新此页与界面说明；已保存的本地记录不受 AI 额度影响。',
           ],
         },
@@ -382,13 +382,13 @@ export const pages: Record<string, Page> = {
           heading: 'How the AI allowance works',
           paragraphs: [
             'Browser trials and signed-in accounts can use up to five AI readings and 12 Agent turns per Shanghai day (UTC+08:00). Signing in carries over that day’s trial usage; it does not refill the allowance. A shared network has an additional ceiling of 50 AI readings and 120 Agent turns. Unauthenticated external API clients retain the per-network allowance. Global budgets apply to everyone.',
-            'All visitors also share a daily budget of 1,000 model requests, of which the Agent can use up to 600. A turn can make up to five model calls and 12 tool calls. Each model request reserves its allowance before contacting DeepSeek, so timeouts and provider failures may still use it. Input, context and output lengths are limited.',
+            'All visitors also share a daily budget of 1,000 model requests, of which the Agent can use up to 600. A turn can make up to five model calls and 12 tool calls. Each model request reserves its allowance before contacting AI, so timeouts and provider failures may still use it. Input, context and output lengths are limited.',
           ],
         },
         {
           heading: 'After the allowance is used',
           paragraphs: [
-            'You can still calculate charts, cast, draw cards, save readings and export results. MCP lets an AI assistant you already use interpret the result with its own model. That assistant’s fees and limits still apply. Wenbu’s calculation tools do not require your DeepSeek key.',
+            'You can still calculate charts, cast, draw cards, save readings and export results. MCP lets an AI assistant you already use interpret the result with its own model. That assistant’s fees and limits still apply. Wenbu’s calculation tools do not require your AI key.',
             'These are the current operating limits. We will update this page and the interface if they change. The AI allowance does not restrict access to records saved in your browser.',
           ],
         },

@@ -1,5 +1,13 @@
 // Shared translations for the administrative UI; user-provided content is never translated.
 export const insightsEnglish: Record<string, string> = {
+  已完成观察的试用队列: 'Fully observed trial cohorts',
+  '成熟试用队列 · 7 天转化': 'Mature trials · 7-day conversion',
+  首次完成日期: 'First completed',
+  成熟队列注册: 'Mature cohort sign-ups',
+  成熟队列保存: 'Mature cohort saves',
+  '近期试用与成熟队列分开统计。成熟队列的入组窗口截至 7 天前；下方 D1 / D7 也各有独立的完整观察窗口。':
+    'Recent trials and mature cohorts are separate. The mature entry window ends seven days ago; D1 and D7 below each use their own fully observed cohort window.',
+
   '管理密钥无效，请检查后再试。': 'Invalid admin key. Check it and try again.',
   '请检查日期与筛选条件：日期限最近 90 天，小时明细最多查看 7 天。':
     'Check the dates and filters. Data is available for the last 90 days; hourly detail supports up to seven days.',

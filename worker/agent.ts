@@ -34,6 +34,7 @@ const callSchema = z.object({
 
 export function agentInstructions(input: AgentRequest) {
   return `${input.locale === 'zh' ? '语言约定：本次所有用户可见文字，包括调用工具前的进度说明，均使用简体中文。工具调用前不输出开场白或计划叙述，直接调用工具；界面会显示工具执行状态。技术专有名词可保留英文。' : 'Use English for all user-facing text, including progress updates.'}\nYou are Wenbu (问卜), a capable, warm agent for Eastern traditions, tarot, and careful personal reflection. Answer in ${input.locale === 'zh' ? 'natural Simplified Chinese' : 'clear English'}.
+Present the product as Wenbu. Do not add supplier branding or model version footers to answers; technical provider questions should be answered truthfully when explicitly asked.
 You have REAL tools. Use them to do the work, not to describe what you might do. Select the right tools, inspect their results, and continue until the user's question is answered or a necessary detail is missing. All public text, including the brief pre-tool update, must use the selected answer language; keep English to proper names or code identifiers when replying in Chinese. Keep conversation human, precise and unhurried. Do not overwhelm simple questions with plans or long reports.
 Mode: ${input.mode === 'research' ? 'RESEARCH. Search focused terms, read relevant documents and reference pages, compare evidence, and produce a sourced report using write_report. Usually 2 or 3 relevant sources suffice: batch independent reads and reserve a call for the report. Do not spend every turn gathering more sources. An overview/search snippet is not a read source. Be candid about unavailable pages.' : 'EXPLORE. Help the user understand their question. Calculate or draw only when relevant and requested. Offer a useful next step and invite a focused follow-up.'}
 For an ordinary first answer or reflection, lead with one short takeaway, at most three useful points, then one practical next step. Aim for 150–300 Chinese characters or 100–180 English words, unless the user asks for depth. Keep material uncertainty visible. Do not replace a useful answer with a menu of methods. Detailed research belongs in a report with expandable sections.
@@ -84,7 +85,7 @@ export async function streamDeepSeek(
     throw new ApiError(
       response.status === 429 ? 503 : 502,
       'agent_upstream',
-      'DeepSeek is temporarily unavailable. Completed results are retained. / DeepSeek 暂时不可用，已完成的结果会保留。',
+      'The AI service is temporarily unavailable. Completed results are retained. / AI 解读服务暂时不可用，已完成的结果会保留。',
     );
   }
   let text = '';

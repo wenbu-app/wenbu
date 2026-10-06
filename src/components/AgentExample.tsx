@@ -5,7 +5,15 @@ import { href } from '../lib/i18n';
 import { track } from '../lib/analytics';
 
 /** Editorial examples. Opening or switching never invokes the agent or consumes a turn. */
-export default function AgentExample({ locale, onStart }: { locale: Locale; onStart: () => void }) {
+export default function AgentExample({
+  locale,
+  onStart,
+  onPractice,
+}: {
+  locale: Locale;
+  onStart: () => void;
+  onPractice: (kind: 'tarot' | 'research') => void;
+}) {
   const [kind, setKind] = useState<'tarot' | 'research'>('tarot');
   const t = (zh: string, en: string) => (locale === 'zh' ? zh : en);
   return (
@@ -41,6 +49,13 @@ export default function AgentExample({ locale, onStart }: { locale: Locale; onSt
           'Editorial example · No turns used · Not a personal reading',
         )}
       </p>
+      <button className="agent-example-practice" type="button" onClick={() => onPractice(kind)}>
+        <Compass size={16} aria-hidden="true" />
+        {kind === 'tarot'
+          ? t('抽一张自己的牌 · 1 回合', 'Try your own card · 1 turn')
+          : t('用我的资料看八字', 'Explore my own BaZi chart')}
+        <ArrowUpRight size={15} aria-hidden="true" />
+      </button>
       {kind === 'tarot' ? (
         <>
           <div className="agent-example-intro">

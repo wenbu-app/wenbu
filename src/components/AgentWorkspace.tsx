@@ -58,8 +58,10 @@ import AgentTrace from './AgentTrace';
 import InstrumentGlyph, { ReadingDeskIllustration, type InstrumentKind } from './InstrumentGlyph';
 import AgentRitual, { useAgentMotion } from './AgentRitual';
 import ReadingView from './ReadingView';
+import { tarotArt } from '../data/tarot-art';
+import { isolatedTrialSession } from '../lib/reading-conversation';
 import { readReportVisual } from '../lib/agent-report';
-import { prepareAgentSubmission, type ConversationChoice } from '../lib/agent-guidance';
+import { prepareAgentSubmission, quickTrialChoice, type ConversationChoice } from '../lib/agent-guidance';
 import { shouldSendMessage } from '../lib/agent-keyboard';
 import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
 import AgentOnboarding from './AgentOnboarding';
@@ -72,12 +74,13 @@ import '../styles/agent-entry.css';
 import AgentExample from './AgentExample';
 import AgentBirthFields from './AgentBirthFields';
 import AgentAnswerText from './AgentAnswerText';
-import { isCompletedAnswer, sessionDeliverables } from '../lib/agent-deliverables';
+import { isCompletedAnswer, sessionDeliverables, sessionSavePreview } from '../lib/agent-deliverables';
 import { guideText, withoutBirthMessage } from '../lib/agent-guidance';
 import {
   initializeAccount,
   accountSnapshot,
   accountInstance,
+  openAccount,
   prepareCloudRun,
   endCloudRun,
   acknowledgeCloudSession,
@@ -140,6 +143,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const [journals, setJournals] = useState<Entry[]>([]);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
+  const panelScroll = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
   const [atLatest, setAtLatest] = useState(true);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -165,6 +169,9 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   const sources = [...sourceMap.values()];
   const artifact =
     deliverables.find((a) => a.id === selectedArtifact) ?? deliverables[deliverables.length - 1];
+  useEffect(() => {
+    if (panelScroll.current) panelScroll.current.scrollTop = 0;
+  }, [artifact?.id, panel, activeId]);
   const birth = contextDraft.birth ?? defaultBirth;
   const contextCount =
     (active?.context.useBirth ? 1 : 0) +
@@ -194,8 +201,10 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
       const initial = saved.length ? saved : [newSession(locale)];
       replaceSessions(initial);
       const preferred = (event as CustomEvent<{ kind?: string; id?: string }> | undefined)?.detail;
-      const selected = preferred?.kind === 'session' ? preferred.id : activeIdRef.current;
+      const requested = !event ? new URLSearchParams(window.location.search).get('session') : null;
+      const selected = preferred?.kind === 'session' ? preferred.id : requested || activeIdRef.current;
       setActiveId(initial.some((s) => s.id === selected) ? selected! : initial[0].id);
+      setJournals(readJournal());
       setLoaded(true);
     };
     const changing = () => {
@@ -417,8 +426,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   }
 
   async function send(choice?: ConversationChoice) {
-    const session = sessionRef.current.find((s) => s.id === activeId);
-    if (!loaded || !session || pending.current) return;
+    const current = sessionRef.current.find((s) => s.id === activeId);
+    if (!loaded || !current || pending.current) return;
     const submission = prepareAgentSubmission(draft, choice);
     if (!submission) {
       if ((choice?.text ?? draft).trim().length > 3000)
@@ -429,6 +438,12 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           ),
         );
       return;
+    }
+    const session = choice?.freshContext ? isolatedTrialSession(current, locale) : current;
+    if (session !== current) {
+      replaceSessions([session, ...sessionRef.current]);
+      setActiveId(session.id);
+      setSelectedArtifact('');
     }
     const mode = submission.mode ?? session.mode;
     if (session.messages.length >= 160) {
@@ -621,7 +636,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           result: item.reading,
           question: active.messages.find((m) => m.role === 'user')?.text ?? '',
           note: report?.type === 'report' ? report.summary : '',
-          provenance: 'Wenbu Agent · DeepSeek',
+          provenance: 'Wenbu Agent',
         },
         ...entries.filter((e) => e.id !== id),
       ]);
@@ -847,18 +862,63 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           }}
         >
           {!active?.messages.length ? (
-            <AgentOnboarding
-              key={activeId}
-              locale={locale}
-              disabled={!loaded || busy}
-              hasDraft={!!draft.trim()}
-              onStart={(choice) => void send(choice)}
-              onExample={() => {
-                setPanel('results');
-                setMobilePane('results');
-                track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'explore' });
-              }}
-            />
+            <>
+              {!!active?.context.journalIds.length && (
+                <section className="agent-handoff-note" aria-label={t('带入的结果', 'Your existing reading')}>
+                  <h1>{t('这份结果，接着聊。', 'Continue with your reading.')}</h1>
+                  <p>
+                    {journals
+                      .filter((item) => active.context.journalIds.includes(item.id))
+                      .map((item) =>
+                        item.result.kind === 'tarot'
+                          ? item.result.cards.map((card) => t(card.zh, card.en)).join(' · ')
+                          : item.question || t('已生成的命盘或卦象', 'Your existing chart or hexagram'),
+                      )
+                      .join(' / ')}
+                  </p>
+                  <p>
+                    {t(
+                      '当前结果已选为资料。确认发送后，AI 才会开始解读。可在“我的资料”中查看或取消。',
+                      'This result is selected as context. Send a message to begin the AI interpretation, or review and remove it in Context.',
+                    )}
+                  </p>
+                  <button
+                    className="text-button"
+                    type="button"
+                    disabled={!loaded || busy}
+                    onClick={() =>
+                      void send({
+                        action: 'followup',
+                        text: t(
+                          '沿用我带入的结果和问题，先解释结构，再给一个可以尝试的小步骤，不重新抽取。',
+                          'Use the reading and question I brought with me. Explain its structure, then suggest one small step to try. Do not draw again.',
+                        ),
+                      })
+                    }
+                  >
+                    {t('解读这份结果', 'Interpret this reading')} <ArrowUpRight size={14} />
+                  </button>
+                  <button className="text-button" type="button" onClick={() => openContext()}>
+                    {t('查看或调整资料', 'Review selected context')}
+                  </button>
+                </section>
+              )}
+              {!active?.context.journalIds.length && (
+                <AgentOnboarding
+                  key={activeId}
+                  locale={locale}
+                  disabled={!loaded || busy}
+                  hasDraft={!!draft.trim()}
+                  onStart={(choice) => void send(choice)}
+                  onBirth={() => openContext(true, 'bazi')}
+                  onExample={() => {
+                    setPanel('results');
+                    setMobilePane('results');
+                    track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'explore' });
+                  }}
+                />
+              )}
+            </>
           ) : (
             <div className="agent-message-list">
               <h1 className="sr-only">{t('命理 Agent', 'Wenbu Agent')}</h1>
@@ -1024,14 +1084,43 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                           className={arrivingArtifacts.includes(a.id) ? 'is-arriving' : ''}
                           onClick={() => openArtifact(a.id)}
                         >
-                          <InstrumentGlyph kind={a.type === 'chart' ? a.reading.kind : 'report'} size={38} />
+                          {a.type === 'chart' &&
+                          a.reading.kind === 'tarot' &&
+                          tarotArt[a.reading.cards[0]?.id] ? (
+                            <img
+                              className="agent-result-thumbnail"
+                              src={tarotArt[a.reading.cards[0].id].replace('.webp', '-small.webp')}
+                              alt=""
+                              width="40"
+                              height="64"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <InstrumentGlyph
+                              kind={a.type === 'chart' ? a.reading.kind : 'report'}
+                              size={38}
+                            />
+                          )}
                           <span>
                             <small>
                               {a.type === 'chart'
-                                ? t('可查看的原始结果', 'Original result')
+                                ? isCompletedAnswer(message)
+                                  ? t('牌面或命盘 · 本次解读', 'Reading and interpretation')
+                                  : t('可查看的原始结果', 'Original result')
                                 : t('已整理的研究札记', 'Research note')}
                             </small>
-                            <strong>{a.title}</strong>
+                            <strong>
+                              {a.type === 'chart' &&
+                              a.reading.kind === 'tarot' &&
+                              a.reading.cards.length === 1
+                                ? t(a.reading.cards[0].zh, a.reading.cards[0].en) +
+                                  ' · ' +
+                                  t(
+                                    a.reading.cards[0].reversed ? '逆位' : '正位',
+                                    a.reading.cards[0].reversed ? 'Reversed' : 'Upright',
+                                  )
+                                : a.title}
+                            </strong>
                           </span>
                           <ArrowUpRight size={15} />
                         </button>
@@ -1076,7 +1165,11 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       <AccountSavePrompt
                         key={active.id}
                         locale={locale}
-                        intent={{ kind: 'session', content: active }}
+                        intent={{
+                          kind: 'session',
+                          content: active,
+                          label: sessionSavePreview(active, locale),
+                        }}
                       />
                     )}
                   {message.status === 'error' && (
@@ -1108,7 +1201,6 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                       )}
                     </p>
                   )}
-                  {message.model && <span className="agent-model-receipt">DeepSeek · {message.model}</span>}
                 </article>
               ))}
             </div>
@@ -1226,7 +1318,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                 {t('我的资料', 'Context')}
                 {contextCount > 0 && <span>{contextCount}</span>}
               </button>
-              <span className="agent-provider">DeepSeek</span>
+              <span className="agent-provider">Wenbu</span>
               {busy ? (
                 <button
                   className="agent-send stop"
@@ -1259,8 +1351,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           <div className="agent-composer-foot">
             <span>
               {t(
-                '发送即将本次对话与所选资料交给 DeepSeek。',
-                'Sending shares this conversation and selected context with DeepSeek.',
+                '发送即同意由 AI 处理本次对话与所选资料。',
+                'Sending allows AI processing of this conversation and selected context.',
               )}
             </span>
             <span>
@@ -1313,7 +1405,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             </button>
           </div>
         </div>
-        <div className="agent-panel-scroll">
+        <div className="agent-panel-scroll" ref={panelScroll}>
           {panel === 'sources' ? (
             sources.length ? (
               <div className="agent-sources">
@@ -1423,6 +1515,31 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                     >
                       <ReadingView key={artifact.id} result={artifact.reading} locale={locale} />
                     </ChartBoundary>
+                    {artifact.answer && (
+                      <section
+                        className="agent-prose agent-outcome-answer"
+                        aria-label={t('本次解读', 'Your interpretation')}
+                      >
+                        <span className="eyebrow">
+                          {t('本次解读 · 对话原文', 'YOUR INTERPRETATION · ORIGINAL ANSWER')}
+                        </span>
+                        <AgentMarkdown
+                          locale={locale}
+                          text={artifact.answer.text}
+                          allowedUrls={sources.map((source) => source.url)}
+                        />
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() => {
+                            setMobilePane('chat');
+                            textarea.current?.focus();
+                          }}
+                        >
+                          {t('带着这个结果继续聊', 'Continue with this result')} <ArrowUpRight size={14} />
+                        </button>
+                      </section>
+                    )}
                   </div>
                 ) : artifact.type === 'answer' ? (
                   <div className="agent-prose agent-answer-note">
@@ -1446,7 +1563,12 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                   <button
                     onClick={() => {
                       downloadMarkdown(
-                        artifact.type === 'answer' ? artifact.text : artifactMarkdown(artifact, sources),
+                        artifact.type === 'answer'
+                          ? artifact.text
+                          : artifactMarkdown(artifact, sources) +
+                              (artifact.type === 'chart' && artifact.answer
+                                ? '\n\n' + artifact.answer.text
+                                : ''),
                       );
                       track('report_exported', { tool: 'agent', action: 'export', conversation: activeId });
                     }}
@@ -1455,9 +1577,20 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                     {t('导出', 'Export')}
                   </button>
                   {artifact.type === 'chart' && (
-                    <button onClick={() => saveChart(artifact)}>
+                    <button
+                      onClick={() =>
+                        artifact.answer && active
+                          ? openAccount(
+                              { kind: 'session', content: active, label: sessionSavePreview(active, locale) },
+                              'account-save',
+                            )
+                          : saveChart(artifact)
+                      }
+                    >
                       <Bookmark size={14} />
-                      {t('存入手记', 'Save to journal')}
+                      {artifact.answer
+                        ? t('保存对话与结果', 'Save conversation and result')
+                        : t('存入手记', 'Save to journal')}
                     </button>
                   )}
                   <span>{t('文化探索 · 保留判断', 'Cultural reflection')}</span>
@@ -1467,6 +1600,11 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           ) : (
             <AgentExample
               locale={locale}
+              onPractice={(kind) => {
+                setMobilePane('chat');
+                if (kind === 'tarot') void send(quickTrialChoice(locale));
+                else openContext(true, 'bazi');
+              }}
               onStart={() => {
                 setMobilePane('chat');
                 setTimeout(() => textarea.current?.focus(), 0);
@@ -1527,8 +1665,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           </div>
           <p className="agent-quiet">
             {t(
-              '只把你选择的内容用于本次会话。资料会随消息交给 DeepSeek；记录是否同步到云端，取决于你的账号保存设置。',
-              'Only your selection is used in this conversation and sent to DeepSeek with your message. Cloud storage follows your account’s history setting.',
+              '只把你选择的内容用于本次会话。资料会随消息交给 AI 服务处理；记录是否同步到云端，取决于你的账号保存设置。',
+              'Only your selection is used in this conversation and processed by the AI service with your message. Cloud storage follows your account’s history setting.',
             )}
           </p>
           <label className="agent-context-toggle">

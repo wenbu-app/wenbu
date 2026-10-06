@@ -237,7 +237,9 @@ export default function Journal({ locale }: { locale: Locale }) {
                       ))}
                     </ul>
                     <blockquote>{current.answer.question}</blockquote>
-                    {current.provenance && <p className="form-note">DeepSeek · {current.provenance}</p>}
+                    {current.provenance && (
+                      <p className="form-note">{t('Wenbu AI 解读', 'Wenbu AI reading')}</p>
+                    )}
                     {current.context && (
                       <details className="context-details">
                         <summary>{t('当时选择分享的背景', 'Context shared with this reading')}</summary>
