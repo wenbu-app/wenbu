@@ -1,0 +1,38 @@
+{
+  "status": "deployed_and_scoped_live_checks_passed",
+  "sourceSha": "8514cbdfe8225f333198b3a28f57df6037936433",
+  "workerVersion": "87309831-5af3-4e91-b4c5-084a595cf26d",
+  "manifestRevision": "f9162bb448ec02c73fb21715cbb6debce7e871fdbcc4749c60aa56b33176c390",
+  "mergedPullRequests": [
+    16,
+    17
+  ],
+  "prCi": "https://github.com/wenbu-app/wenbu/actions/runs/37406245689",
+  "mainCi": "https://github.com/wenbu-app/wenbu/actions/runs/37406386939",
+  "local": {
+    "unitTests": 339,
+    "nativeAccountChecks": 64,
+    "typeErrors": 0,
+    "lint": "passed"
+  },
+  "live": {
+    "deepseekGuidance": "passed",
+    "browserInteraction": "passed",
+    "byteComparison": "passed",
+    "toolsAndMcp": "passed",
+    "analytics": "passed",
+    "newEventIngestionAndDeduplication": "passed",
+    "accountInterfaces": "passed"
+  },
+  "indexnow": {
+    "status": "backoff",
+    "submitted": 0,
+    "retryAt": 1791292516511
+  },
+  "limitations": [
+    "Grok CLI timed out without a verdict.",
+    "No live email delivery or account creation; native account lifecycle tests used mock mail.",
+    "No full screen-reader, real-device keyboard, model stability or conversion experiment.",
+    "Initial live failure retained separately; final tests do not establish zero future model error."
+  ]
+}

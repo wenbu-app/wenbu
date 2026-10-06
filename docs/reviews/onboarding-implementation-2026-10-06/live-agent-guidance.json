@@ -1,0 +1,84 @@
+{
+  "base": "https://wenbu.app",
+  "checkedAt": "2026-10-06T02:55:09.511Z",
+  "synthetic": true,
+  "turns": [
+    {
+      "message": "这是虚构的交互测试情境。我想聊工作与选择，希望比较继续现在的工作和接受一个新机会，还没想清自己最在意什么。先通过对话帮我梳理，暂不抽牌、起卦或排盘。信息不够时一次问一个关键问题，给几个可选回答。",
+      "events": [
+        {
+          "type": "start",
+          "runId": "65892721-3526-4f90-884c-a7261cdf35d0",
+          "remaining": 11
+        },
+        {
+          "type": "tool_start",
+          "tool": {
+            "id": "1:call_00_Sp31qOKD5SPFd6VX3iCv8376",
+            "name": "ask_user",
+            "label": "补充一个问题",
+            "status": "running"
+          }
+        },
+        {
+          "type": "question",
+          "question": {
+            "question": "如果只能先弄清一件事，你最想先梳理哪一面？",
+            "options": [
+              "我到底在怕失去什么（留下的真实理由）",
+              "新机会吸引我的到底是什么（具体条件还是想改变）",
+              "我对两边了解多少是事实、多少是想象",
+              "我不确定，先帮我把问题本身理清"
+            ]
+          }
+        },
+        {
+          "type": "tool_end",
+          "id": "1:call_00_Sp31qOKD5SPFd6VX3iCv8376",
+          "status": "complete",
+          "detail": "已完成"
+        },
+        {
+          "type": "cloud",
+          "status": "local"
+        },
+        {
+          "type": "done",
+          "status": "waiting",
+          "servedModel": "deepseek-flash",
+          "requestedModel": "deepseek-v4-flash",
+          "modelCalls": 1,
+          "toolCalls": 1
+        }
+      ]
+    },
+    {
+      "message": "我到底在怕失去什么（留下的真实理由）。请用假设案例示范梳理的方法，不需要继续收集我的个人资料。",
+      "events": [
+        {
+          "type": "start",
+          "runId": "a55def80-ac63-4367-9752-9df684ce7559",
+          "remaining": 11
+        },
+        {
+          "type": "delta",
+          "text": "我先按一个明确标注的假设案例来示范，不涉及你的真实情况。\n\n**假设案例**：小林，现职稳定、同事熟、通勤短，但三年没涨薪；新机会薪资高两成、方向更感兴趣，但要重新证明自己、试用期有风险。\n\n**梳理\"怕失去什么\"的三步**\n\n1. **把理由翻译成\"失去清单\"**。不要写\"现在挺好\"，而写具体会失去的东西：熟悉的协作节奏、被信任的位置、可预期的下班时间、已有的年资与话语权。留下的理由往往是这几项的组合，而不是一个整体。\n2. **区分\"失去\"和\"担心\"**。失去是真实的既得（人脉、资历、安稳感）；担心是对未来的想象（怕新环境融不进、怕选错）。前者是成本，后者是情绪，混在一起会显得\"留下\"无比正确。\n3. **给每项标\"可替代性\"**。问：这个失去的东西，在新机会里能否重建、需要多久？通勤时间难替代，人脉可以重建但需半年到一年，年资基本不可逆。标完之后，你会发现真正卡住你的通常只有一两项。\n\n**一个可用的自问**：如果新机会保留了我最怕失去的那一项，我还会犹豫吗？若答案是\"不会\"，那它就是你真正的核心顾虑。\n\n要不要我用这个假设案例，继续示范\"新机会那边怕失去什么\"的对照梳理？"
+        },
+        {
+          "type": "cloud",
+          "status": "local",
+          "receipt": "eyJhdCI6MTc5MTI1NTMxODM0MywiYmFzaXMiOiJyZXN1bHQiLCJkaWdlc3QiOiIzZWQzMTljYjkyODNjYTJjMWU4N2U0MDM5YWExZDUzMGVlMjgxZWQ0YWZkNmQ3YTJiZjM0NzQ1YmU0ZTA0YTQ2Iiwia2luZCI6InNlc3Npb24iLCJtZWFzdXJlZCI6ZmFsc2UsIm9wZXJhdGlvbiI6ImY4ODdkZThkLWFlNWMtNDIyMS04ZGRiLTFjYjMzZmFkNTI3YSIsInN1YmplY3QiOiJndWVzdDphOTYzZDJlZi0zYjdlLTQ1MmUtOWQ4OC00ZDRmY2JhY2E1ZmUifQ.3a1196d8415275f9f2cafe4d54630735f8356651324c2636c863b2ae28637b3d"
+        },
+        {
+          "type": "done",
+          "status": "complete",
+          "servedModel": "deepseek-flash",
+          "requestedModel": "deepseek-v4-flash",
+          "modelCalls": 1,
+          "toolCalls": 0
+        }
+      ]
+    }
+  ],
+  "result": "passed"
+}

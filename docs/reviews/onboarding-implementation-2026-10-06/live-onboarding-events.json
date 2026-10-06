@@ -1,0 +1,36 @@
+{
+  "base": "https://wenbu.app",
+  "checkedAt": "2026-10-06T02:55:35.895Z",
+  "synthetic": true,
+  "testTraffic": true,
+  "sourceSha": "8514cbdfe8225f333198b3a28f57df6037936433",
+  "workerVersion": "87309831-5af3-4e91-b4c5-084a595cf26d",
+  "events": [
+    {
+      "id": "02c9001e-a7e9-4eef-81e4-4895cb2d0979",
+      "event": "agent_result_visible",
+      "release": "2026-10-06-onboarding-v2"
+    },
+    {
+      "id": "e98b83d1-444c-41d9-9726-6fd7f97a6af5",
+      "event": "agent_example_opened",
+      "release": "2026-10-06-onboarding-v2"
+    },
+    {
+      "id": "2d966772-3f32-442a-9090-d535e4c97d75",
+      "event": "agent_started",
+      "release": "2026-09-29-feedback-v1"
+    }
+  ],
+  "checks": [
+    {
+      "check": "new events and cached-release event persisted",
+      "accepted": 3
+    },
+    {
+      "check": "identical event IDs deduplicated on replay",
+      "accepted": 0
+    }
+  ],
+  "result": "passed"
+}

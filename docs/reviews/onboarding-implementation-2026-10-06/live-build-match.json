@@ -1,8 +1,8 @@
 {
   "base": "https://wenbu.app",
-  "checkedAt": "2026-10-06T02:40:18.285Z",
-  "sourceSha": "c3d8ffa5397953096086d503b95b5adda3e9b8b9",
-  "workerVersion": "d39e5e22-0499-42af-a347-4ebf6dac0a31",
+  "checkedAt": "2026-10-06T02:55:09.513Z",
+  "sourceSha": "8514cbdfe8225f333198b3a28f57df6037936433",
+  "workerVersion": "87309831-5af3-4e91-b4c5-084a595cf26d",
   "pages": [
     {
       "path": "/",
@@ -10,7 +10,7 @@
     },
     {
       "path": "/agent/",
-      "sha256": "1a19d746d31ba91228a864fb4151df8612a4257b00748c5302a88365d68a7771"
+      "sha256": "9630c5e2aae3751d7cada231fc69a881f9cd669200c86c08f7da95810653a7bc"
     },
     {
       "path": "/bazi/",
@@ -22,7 +22,7 @@
     },
     {
       "path": "/en/agent/",
-      "sha256": "43c7715a3e9cfd42d0997a9b7ad20099884300f3070a5e3a9dae42f067f66389"
+      "sha256": "8e155ba439334fe55ba8ef002fabc82d9648b396b11201ef3ed4951119107ed8"
     },
     {
       "path": "/en/bazi/",
@@ -87,8 +87,8 @@
       "sha256": "2c1a5955e8c6fe8b5d6f80c5bef8b1d004ac681c8c9ac72be12f9d869475c201"
     },
     {
-      "path": "/_astro/AgentWorkspace.D3GrLI8y.js",
-      "sha256": "a70d5dcbdb5fa64ea94c2c151db57687a27f1223cf3669f7e17cecf4caf40cff"
+      "path": "/_astro/AgentWorkspace.nMcs3gOi.js",
+      "sha256": "4297eda65453d5a41ef4b1d7e637068b1111a6495b8053ed4395e5f02278b8e9"
     },
     {
       "path": "/_astro/AnalyticsDashboard.ClZIxjXA.js",
@@ -127,6 +127,6 @@
       "sha256": "240afaecdbc6e142e9671e4eebe9e02e265da50f7682447112290fd97ad11223"
     }
   ],
-  "manifestRevision": "781275cd080f1f50c50d6567b8d1a1e608124b0e2fb4e2c480286dfafc460223",
+  "manifestRevision": "f9162bb448ec02c73fb21715cbb6debce7e871fdbcc4749c60aa56b33176c390",
   "result": "passed"
 }
