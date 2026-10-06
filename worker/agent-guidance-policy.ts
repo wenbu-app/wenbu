@@ -1,11 +1,13 @@
 import { agentBirthSchema, type AgentRequest } from './agent-schema';
 import { ziweiSchema } from '../src/lib/schema';
+import { withoutBirthMessage } from '../src/lib/agent-guidance';
 
 /** A UX bound, never an entitlement or quota signal. Every request still reserves a turn. */
 export function allowsClarification(input: AgentRequest, value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const question = value as { form?: unknown; birthKind?: unknown };
   if (question.form === 'birth') {
+    if (withoutBirthMessage.some((message) => message === input.message)) return false;
     // Required-data forms are an exception only while calculation inputs are missing.
     // Unknown time is valid for BaZi, never for Zi Wei.
     const birth = input.context.birth;

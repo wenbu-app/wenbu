@@ -4,6 +4,11 @@ import type { Locale } from './schema';
 type Copy = readonly [string, string];
 export const guideText = (copy: Copy, locale: Locale) => copy[locale === 'zh' ? 0 : 1];
 
+export const withoutBirthMessage: Copy = [
+  '先不提供出生资料，请用通用示例解释命盘结构。',
+  'I’ll skip birth details for now. Explain the chart structure with a general example.',
+];
+
 export type ConversationChoice = {
   text: string;
   action: 'guided' | 'clarification' | 'followup' | 'example';

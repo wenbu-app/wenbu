@@ -12,6 +12,7 @@ import {
 } from '../worker/agent-library';
 import { newMessage, updateMessage } from '../src/lib/agent-session';
 import { traceOutcomes } from '../src/lib/agent-outcome';
+import { withoutBirthMessage } from '../src/lib/agent-guidance';
 import { agentRequestSchema, restoreReading } from '../worker/agent-schema';
 import { consumeSse, type AgentEvent, type AgentSource } from '../src/lib/agent-protocol';
 import type { Env } from '../worker/types';
@@ -184,6 +185,19 @@ describe('onboarding clarification bound', () => {
     );
     expect(out.at(-1)).toMatchObject({ status: 'waiting' });
     expect(reserveAgent).toHaveBeenCalledTimes(1);
+  });
+  it.each(withoutBirthMessage)('honors the explicit option to skip personal data: %s', async (message) => {
+    const { env } = testEnv();
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        model(null, [
+          { name: 'ask_user', args: { question: 'Add a time.', form: 'birth', birthKind: 'ziwei' } },
+        ]),
+      )
+      .mockResolvedValueOnce(model('Here is a general explanation, without calculating a personal chart.'));
+    const out = await events(await agentResponse({ message, history, consent: true }, request(), env));
+    expect(out.some((event) => event.type === 'question' || event.type === 'artifact')).toBe(false);
+    expect(out.at(-1)).toMatchObject({ status: 'complete' });
   });
   it('bounds a model that keeps requesting a disallowed question', async () => {
     const { env } = testEnv();

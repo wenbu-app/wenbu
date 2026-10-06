@@ -73,6 +73,7 @@ import AgentExample from './AgentExample';
 import AgentBirthFields from './AgentBirthFields';
 import AgentAnswerText from './AgentAnswerText';
 import { isCompletedAnswer, sessionDeliverables } from '../lib/agent-deliverables';
+import { guideText, withoutBirthMessage } from '../lib/agent-guidance';
 import {
   initializeAccount,
   accountSnapshot,
@@ -1495,7 +1496,9 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             setContextOpen(false);
             if (resumeAfterContext && !busy) {
               void send({
-                text: t('出生资料已补充，请继续。', 'I’ve added my birth details. Please continue.'),
+                text: contextDraft.useBirth
+                  ? t('出生资料已补充，请继续。', 'I’ve added my birth details. Please continue.')
+                  : guideText(withoutBirthMessage, locale),
                 action: 'clarification',
               });
             } else {
@@ -1642,7 +1645,9 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             </button>
             <button className="primary" type="submit">
               {resumeAfterContext && !busy
-                ? t('发送资料并继续', 'Send context and continue')
+                ? contextDraft.useBirth
+                  ? t('发送资料并继续', 'Send context and continue')
+                  : t('不提供出生资料，先看通用示例', 'Skip birth details and see a general example')
                 : t('使用所选资料', 'Use selected context')}
               <Check size={15} />
             </button>
