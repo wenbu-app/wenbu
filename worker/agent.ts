@@ -3,7 +3,13 @@ import { ApiError, identityHash } from './ai';
 import type { Env } from './types';
 import type { ServiceMetric } from './analytics';
 import { agentRequestSchema, restoreReading, type AgentRequest } from './agent-schema';
-import { agentTools, CitationValidationError, executeAgentTool, toolTrace } from './agent-tools';
+import {
+  agentTools,
+  CitationValidationError,
+  executeAgentTool,
+  readingInput,
+  toolTrace,
+} from './agent-tools';
 import { libraryDocuments, libraryContextSnapshot, readLibrary, readReference } from './agent-library';
 import { reportConclusion } from '../src/lib/agent-outcome';
 import { reportSourceIds } from '../src/lib/agent-report';
@@ -370,6 +376,30 @@ export async function agentResponse(
       }, 12000);
       const run = async () => {
         emit({ type: 'start', runId: crypto.randomUUID(), remaining: quota.remaining });
+        // Carry the verified initial snapshot into the signed conversation. A
+        // journal ID alone would disappear when a guest saves only this session.
+        // These are existing results, not new draws or invented tool executions.
+        if (!input.history.length && !allowNewDraw) {
+          for (const reading of readings) {
+            const label = {
+              tarot: ['塔罗', 'Tarot'],
+              iching: ['卦象', 'I Ching'],
+              bazi: ['八字', 'BaZi'],
+              ziwei: ['紫微', 'Zi Wei'],
+            }[reading.kind][input.locale === 'zh' ? 0 : 1];
+            emit({
+              type: 'artifact',
+              artifact: {
+                type: 'chart',
+                id: crypto.randomUUID(),
+                createdAt: new Date().toISOString(),
+                title: input.locale === 'zh' ? `带入的${label}结果` : `${label} · existing reading`,
+                reading,
+                input: readingInput(reading),
+              },
+            });
+          }
+        }
         for (const source of sources.values()) emit({ type: 'source', source });
         let modelCalls = 0;
         let toolCalls = 0;

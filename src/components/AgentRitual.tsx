@@ -209,7 +209,7 @@ export default function AgentRitual({ message, locale }: { message: AgentMessage
             {message.artifacts.length > 0 && (
               <span key={`results-${message.artifacts.length}`}>
                 {zh
-                  ? `已生成 ${message.artifacts.length} 份结果`
+                  ? `已有 ${message.artifacts.length} 份结果`
                   : `${message.artifacts.length} ${message.artifacts.length === 1 ? 'result' : 'results'} received`}
               </span>
             )}

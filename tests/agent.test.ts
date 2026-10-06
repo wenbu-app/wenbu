@@ -662,6 +662,10 @@ describe('DeepSeek Agent harness', () => {
       await agentResponse(
         {
           message: '再解释一下',
+          history: [
+            { role: 'user', content: '此前已起卦' },
+            { role: 'assistant', content: '已有乾卦', delivered: true },
+          ],
           consent: true,
           context: { readings: [{ kind: 'iching', input: { lines: [7, 7, 7, 7, 7, 7] } }] },
         },
@@ -674,6 +678,39 @@ describe('DeepSeek Agent harness', () => {
     const output = JSON.parse(body.messages.find((m: { role: string }) => m.role === 'tool').content);
     expect(output.reusedOriginal).toBe(true);
     expect(output.verifiedCalculation.original.number).toBe(1);
+  });
+  it('preserves selected cards inside the first response for a conversation saved without its journal', async () => {
+    const { env } = testEnv();
+    const selected = { kind: 'tarot', input: { cards: [{ id: '17', reversed: false }] } };
+    // Use a real supported ID rather than inventing a new card identity.
+    const deck = (await import('../src/data/tarot')).tarotDeck;
+    selected.input.cards[0].id = deck[17].id;
+    const fetcher = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(model('Use this existing card for a thoughtful reflection.'));
+    const result = await events(
+      await agentResponse(
+        {
+          message: 'Interpret the selected card without drawing again.',
+          consent: true,
+          context: { readings: [selected] },
+        },
+        request(),
+        env,
+      ),
+    );
+    const snapshot = result.find((e) => e.type === 'artifact');
+    expect(snapshot).toMatchObject({
+      type: 'artifact',
+      artifact: {
+        type: 'chart',
+        input: selected,
+        reading: { kind: 'tarot', cards: [{ id: deck[17].id, reversed: false }] },
+      },
+    });
+    expect(result.filter((e) => e.type === 'tool_start')).toHaveLength(0);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(result.at(-1)).toMatchObject({ type: 'done', status: 'complete', toolCalls: 0 });
   });
   it('records closed tool activity without arguments, question text or double-counted calls', async () => {
     const { env } = testEnv();

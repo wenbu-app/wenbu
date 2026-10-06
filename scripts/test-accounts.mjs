@@ -438,7 +438,13 @@ try {
       consent: true,
       locale: 'en',
       mode: 'explore',
-      context: { note: '', readings: [], sourceIds: [] },
+      context: {
+        note: '',
+        readings: [
+          { kind: 'tarot', input: { cards: draw.data.cards.map(({ id, reversed }) => ({ id, reversed })) } },
+        ],
+        sourceIds: [],
+      },
     },
     a.cookie,
     {
@@ -462,6 +468,11 @@ try {
     serverChat.content.messages.at(-1).status === 'complete' &&
       serverChat.content.messages.at(-1).text.includes('synthetic result') &&
       !!serverChat.content.receipt,
+  );
+  check(
+    'cloud conversation retains its original selected card without a journal lookup',
+    serverChat.content.messages.at(-1).artifacts[0]?.reading.cards[0].id === draw.data.cards[0].id &&
+      serverChat.content.messages.at(-1).artifacts[0]?.input.input.cards[0].reversed === false,
   );
   check(
     'cloud Agent refuses unpersisted user messages',
