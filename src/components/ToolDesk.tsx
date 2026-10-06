@@ -16,6 +16,7 @@ import type { Reading } from '../lib/tools';
 import { choose, href } from '../lib/i18n';
 import { agentContext, downloadJson, readJournal, writeJournal, type Answer } from '../lib/journal';
 import ReadingView from './ReadingView';
+import { BirthDateTimeFields, BirthTimezoneField } from './BirthFields';
 import FeedbackTrigger from './FeedbackTrigger';
 import { readingExcerpt, answerExcerpt } from '../lib/feedback-excerpt';
 import { analyticsHeaders, track, type Correlation } from '../lib/analytics';
@@ -97,6 +98,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
   const [exportOpen, setExportOpen] = useState(false);
   const [includeBirth, setIncludeBirth] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const aiAbort = useRef<AbortController | null>(null);
   const lock = useRef(false);
   const operation = useRef<string | undefined>(undefined);
@@ -427,6 +429,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
           )}
         </div>
         <form
+          ref={formRef}
           onSubmit={(e) => {
             e.preventDefault();
             void run();
@@ -434,76 +437,25 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
         >
           {kind === 'bazi' || kind === 'ziwei' ? (
             <>
-              <div className="field-pair">
-                <label className="field">
-                  {t('公历出生日期', 'Birth date · Gregorian')}
-                  <input
-                    aria-label={t('公历出生日期', 'Birth date')}
-                    type="date"
-                    min="1901-01-01"
-                    max="2099-12-31"
-                    required
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  {t('出生时间', 'Birth time')}
-                  <input
-                    aria-label={t('出生时间', 'Birth time')}
-                    type="time"
-                    required={!unknown}
-                    disabled={unknown}
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                  />
-                </label>
-              </div>
+              <BirthDateTimeFields
+                locale={locale}
+                date={date}
+                time={unknown ? null : time}
+                allowUnknown={kind === 'bazi'}
+                onDateChange={setDate}
+                onTimeChange={(value) => {
+                  setUnknown(value === null);
+                  if (value !== null) setTime(value);
+                }}
+              />
               {kind === 'bazi' ? (
                 <>
-                  <label className="check-field">
-                    <input type="checkbox" checked={unknown} onChange={(e) => setUnknown(e.target.checked)} />
-                    {t('不确定出生时间（不生成时柱）', 'I do not know the time (omit hour pillar)')}
-                  </label>
-                  <label className="field">
-                    {t('出生地时区', 'Time zone at birth')}
-                    <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
-                      {[
-                        ['Asia/Shanghai', '中国大陆 / China'],
-                        ['Asia/Hong_Kong', '香港 / Hong Kong'],
-                        ['Asia/Taipei', '台北 / Taipei'],
-                        ['Asia/Singapore', '新加坡 / Singapore'],
-                        ['Asia/Tokyo', '东京 / Tokyo'],
-                        ['Asia/Seoul', '首尔 / Seoul'],
-                        ['Asia/Kolkata', '印度 / India'],
-                        ['Europe/London', '伦敦 / London'],
-                        ['Europe/Paris', '巴黎 / Paris'],
-                        ['America/New_York', '纽约 / New York'],
-                        ['America/Los_Angeles', '洛杉矶 / Los Angeles'],
-                        ['Australia/Sydney', '悉尼 / Sydney'],
-                        ['UTC', 'UTC'],
-                        ['+08:00', 'UTC+08:00 · 固定偏移 / fixed offset'],
-                      ].map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <BirthTimezoneField locale={locale} value={timezone} onChange={setTimezone} />
                   <details className="advanced">
                     <summary>
                       <SlidersHorizontal size={14} />
                       {t('历法选项', 'Calendar options')}
                     </summary>
-                    <label className="field">
-                      {t('其他 IANA 时区或 UTC 偏移', 'Other IANA time zone or UTC offset')}
-                      <input
-                        value={timezone}
-                        maxLength={80}
-                        onChange={(e) => setTimezone(e.target.value)}
-                        placeholder="Asia/Shanghai"
-                      />
-                    </label>
                     <label className="field">
                       {t('换日规则', 'Day boundary')}
                       <select
@@ -833,6 +785,14 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                   invalidateAnswer();
                   setNote('');
                   entryId.current = null;
+                  requestAnimationFrame(() => {
+                    formRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+                    formRef.current
+                      ?.querySelector<HTMLElement>(
+                        'input:not(:disabled), textarea, select, button:not(:disabled)',
+                      )
+                      ?.focus({ preventScroll: true });
+                  });
                 }}
                 aria-label={t('重新开始', 'Start again')}
               >

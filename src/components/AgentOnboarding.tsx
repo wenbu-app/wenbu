@@ -76,7 +76,7 @@ export default function AgentOnboarding({
           <ArrowUpRight size={14} aria-hidden="true" />
         </button>
       </div>
-      <button type="button" className="agent-example-link" onClick={onExample}>
+      <button type="button" className="agent-example-link" aria-haspopup="dialog" onClick={onExample}>
         <BookOpen size={16} aria-hidden="true" />
         <span>
           {t('先看一份完整示例', 'See a complete example')}

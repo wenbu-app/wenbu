@@ -2,17 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import type { AgentBirth } from '../lib/agent-protocol';
 import type { Locale } from '../lib/schema';
 
-const zones = [
-  ['Asia/Shanghai', '中国标准时间', 'China Standard Time'],
-  ['Asia/Hong_Kong', '香港', 'Hong Kong'],
-  ['Asia/Taipei', '台北', 'Taipei'],
-  ['Asia/Tokyo', '东京', 'Tokyo'],
-  ['Asia/Singapore', '新加坡', 'Singapore'],
-  ['America/New_York', '纽约', 'New York'],
-  ['America/Los_Angeles', '洛杉矶', 'Los Angeles'],
-  ['Europe/London', '伦敦', 'London'],
-  ['Australia/Sydney', '悉尼', 'Sydney'],
-] as const;
+import { BirthDateTimeFields, BirthTimezoneField } from './BirthFields';
 
 export default function AgentBirthFields({
   locale,
@@ -28,7 +18,6 @@ export default function AgentBirthFields({
   onChange: (change: Partial<AgentBirth>) => void;
 }) {
   const t = (zh: string, en: string) => (locale === 'zh' ? zh : en);
-  const zoneLabel = zones.find(([zone]) => zone === birth.timezone)?.[locale === 'zh' ? 1 : 2];
   return (
     <section className="agent-birth-fields" aria-label={t('排盘资料', 'Chart details')}>
       <div className="agent-birth-kind" role="group" aria-label={t('排盘方式', 'Chart system')}>
@@ -39,66 +28,20 @@ export default function AgentBirthFields({
           {t('紫微斗数', 'Zi Wei')}
         </button>
       </div>
+      <BirthDateTimeFields
+        locale={locale}
+        date={birth.date}
+        time={birth.time}
+        allowUnknown={kind === 'bazi'}
+        onDateChange={(date) => onChange({ date })}
+        onTimeChange={(time) => onChange({ time })}
+      />
+      <BirthTimezoneField
+        locale={locale}
+        value={birth.timezone}
+        onChange={(timezone) => onChange({ timezone })}
+      />
       <div className="agent-birth-grid">
-        <label>
-          {t('公历出生日期', 'Gregorian birth date')}
-          <input
-            type="date"
-            min="1901-01-01"
-            max="2099-12-31"
-            required
-            value={birth.date}
-            onChange={(e) => onChange({ date: e.target.value })}
-          />
-        </label>
-        <label>
-          {kind === 'bazi'
-            ? t('出生时间（不知道可留空）', 'Birth time (leave blank if unknown)')
-            : t('出生时间（必填）', 'Birth time (required)')}
-          <input
-            type="time"
-            required={kind === 'ziwei'}
-            value={birth.time ?? ''}
-            onChange={(e) => onChange({ time: e.target.value || null })}
-          />
-        </label>
-        <label>
-          {t('出生地当时使用的时区', 'Timezone at the place of birth')}
-          <input
-            required
-            list="agent-timezones"
-            value={birth.timezone}
-            aria-describedby="agent-zone-help"
-            onChange={(e) => {
-              try {
-                new Intl.DateTimeFormat('en', { timeZone: e.target.value });
-                e.target.setCustomValidity('');
-              } catch {
-                e.target.setCustomValidity(
-                  t(
-                    '请选择或填写有效时区，例如 Asia/Shanghai。',
-                    'Choose or enter a valid timezone, such as Asia/Shanghai.',
-                  ),
-                );
-              }
-              onChange({ timezone: e.target.value });
-            }}
-          />
-          <datalist id="agent-timezones">
-            {zones.map(([zone, zh, en]) => (
-              <option key={zone} value={zone}>
-                {t(zh, en)}
-              </option>
-            ))}
-          </datalist>
-          <small id="agent-zone-help">
-            {zoneLabel ? `${zoneLabel} · ` : ''}
-            {t(
-              '请确认出生地时区，不一定是你现在的时区。',
-              'Check the birth timezone; it may differ from your current one.',
-            )}
-          </small>
-        </label>
         {kind === 'ziwei' && (
           <label>
             {t('传统排盘性别参数（必填）', 'Traditional calculation sex (required)')}
