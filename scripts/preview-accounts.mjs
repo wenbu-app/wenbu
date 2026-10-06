@@ -9,6 +9,7 @@ const { Miniflare, convertV4MiniflareOptions, Log, LogLevel } = require('minifla
 const { build } = require('esbuild');
 const root = new URL('../', import.meta.url).pathname,
   temp = await mkdtemp(path.join(tmpdir(), 'wenbu-account-preview-'));
+const port = Number(process.env.WENBU_PREVIEW_PORT || 8788);
 await build({
   entryPoints: [path.join(root, 'tests/account-worker.fixture.ts')],
   outfile: path.join(temp, 'worker.mjs'),
@@ -32,7 +33,7 @@ const contentTypes = {
 const mf = new Miniflare({
   ...convertV4MiniflareOptions({
     host: '127.0.0.1',
-    port: 8788,
+    port,
     log: new Log(LogLevel.ERROR),
     workers: [
       {
@@ -47,7 +48,7 @@ const mf = new Miniflare({
           PRIVACY_LEDGER: { className: 'DeletionLedger', useSQLite: true },
         },
         bindings: {
-          SITE_URL: 'http://127.0.0.1:8788',
+          SITE_URL: `http://127.0.0.1:${port}`,
           ANALYTICS_ADMIN_TOKEN: 'local-preview-only',
           ACCOUNTS_ENABLED: 'true',
           AUTH_SECRET: randomBytes(48).toString('hex'),
@@ -61,6 +62,35 @@ const mf = new Miniflare({
         outboundService: async (request) => {
           if (new URL(request.url).hostname !== 'api.deepseek.com')
             return new Response('Local preview has no external access', { status: 503 });
+          if (process.env.WENBU_PREVIEW_TRIAL === '1') {
+            const input = await request.json();
+            const last = input.messages.filter((m) => m.role === 'user').at(-1)?.content || '';
+            const zh = /[\u4e00-\u9fff]/.test(last);
+            const drawing = /实际抽|Draw one upright/.test(last) && input.messages.at(-1)?.role !== 'tool';
+            const delta = drawing
+              ? {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'preview-single',
+                      type: 'function',
+                      function: {
+                        name: 'draw_tarot',
+                        arguments: JSON.stringify({ count: 1, reversals: false }),
+                      },
+                    },
+                  ],
+                }
+              : {
+                  content: zh
+                    ? '这是本地合成解读，用于检查界面，不是模型质量评估。\n\n### 先看一个细节\n牌的传统含义可以作为反思的起点，不能预测接下来会发生什么。\n\n### 今天的一小步\n写下一件可以自己决定的小事，试着做十分钟，再记录实际感受。原始牌面和解读会一同留在结果中。'
+                    : 'This is a synthetic local interpretation for interface checks, not an assessment of model quality.\n\n### A starting point\nUse the traditional meaning as a prompt for reflection, without predicting events.\n\n### One step today\nChoose one action you can control, try it for ten minutes, then record what you noticed. The original card and this explanation stay together.',
+                };
+            return new Response(
+              `data: ${JSON.stringify({ model: 'local-fixture', choices: [{ delta, finish_reason: drawing ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n`,
+              { headers: { 'Content-Type': 'text/event-stream' } },
+            );
+          }
           if (process.env.WENBU_PREVIEW_GUIDANCE === '1') {
             const input = await request.json();
             const users = input.messages.filter((m) => m.role === 'user');

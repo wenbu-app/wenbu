@@ -111,7 +111,7 @@ export const actions = [
   'agent-report',
   'agent-clarify',
 ] as const;
-export const analyticsRelease = '2026-10-06-onboarding-v2';
+export const analyticsRelease = '2026-10-06-onboarding-v3';
 export const settings = ['none', 'tarot-count', 'tarot-reversals', 'iching-cast', 'agent-mode'] as const;
 export const variants = [
   'none',

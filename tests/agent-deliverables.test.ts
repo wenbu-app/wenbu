@@ -1,8 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import { newMessage, newSession } from '../src/lib/agent-session';
-import { sessionDeliverables } from '../src/lib/agent-deliverables';
+import { sessionDeliverables, sessionSavePreview } from '../src/lib/agent-deliverables';
+import type { ChartArtifact } from '../src/lib/agent-protocol';
 
 describe('original conversation answers in the result panel', () => {
+  it('links a chart to the exact answer from its own turn, leaving receipts unchanged', () => {
+    const session = newSession('en');
+    const chart = {
+      type: 'chart',
+      id: 'first-chart',
+      title: 'One card',
+      createdAt: '2026-10-06',
+      reading: { kind: 'tarot', cards: [{ id: 'star', zh: '星星', en: 'The Star', reversed: false }] },
+      input: { kind: 'tarot', input: { cards: [{ id: 'star', reversed: false }] } },
+    } as ChartArtifact;
+    const original = 'The traditional meaning is symbolic. Try a manageable step today. '.repeat(2);
+    const message = { ...newMessage('assistant', original), status: 'complete' as const, artifacts: [chart] };
+    session.messages = [
+      newMessage('user', 'A first reflection'),
+      message,
+      newMessage('user', 'Another question'),
+      { ...newMessage('assistant', 'An unrelated answer. '.repeat(7)), status: 'complete' },
+    ];
+    session.receipt = 'signed-session-receipt';
+    const before = JSON.stringify(session);
+    expect(sessionDeliverables(session)[0]).toMatchObject({
+      id: chart.id,
+      answer: { text: original, messageId: message.id },
+    });
+    expect(sessionSavePreview(session)).toBe('The Star — Full conversation · 2 results');
+    expect(JSON.stringify(session)).toBe(before);
+    message.status = 'running' as typeof message.status;
+    expect(sessionDeliverables(session)[0]).not.toHaveProperty('answer');
+  });
   it('keeps stable references and exact text without changing the signed session', () => {
     const session = newSession('en');
     const answer = {

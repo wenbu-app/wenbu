@@ -26,7 +26,12 @@ export default function AccountSavePrompt({ locale, intent }: { locale: Locale; 
     if (!visible || !root.current || seen.current) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && document.visibilityState === 'visible' && !seen.current) {
+        if (
+          entry.isIntersecting &&
+          entry.intersectionRatio >= 0.5 &&
+          document.visibilityState === 'visible' &&
+          !seen.current
+        ) {
           seen.current = true;
           try {
             sessionStorage.setItem('wenbu.save-prompt.seen', '1');

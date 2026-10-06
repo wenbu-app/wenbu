@@ -12,6 +12,7 @@ import {
   conversationStarters,
   guideText,
   toolStarters,
+  quickTrialChoice,
   type ConversationChoice,
 } from '../lib/agent-guidance';
 import InstrumentGlyph from './InstrumentGlyph';
@@ -29,12 +30,14 @@ export default function AgentOnboarding({
   hasDraft,
   onStart,
   onExample,
+  onBirth,
 }: {
   locale: Locale;
   disabled: boolean;
   hasDraft: boolean;
   onStart: (choice: ConversationChoice) => void;
   onExample: () => void;
+  onBirth: () => void;
 }) {
   const t = (zh: string, en: string) => choose(locale, zh, en);
   const unsure = t('还没想好，陪我找个切入点', 'Help me find a starting point');
@@ -49,10 +52,30 @@ export default function AgentOnboarding({
       <h1>{t('从你在意的事，聊起。', 'What’s on your mind?')}</h1>
       <p>
         {t(
-          '点选一句开始对话，也可以直接写下你的问题。',
-          'Choose a message to start, or write your own below.',
+          '直接聊你的问题，或选一种方式开始。无需注册。',
+          'Ask your question, or choose a way in. No account needed.',
         )}
       </p>
+      <div className="agent-first-steps">
+        <button
+          type="button"
+          className="agent-quick-trial"
+          disabled={disabled}
+          onClick={() => onStart(quickTrialChoice(locale))}
+        >
+          <InstrumentGlyph kind="tarot" size={32} />
+          <span>
+            <strong>{t('一张牌，轻松开始', 'Try one card')}</strong>
+            <small>{t('无需个人资料 · 使用 1 回合', 'No personal details · Uses 1 turn')}</small>
+          </span>
+          <ArrowUpRight size={16} aria-hidden="true" />
+        </button>
+        <button type="button" className="agent-birth-start" disabled={disabled} onClick={onBirth}>
+          <Fingerprint size={18} aria-hidden="true" />
+          <span>{t('看我的八字', 'Explore my BaZi chart')}</span>
+          <ArrowUpRight size={14} aria-hidden="true" />
+        </button>
+      </div>
       <button type="button" className="agent-example-link" onClick={onExample}>
         <BookOpen size={16} aria-hidden="true" />
         <span>
@@ -61,39 +84,45 @@ export default function AgentOnboarding({
         </span>
         <ArrowUpRight size={15} aria-hidden="true" />
       </button>
-      <div className="agent-starting-points" aria-label={t('开始对话', 'Start a conversation')}>
-        {conversationStarters.map((item) => {
-          const Icon = topicIcons[item.id];
-          const text = guideText(item.prompt, locale);
-          return (
-            <button
-              key={item.id}
-              type="button"
-              disabled={disabled}
-              aria-label={text}
-              onClick={() => onStart({ text, action: 'guided', mode: 'explore' })}
-            >
-              <span className="agent-starting-category">
-                <Icon size={16} aria-hidden="true" />
-                {guideText(item.category, locale)}
-              </span>
-              <span className="agent-starting-prompt">
-                {text}
-                <ArrowUpRight size={14} aria-hidden="true" />
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <button
-        className="agent-start-unsure"
-        type="button"
-        disabled={disabled}
-        onClick={() => onStart({ text: unsure, action: 'guided', mode: 'explore' })}
-      >
-        {unsure}
-        <ArrowUpRight size={13} aria-hidden="true" />
-      </button>
+      <details className="agent-topic-starts">
+        <summary>
+          {t('想从一件具体的事聊起？', 'Have a situation in mind?')}
+          <ChevronDown size={14} aria-hidden="true" />
+        </summary>
+        <div className="agent-starting-points" aria-label={t('开始对话', 'Start a conversation')}>
+          {conversationStarters.map((item) => {
+            const Icon = topicIcons[item.id];
+            const text = guideText(item.prompt, locale);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                disabled={disabled}
+                aria-label={text}
+                onClick={() => onStart({ text, action: 'guided', mode: 'explore' })}
+              >
+                <span className="agent-starting-category">
+                  <Icon size={16} aria-hidden="true" />
+                  {guideText(item.category, locale)}
+                </span>
+                <span className="agent-starting-prompt">
+                  {text}
+                  <ArrowUpRight size={14} aria-hidden="true" />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          className="agent-start-unsure"
+          type="button"
+          disabled={disabled}
+          onClick={() => onStart({ text: unsure, action: 'guided', mode: 'explore' })}
+        >
+          {unsure}
+          <ArrowUpRight size={13} aria-hidden="true" />
+        </button>
+      </details>
       <details className="agent-tool-starts">
         <summary>
           {t('从塔罗、易经或资料研究开始', 'Explore tarot, I Ching or research')}

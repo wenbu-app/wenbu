@@ -5,13 +5,14 @@ import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tool
 type Report = {
   available: boolean;
   version: string;
+  matureTrial: { from: number; to: number; completed: number; registered: number; saved: number };
   trial: { completed: number; registered: number; saved: number; mature: number };
   continued: { repeat_value: number; cross_instance: number };
   exclusions: { tests: number };
   from: number;
   to: number;
   totals: { registered: number; measured: number; activated: number };
-  cohorts: { day: number; eligible: number; returned: number }[];
+  cohorts: { day: number; from: number; to: number; eligible: number; returned: number }[];
   daily: { day: string; registered: number; activated: number }[];
   delivery: { event: string; count: number }[];
   legacyImportAccounts: number;
@@ -27,6 +28,10 @@ const labels: Record<string, string> = {
 export default function AccountInsights({ token }: { token: string }) {
   const { t } = useInsightsLocale();
 
+  const rangeLabel = (from: number, to: number) =>
+    [from, to - 1]
+      .map((at) => new Date(at).toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }))
+      .join(' → ');
   const [days, setDays] = useState('7'),
     [locale, setLocale] = useState('all'),
     [test, setTest] = useState(false),
@@ -147,6 +152,38 @@ export default function AccountInsights({ token }: { token: string }) {
               </div>
             ))}
           </div>
+          <div className="account-insights-metrics" aria-label={t('已完成观察的试用队列')}>
+            <div>
+              <span>{t('成熟试用队列 · 7 天转化')}</span>
+              <strong>{report.matureTrial.completed}</strong>
+              <small>
+                {t('首次完成日期')} {rangeLabel(report.matureTrial.from, report.matureTrial.to)}
+              </small>
+            </div>
+            <div>
+              <span>{t('成熟队列注册')}</span>
+              <strong>{report.matureTrial.registered}</strong>
+              <small>
+                {report.matureTrial.completed
+                  ? `${((100 * report.matureTrial.registered) / report.matureTrial.completed).toFixed(1)}%`
+                  : t('尚无成熟样本')}
+              </small>
+            </div>
+            <div>
+              <span>{t('成熟队列保存')}</span>
+              <strong>{report.matureTrial.saved}</strong>
+              <small>
+                {report.matureTrial.completed
+                  ? `${((100 * report.matureTrial.saved) / report.matureTrial.completed).toFixed(1)}%`
+                  : t('尚无成熟样本')}
+              </small>
+            </div>
+          </div>
+          <p>
+            {t(
+              '近期试用与成熟队列分开统计。成熟队列的入组窗口截至 7 天前；下方 D1 / D7 也各有独立的完整观察窗口。',
+            )}
+          </p>
           {report.daily.some((d) => d.registered > 0) ? (
             <div className="account-insights-chart">
               <ResponsiveContainer width="100%" height={210}>
@@ -192,7 +229,11 @@ export default function AccountInsights({ token }: { token: string }) {
             <tbody>
               {report.cohorts.map((c) => (
                 <tr key={c.day}>
-                  <td>{t('第 {0} 天', c.day)}</td>
+                  <td>
+                    {t('第 {0} 天', c.day)}
+                    <br />
+                    <small>{rangeLabel(c.from, c.to)}</small>
+                  </td>
                   <td>{c.eligible}</td>
                   <td>{c.returned}</td>
                   <td>

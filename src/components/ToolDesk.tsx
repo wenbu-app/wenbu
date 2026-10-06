@@ -30,6 +30,8 @@ import {
 } from '../lib/account-client';
 import { accountError } from './AccountPanel';
 import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
+import { readingConversation } from '../lib/reading-conversation';
+import { persistSessions, restoreSessions } from '../lib/agent-session';
 
 async function post<T>(
   path: string,
@@ -86,6 +88,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
   const [answer, setAnswer] = useState<Answer | undefined>();
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [handoffError, setHandoffError] = useState('');
   const [provenance, setProvenance] = useState('');
   const [remaining, setRemaining] = useState<number>();
   const [saved, setSaved] = useState(false);
@@ -349,6 +352,38 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
     } catch {
       setAiError(
         t('浏览器无法保存，请使用导出备份。', 'Browser storage is unavailable. Please export a backup.'),
+      );
+    }
+  }
+  function continueInAgent() {
+    if (!result || aiBusy || busy) return;
+    try {
+      const entries = readJournal();
+      const id = entryId.current ?? crypto.randomUUID();
+      entryId.current = id;
+      const entry = {
+        id,
+        createdAt: entries.find((item) => item.id === id)?.createdAt ?? new Date().toISOString(),
+        kind,
+        result,
+        question,
+        context,
+        note,
+        answer,
+        provenance: answer ? provenance : undefined,
+        receipt: receipt.current,
+      };
+      writeJournal([entry, ...entries.filter((item) => item.id !== id)]);
+      const session = readingConversation(entry, locale);
+      persistSessions([session, ...restoreSessions()]);
+      track('context_exported', { tool: kind, action: 'export', operation: operation.current });
+      window.location.assign(href(locale, 'agent') + '?session=' + encodeURIComponent(session.id));
+    } catch {
+      setHandoffError(
+        t(
+          '暂时无法带入对话，原结果仍在。你也可以导出后继续。',
+          'Could not carry this reading into a conversation. Your result is still here; you can export it instead.',
+        ),
       );
     }
   }
@@ -812,6 +847,29 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
               </p>
             )}
             <ReadingView result={result} locale={locale} />
+            {!exampleResult && (
+              <div className="reading-agent-continuation">
+                <button
+                  className="button primary"
+                  type="button"
+                  disabled={busy || aiBusy}
+                  onClick={continueInAgent}
+                >
+                  {t('带着这份结果继续聊', 'Discuss this result')} <ArrowRight size={16} />
+                </button>
+                <p className="form-note">
+                  {t(
+                    '把当前结果留存并带入新对话，不会重新抽取。发送消息后才开始 AI 解读。',
+                    'Keep this result and bring it into a new conversation, without another draw. AI interpretation starts when you send a message.',
+                  )}
+                </p>
+                {handoffError && (
+                  <p className="error-message" role="alert">
+                    {handoffError}
+                  </p>
+                )}
+              </div>
+            )}
             <FeedbackTrigger
               locale={locale}
               tool={kind}
@@ -920,8 +978,8 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                 <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                 <span>
                   {t(
-                    '将本次排盘、问题和选填背景发送给 DeepSeek，生成解读。',
-                    'Send this chart, question and selected context to DeepSeek for a reading.',
+                    '将本次排盘、问题和选填背景发送给 AI 服务，生成解读。',
+                    'Send this chart, question and selected context to the AI service for a reading.',
                   )}
                 </span>
               </label>
@@ -996,7 +1054,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                     excerpt={answerExcerpt(answer, question)}
                   />
                   <p className="form-note">
-                    DeepSeek · {provenance} ·{' '}
+                    {t('Wenbu AI 解读', 'Wenbu AI reading')} ·{' '}
                     {t(`今日剩余 ${remaining} 次`, `Today: ${remaining} requests left`)}
                   </p>
                   <label className="field">

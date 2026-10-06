@@ -169,7 +169,7 @@ export const sources = [
   },
   {
     group: 'infrastructure',
-    title: 'DeepSeek API',
+    title: 'Model service API',
     url: 'https://api-docs.deepseek.com/news/news260910/',
     zh: '模型别名与服务变更的官方来源。',
     en: 'Official model-alias and service-update information.',

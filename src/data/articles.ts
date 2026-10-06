@@ -719,7 +719,7 @@ export const articles: Article[] = [
         url: 'https://pubmed.ncbi.nlm.nih.gov/18110193/',
       },
       {
-        title: 'DeepSeek · model update and alias behavior',
+        title: 'Model service · API version notes',
         url: 'https://api-docs.deepseek.com/news/news260910/',
       },
       lunar,
@@ -758,8 +758,8 @@ export const articles: Article[] = [
         {
           heading: '问卜如何使用模型',
           paragraphs: [
-            '命盘和随机抽取由程序完成。DeepSeek 接收这份结果，以及你主动填写的问题和背景，再生成明确标注的象征性解读。模型不负责计算日期，也不应凭空引用经典。',
-            '页面记录请求模型名与服务返回的实际模型名。流畅的回答仍然可能有解释错误；欢迎通过项目问题页提交具体例子，避免附带他人的私人资料。',
+            '命盘和随机抽取由程序完成。AI 接收这份结果，以及你主动填写的问题和背景，再生成明确标注的象征性解读。模型不负责计算日期，也不应凭空引用经典。',
+            '技术记录保留请求与服务版本，方便排查问题。流畅的回答仍然可能有解释错误；欢迎通过项目问题页提交具体例子，避免附带他人的私人资料。',
           ],
         },
         {
@@ -805,8 +805,8 @@ export const articles: Article[] = [
         {
           heading: 'How Wenbu uses a model',
           paragraphs: [
-            'Code calculates charts and performs random draws. DeepSeek receives the result with the question and context you choose to submit. It is instructed to use the calculated result and avoid invented classical quotations. Its interpretation and any references still need checking.',
-            'The interface records the requested model and the model reported by the service. An articulate answer can still be wrong. Concrete bug reports are welcome, with private information removed.',
+            'Code calculates charts and performs random draws. AI receives the result with the question and context you choose to submit. It is instructed to use the calculated result and avoid invented classical quotations. Its interpretation and any references still need checking.',
+            'Technical records retain the requested and returned service versions for troubleshooting. An articulate answer can still be wrong. Concrete bug reports are welcome, with private information removed.',
           ],
         },
         {
@@ -1200,7 +1200,7 @@ export const articles: Article[] = [
     sources: [
       lunar,
       iztro,
-      { title: 'DeepSeek · API model update', url: 'https://api-docs.deepseek.com/news/news260910/' },
+      { title: 'Model service · API version notes', url: 'https://api-docs.deepseek.com/news/news260910/' },
     ],
     zh: {
       title: '为什么问卜先给你一张盘，再给一段话',
@@ -1218,7 +1218,7 @@ export const articles: Article[] = [
           heading: '让每一层各做一件事',
           paragraphs: [
             '历法计算由固定版本的开源库完成；易经与塔罗用明确的随机过程。可视化只展示实际结果，不根据情绪把图形调整得更好看。',
-            'DeepSeek 接收计算结果和用户主动填写的背景，负责组织语言。它的工作是提出一个可供思考的视角，而不是重新编造命盘、估计准确率或替你宣布结局。',
+            'AI 接收计算结果和用户主动填写的背景，负责组织语言。它的工作是提出一个可供思考的视角，而不是重新编造命盘、估计准确率或替你宣布结局。',
           ],
         },
         {
@@ -1260,7 +1260,7 @@ export const articles: Article[] = [
           heading: 'Give each layer a clear job',
           paragraphs: [
             'Pinned open-source libraries handle calendar calculations. Explicit random procedures produce I Ching and tarot draws. Visualizations represent the result rather than altering it to look more reassuring.',
-            'DeepSeek receives that calculation and the background you choose to share. Its role is to organize a possible reflection, not reinvent a chart, estimate an accuracy percentage or announce a fixed outcome.',
+            'AI receives that calculation and the background you choose to share. Its role is to organize a possible reflection, not reinvent a chart, estimate an accuracy percentage or announce a fixed outcome.',
           ],
         },
         {

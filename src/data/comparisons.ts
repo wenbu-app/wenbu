@@ -163,7 +163,7 @@ export const comparisons = [
     reviewed: '2026-09-29',
     sources: [
       {
-        title: 'DeepSeek · how external tool calls work',
+        title: 'AI · how external tool calls work',
         url: 'https://api-docs.deepseek.com/guides/tool_calls/',
       },
       {
@@ -186,10 +186,10 @@ export const comparisons = [
         ['抽牌与起卦', '程序随机抽取，返回原始牌面或爻值', '写出一个牌名，不能证明采用了怎样的随机过程'],
         [
           '背景资料',
-          '内置 Agent 使用本次对话和你选择的资料，发送给 DeepSeek',
+          '内置 Agent 使用本次对话和你选择的资料，发送给 AI',
           '使用范围取决于所在产品的对话与数据设置',
         ],
-        ['解释', 'DeepSeek 根据工具结果解释，AI 内容仍可能出错', '模型生成解释，也需要核对输入与来源'],
+        ['解释', 'AI 根据工具结果解释，AI 内容仍可能出错', '模型生成解释，也需要核对输入与来源'],
         [
           '配合使用',
           '可在网页继续对话，也可通过 MCP 把结果交给自己的 Agent',
@@ -218,12 +218,12 @@ export const comparisons = [
         ],
         [
           'Personal context',
-          'The built-in Agent sends the conversation and your selected context to DeepSeek',
+          'The built-in Agent sends the conversation and your selected context to AI',
           'Context and data use depend on the host application’s settings',
         ],
         [
           'Interpretation',
-          'DeepSeek interprets the tool result; the explanation can still be wrong',
+          'AI interprets the tool result; the explanation can still be wrong',
           'Model-generated interpretation also needs its inputs and sources checked',
         ],
         [

@@ -1,4 +1,5 @@
 import { analyticsEnabled } from './analytics';
+import { isAnalyticsTest } from './analytics-test';
 
 type Clarity = ((...args: unknown[]) => void) & { q?: unknown[][] };
 const project = 'yqzdf8z0sr';
@@ -19,12 +20,7 @@ export function initializeClarity() {
   const host = window as Window & { clarity?: Clarity };
   const allowed = () => {
     try {
-      return (
-        analyticsEnabled() &&
-        !accountOpen &&
-        sessionStorage.getItem('wenbu.analytics.test') !== 'true' &&
-        !/(?:^|;\s*)wenbu_analytics_test=1(?:;|$)/.test(document.cookie ?? '')
-      );
+      return analyticsEnabled() && !accountOpen && !isAnalyticsTest({ whenStorageBlocked: true });
     } catch {
       return false;
     }

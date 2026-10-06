@@ -95,21 +95,21 @@ const cli = [
       </li>
       <li>
         {t(
-          '希望问卜自己查资料、整理札记：使用内置 DeepSeek Agent。',
-          'Want Wenbu to research a question and write a note? Use the built-in DeepSeek Agent.',
+          '希望问卜自己查资料、整理札记：使用内置 AI Agent。',
+          'Want Wenbu to research a question and write a note? Use the built-in AI Agent.',
         )}
       </li>
     </ul>
     <p>
       {t(
-        '三种方式都无需问卜账户。计算请求会送达问卜服务；只有选择内置 AI 功能时，所选内容才会进一步交给 DeepSeek。外部 Agent 的数据处理由其宿主决定。',
-        'None requires a Wenbu account. Calculation requests reach Wenbu’s service. Using the built-in AI also sends selected content to DeepSeek; an external agent follows its own host’s data practices.',
+        '三种方式都无需问卜账户。计算请求会送达问卜服务；只有选择内置 AI 功能时，所选内容才会进一步交给 AI。外部 Agent 的数据处理由其宿主决定。',
+        'None requires a Wenbu account. Calculation requests reach Wenbu’s service. Using the built-in AI also sends selected content to AI; an external agent follows its own host’s data practices.',
       )}
     </p>
     <h2 id="mcp">{t('连接 MCP：六种工具', 'Connect MCP: six tools')}</h2>
     <p>
       {t(
-        'MCP 使用无会话的 Streamable HTTP。不需要问卜 API key，也不会调用问卜的 DeepSeek。你的 Agent 用自己的模型解释，问卜返回结构化结果与计算约定。',
+        'MCP 使用无会话的 Streamable HTTP。不需要问卜 API key，也不会调用问卜的 AI。你的 Agent 用自己的模型解释，问卜返回结构化结果与计算约定。',
         'MCP uses stateless Streamable HTTP. Calculations and draws need no API key. Your agent interprets with its own model; Wenbu supplies structured results, versions and conventions.',
       )}
     </p>
@@ -268,11 +268,11 @@ node wenbu.mjs guide bazi-basics ${locale} --json`}</code></pre>
         'Use a file or stdin for personal details to keep them out of shell history. The CLI reads that input only; it does not discover folders, journals or earlier conversations.',
       )}
     </p>
-    <h2>{t('让 DeepSeek Agent 执行一回合', 'Run a DeepSeek Agent turn')}</h2>
+    <h2>{t('让 AI Agent 执行一回合', 'Run a AI Agent turn')}</h2>
     <p>
       {t(
-        'agent 命令把消息和所选上下文发送给 DeepSeek，输出逐行 JSON 事件。确认用户愿意分享后，将以下内容保存为 request.json，再执行命令。它不会自动附带历史；如需追问，由调用方明确提供 history 和 context。',
-        'The agent command sends the message and selected context to DeepSeek and returns newline-delimited JSON events. After the person chooses to share them, save the following as request.json and run the command. For follow-ups, the caller supplies history and context explicitly.',
+        'agent 命令把消息和所选上下文发送给 AI，输出逐行 JSON 事件。确认用户愿意分享后，将以下内容保存为 request.json，再执行命令。它不会自动附带历史；如需追问，由调用方明确提供 history 和 context。',
+        'The agent command sends the message and selected context to AI and returns newline-delimited JSON events. After the person chooses to share them, save the following as request.json and run the command. For follow-ups, the caller supplies history and context explicitly.',
       )}
     </p>
     <pre><code>{JSON.stringify({message:locale==='zh'?'查阅资料，解释八字换日的两种约定。':'Research the two BaZi day-boundary conventions.',mode:'research',locale,consent:true},null,2)}</code></pre>
@@ -355,8 +355,8 @@ node wenbu.mjs guide bazi-basics ${locale} --json`}</code></pre>
     <a href={href(locale, 'free')}>{t('免费额度', 'Free allowance')}</a>
     <p>
       {t(
-        '不需要用户把模型密钥交给 Agent 插件。MCP 提供四种计算工具和资料搜索、阅读。内置 Agent 则由 DeepSeek 执行。',
-        'No model key is needed by an agent plugin. MCP supplies four calculation tools plus library search and reading. The built-in Agent runs on DeepSeek.',
+        '不需要用户把模型密钥交给 Agent 插件。MCP 提供四种计算工具和资料搜索、阅读。内置 Agent 则由 AI 执行。',
+        'No model key is needed by an agent plugin. MCP supplies four calculation tools plus library search and reading. The built-in Agent runs on AI.',
       )}
     </p>
   </aside>

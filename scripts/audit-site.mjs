@@ -23,6 +23,9 @@ const exists = async (p) => {
 let links = 0;
 for (const f of htmlFiles) {
   const html = await readFile(f, 'utf8');
+  const visibleCopy = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '').replace(/<[^>]+>/g, ' ');
+  if (/\bDeepSeek\b|deepseek-v\d/i.test(visibleCopy))
+    errors.push(f + ': supplier branding must not appear in product copy');
   const url = f === 'dist/404.html' ? '/404/' : '/' + f.slice(5).replace(/index.html$/, '');
   if (
     /^\/(en\/)?(agent|bazi|iching|tarot|ziwei|journal)\/$/.test(url) &&

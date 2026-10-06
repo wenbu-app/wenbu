@@ -81,7 +81,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         {
           question: '会话保存在浏览器，是不是意味着问题不会发给模型？',
           answer:
-            '不是。发送 Agent 消息会把当前消息、受限的近期会话内容和你选择的资料交给 DeepSeek 处理。本地保存说明历史存放的位置，不能代替模型处理的隐私说明。',
+            '不是。发送 Agent 消息会把当前消息、受限的近期会话内容和你选择的资料交给 AI 处理。本地保存说明历史存放的位置，不能代替模型处理的隐私说明。',
         },
         {
           question: '关掉页面，Agent 还会继续生成吗？',
@@ -169,7 +169,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         {
           question: 'Does browser storage mean my message never reaches a model?',
           answer:
-            'No. Sending shares the message, limited recent context and selected details with DeepSeek. Local storage describes where your saved history lives.',
+            'No. Sending shares the message, limited recent context and selected details with AI. Local storage describes where your saved history lives.',
         },
         {
           question: 'Will the Agent continue after I close the page?',
@@ -1098,7 +1098,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         {
           question: '删了本地手记，会同时删除模型处理过的数据吗？',
           answer:
-            '不会。删除游客手记移除的是当前浏览器中的记录，账号云端记录有独立的删除操作。此前发送给 DeepSeek 的内容按提供方政策处理；主动提交的反馈和统计也有各自的存储规则，不能用本地删除一概代表。',
+            '不会。删除游客手记移除的是当前浏览器中的记录，账号云端记录有独立的删除操作。此前发送给 AI 的内容按提供方政策处理；主动提交的反馈和统计也有各自的存储规则，不能用本地删除一概代表。',
         },
       ],
       glossary: [
@@ -1190,7 +1190,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
         {
           question: 'Does local deletion erase model-provider data?',
           answer:
-            'No. Removing a guest record deletes its browser copy. Account history has separate deletion controls. DeepSeek processing, submitted feedback and analytics each follow their own policies.',
+            'No. Removing a guest record deletes its browser copy. Account history has separate deletion controls. AI processing, submitted feedback and analytics each follow their own policies.',
         },
       ],
       glossary: [
@@ -1288,7 +1288,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
           '留下有用部分及边界：“我想问负责人哪些事项能请同事协助；目前没有证据说明未来必然出现转机。”后续评价的是这两个问题是否帮助沟通，而不是用一次巧合证明整套系统。',
         ],
         conclusion:
-          '可以保留被理解的感受，也可以严格审查事实。Forer 的研究提醒人们不要用个人认同直接验证人格判断；它没有测试今天的 DeepSeek，也没有给出问卜的准确率。',
+          '可以保留被理解的感受，也可以严格审查事实。Forer 的研究提醒人们不要用个人认同直接验证人格判断；它没有测试今天的 AI，也没有给出问卜的准确率。',
       },
       faq: [
         {
@@ -1379,7 +1379,7 @@ export const practiceDepth: Record<string, GuideExpansion> = {
           'Keep the useful result and its limit: “I can ask which tasks a colleague could share. I have no evidence of an inevitable turning point.” Assess whether the questions help, without treating a later coincidence as validation of the entire system.',
         ],
         conclusion:
-          'Forer’s work cautions against using personal agreement alone to validate a personality interpretation. It did not test modern DeepSeek models or establish a Wenbu accuracy rate.',
+          'Forer’s work cautions against using personal agreement alone to validate a personality interpretation. It did not test modern AI models or establish a Wenbu accuracy rate.',
       },
       faq: [
         {

@@ -247,7 +247,7 @@ export function artifactMarkdown(
     citations([...ids])
       .map((citation) => '- ' + citation)
       .join('\n') +
-    '\n\nGenerated with DeepSeek · Wenbu · Symbolic interpretation, not established prediction.\n'
+    '\n\nGenerated with Wenbu · Symbolic interpretation, not established prediction.\n'
   );
 }
 export function downloadMarkdown(text: string) {

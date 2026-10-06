@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-06",
+  "localLinks": 21,
+  "flowSteps": 9,
+  "images": 11,
+  "missingLinksOrImages": [],
+  "runtimeChanges": false,
+  "deployment": false,
+  "grok": "timeout, no verdict"
+}
