@@ -81,4 +81,4 @@ export const browserViewSQL = `(event='page_view' AND ${browserAudienceSQL})`;
 export const contentRequestSQL = "(event='page_request' AND http_method='GET')";
 // One terminal record per operation; MCP calculations have an enclosing tools/call receipt.
 export const serviceRequestSQL =
-  "(origin='server' AND event IN ('calculation_succeeded','interpret_succeeded','agent_finished','api_failed','mcp_finished') AND (channel!='mcp' OR event IN ('mcp_finished','api_failed')))";
+  "(origin='server' AND event IN ('calculation_succeeded','interpret_succeeded','daily_ready','agent_finished','api_failed','mcp_finished') AND (channel!='mcp' OR event IN ('mcp_finished','api_failed')))";

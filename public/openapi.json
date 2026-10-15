@@ -15,6 +15,138 @@
     }
   ],
   "paths": {
+    "/api/v1/daily": {
+      "post": {
+        "operationId": "get_daily_card",
+        "summary": "Stable upright daily card and original reflective practice; no model or birth data",
+        "description": "The server chooses today in the requested IANA timezone. Native clients may supply a stable random UUID seed, never personal data; clients without a seed share a public card. First-party guest/account identities take precedence. Status requests do not reveal a card. No personal forecast or same-day redraw. Private account saves use the first-party account protocol.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action",
+                  "timezone"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "status",
+                      "reveal"
+                    ]
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Asia/Shanghai"
+                  },
+                  "locale": {
+                    "enum": [
+                      "zh",
+                      "en"
+                    ]
+                  },
+                  "seed": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "previous": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "result",
+                      "receipt"
+                    ],
+                    "properties": {
+                      "result": {
+                        "type": "object"
+                      },
+                      "receipt": {
+                        "type": "string",
+                        "maxLength": 3000
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Private/no-store server clock and, for reveal, an upright card. First-party callers may receive an X-Wenbu-Receipt header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "clock"
+                  ],
+                  "properties": {
+                    "clock": {
+                      "type": "object",
+                      "required": [
+                        "date",
+                        "timezone",
+                        "serverNow",
+                        "nextAt"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "timezone": {
+                          "type": "string"
+                        },
+                        "serverNow": {
+                          "type": "integer",
+                          "description": "Server epoch milliseconds"
+                        },
+                        "nextAt": {
+                          "type": "integer",
+                          "description": "Next local midnight epoch milliseconds; DST-aware"
+                        }
+                      }
+                    },
+                    "result": {
+                      "type": "object",
+                      "description": "Tarot result with one upright card and daily version/date/timezone. Not a prediction."
+                    },
+                    "practice": {
+                      "type": "object",
+                      "required": [
+                        "action",
+                        "question"
+                      ],
+                      "properties": {
+                        "action": {
+                          "type": "string"
+                        },
+                        "question": {
+                          "type": "string"
+                        }
+                      },
+                      "description": "Original editorial daily practice in the requested locale; no generated prediction."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid IANA timezone, seed, fields or operation"
+          },
+          "429": {
+            "description": "Request rate limit"
+          }
+        }
+      }
+    },
     "/api/v1/bazi": {
       "post": {
         "operationId": "calculate_bazi",

@@ -14,6 +14,7 @@ import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import TarotGallery from '../components/TarotGallery';
 import AnalyticsPreference from '../components/AnalyticsPreference';
 import Home from '../components/Home.astro';
+import DailyPage from '../components/DailyPage.astro';
 import ToolDesk from '../components/ToolDesk';
 import Journal from '../components/Journal';
 import AgentWorkspace from '../components/AgentWorkspace';
@@ -31,6 +32,7 @@ export function getStaticPaths() {
     'bazi',
     'iching',
     'tarot',
+    'daily',
     'tarot/deck',
     'ziwei',
     'journal',
@@ -65,6 +67,7 @@ const titles: Record<string, [string, string]> = {
   iching: ['免费易经占卜，从一卦看见变化', 'Free I Ching reading & hexagram oracle'],
   'tarot/deck': ['78 张塔罗牌图鉴 · 问卜原创插画与牌义', '78 tarot cards · the illustrated Wenbu deck'],
   tarot: ['免费塔罗占卜，遇见新的视角', 'Free tarot reading · one & three cards'],
+  daily: ['免费日签 · 每天一张塔罗牌与生活小练习', 'Free daily tarot card · a small practice for today'],
   ziwei: ['免费紫微斗数排盘，十二宫可视化', 'Free Zi Wei Dou Shu chart calculator'],
   journal: ['我的手记', 'Your reading journal'],
   move: ['迁移本地记录', 'Move your local history'],
@@ -76,6 +79,10 @@ const titles: Record<string, [string, string]> = {
   sources: ['参考资料与研究来源', 'Sources & further reading'],
 };
 const descriptions: Record<string, [string, string]> = {
+  daily: [
+    '每天免费揭开一张日签：原创塔罗牌面、一个可尝试的小行动和一句晚间回看。无需注册或出生资料，不消耗对话回合；可选账号保存与跨设备回看。',
+    'Reveal a free daily tarot card with original artwork, a small action and a question for later. No account or birth details needed. Save to a free account and revisit across devices.',
+  ],
   move: [
     '把旧站保存在浏览器里的手记和 Agent 对话复制到 wenbu.app。原记录保留，数据不上传到服务器。',
     'Copy the journal and Agent conversations stored in your browser to wenbu.app. Original records stay intact and no history is uploaded to a server.',
@@ -182,6 +189,8 @@ const ctaLabels: Record<string, [string, string]> = {
 >
   {path === '' ? (
     <Home locale={locale} />
+  ) : path === 'daily' ? (
+    <DailyPage locale={locale} />
   ) : path === 'move' ? (
     <DomainMove locale={locale} />
   ) : path === 'tarot/deck' ? (

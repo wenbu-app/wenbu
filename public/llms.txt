@@ -4,6 +4,8 @@
 
 ## Tools
 
+- [Daily card](https://wenbu.app/en/daily/): a free, stable upright card for the current local date, one small action and a reflection prompt. No birth data, model call or signup required. Optional account save. `POST /api/v1/daily` with `{"action":"reveal","timezone":"Asia/Shanghai"}`; native clients may pass a stable random UUID `seed`. Without it, native clients receive the shared public card. No private account access via CLI or MCP.
+
 - [Agent workspace](https://wenbu.app/en/agent/): DeepSeek conversations, calculated charts and research from the Wenbu library and selected references. History is saved in this browser; sending a message shares the conversation and selected context with DeepSeek
 - [BaZi calculator](https://wenbu.app/en/bazi/): date, time, timezone and explicit calendar conventions
 - [I Ching](https://wenbu.app/en/iching/): three-coin method with all changing lines

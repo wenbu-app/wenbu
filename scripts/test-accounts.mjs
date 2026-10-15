@@ -926,6 +926,139 @@ try {
       (await db.prepare('SELECT COUNT(*) n FROM session').first()).n === 0 &&
       (await db.prepare('SELECT id FROM user WHERE id=?').bind(a.data.user.id).first()) === null,
   );
+  // Daily card continuity uses the production auth, receipt and native D1 paths.
+  const dailyBody = { action: 'reveal', timezone: 'Asia/Shanghai', locale: 'en' };
+  const dailyGuest = await call('/api/v1/daily', 'POST', dailyBody);
+  check(
+    'daily guest receives an upright card and signed save receipt without a model call',
+    dailyGuest.status === 200 &&
+      dailyGuest.data.result.cards.length === 1 &&
+      dailyGuest.data.result.cards[0].reversed === false &&
+      !!dailyGuest.headers.get('x-wenbu-receipt'),
+  );
+  const dailyGuestAgain = await call(
+    '/api/v1/daily',
+    'POST',
+    { ...dailyBody, locale: 'zh' },
+    dailyGuest.cookie,
+  );
+  check(
+    'daily guest cookie keeps the same card across reload and language',
+    dailyGuestAgain.data.result.cards[0].id === dailyGuest.data.result.cards[0].id,
+  );
+  const dailyStatus = await call(
+    '/api/v1/daily',
+    'POST',
+    { ...dailyBody, action: 'status' },
+    dailyGuest.cookie,
+  );
+  check(
+    'daily status does not create a result receipt or expose a card',
+    dailyStatus.status === 200 && !dailyStatus.data.result && !dailyStatus.headers.get('x-wenbu-receipt'),
+  );
+  const dailyA = await login('daily-a@wenbu.test'),
+    dailyB = await login('daily-b@wenbu.test');
+  const dailyACookie = dailyA.cookie + '; ' + dailyGuest.cookie;
+  const adopted = await call(
+    '/api/v1/daily',
+    'POST',
+    {
+      ...dailyBody,
+      previous: { result: dailyGuest.data.result, receipt: dailyGuest.headers.get('x-wenbu-receipt') },
+    },
+    dailyACookie,
+  );
+  check(
+    'daily signup preserves a cryptographically verified guest card',
+    adopted.status === 200 && adopted.data.result.cards[0].id === dailyGuest.data.result.cards[0].id,
+  );
+  const dailyId = 'daily-' + adopted.data.clock.date + '-' + randomUUID();
+  const dailyContent = {
+    id: dailyId,
+    kind: 'tarot',
+    createdAt: new Date().toISOString(),
+    result: adopted.data.result,
+    question: 'Synthetic daily card',
+    note: 'Synthetic reflection',
+    receipt: adopted.headers.get('x-wenbu-receipt'),
+  };
+  const dailySaved = await call(
+    '/api/account/records/journal/' + dailyId,
+    'PUT',
+    { requestId: randomUUID(), revision: 0, content: dailyContent, source: 'current' },
+    dailyACookie,
+  );
+  check(
+    'daily card and reflection persist through the real account protocol',
+    dailySaved.status === 200 && dailySaved.data.revision === 1,
+  );
+  const dailyRestored = await call(
+    '/api/account/records/journal/' + dailyId,
+    'GET',
+    undefined,
+    dailyA.cookie,
+  );
+  check(
+    'daily cloud read keeps date, exact card and reflection',
+    dailyRestored.data.content.result.daily.date === adopted.data.clock.date &&
+      dailyRestored.data.content.note === 'Synthetic reflection',
+  );
+  const dailyAnotherDevice = await call(
+    '/api/v1/daily',
+    'POST',
+    { ...dailyBody, seed: randomUUID() },
+    dailyA.cookie,
+    { headers: { 'X-Wenbu-Instance': randomUUID() } },
+  );
+  check(
+    'daily account reuses the saved guest card on another device',
+    dailyAnotherDevice.data.result.cards[0].id === adopted.data.result.cards[0].id,
+  );
+  check(
+    'another account cannot read the daily journal record',
+    (await call('/api/account/records/journal/' + dailyId, 'GET', undefined, dailyB.cookie)).status === 404,
+  );
+  const dailyBBaseline = await call('/api/v1/daily', 'POST', dailyBody, dailyB.cookie);
+  const tampered = structuredClone(dailyGuest.data.result);
+  tampered.cards[0].id = (dailyBBaseline.data.result.cards[0].id + 1) % 78;
+  const dailyForged = await call(
+    '/api/v1/daily',
+    'POST',
+    { ...dailyBody, previous: { result: tampered, receipt: dailyGuest.headers.get('x-wenbu-receipt') } },
+    dailyB.cookie,
+  );
+  check(
+    'tampered or foreign guest result cannot choose an account card',
+    dailyForged.data.result.cards[0].id === dailyBBaseline.data.result.cards[0].id,
+  );
+  check(
+    'daily API rejects caller-selected future dates',
+    (await call('/api/v1/daily', 'POST', { ...dailyBody, date: '2099-01-01' }, dailyA.cookie)).status === 422,
+  );
+  const dailyCopyId = 'daily-' + adopted.data.clock.date + '-' + randomUUID();
+  const dailyCopy = await call(
+    '/api/account/records/journal/' + dailyCopyId,
+    'PUT',
+    {
+      requestId: randomUUID(),
+      revision: 0,
+      content: { ...dailyContent, id: dailyCopyId },
+      source: 'current',
+    },
+    dailyACookie,
+  );
+  check('daily restored copy uses a fresh journal ID', dailyCopy.status === 200);
+  check(
+    'daily original may be deleted without erasing its restored copy',
+    (await call('/api/account/records/journal/' + dailyId, 'DELETE', undefined, dailyA.cookie)).status ===
+      200,
+  );
+  const dailyAfterDelete = await call('/api/v1/daily', 'POST', dailyBody, dailyA.cookie);
+  check(
+    'daily lookup preserves a restored copy while respecting the original tombstone',
+    dailyAfterDelete.data.result.cards[0].id === dailyContent.result.cards[0].id &&
+      (await call('/api/account/records/journal/' + dailyId, 'GET', undefined, dailyA.cookie)).status === 404,
+  );
   mailFailure = true;
   const fail = await call('/api/auth/email-otp/send-verification-otp', 'POST', {
     email: 'failure@wenbu.test',

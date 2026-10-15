@@ -38,8 +38,15 @@ for (const f of htmlFiles) {
     if (!/\bdisabled(?:="")?(?:\s|>)/.test(inputGroup))
       errors.push(f + ': tool input must not accept values before hydration');
   }
+  if (/^\/(en\/)?daily\/$/.test(url)) {
+    for (const name of ['daily-card-back', 'daily-reveal-button']) {
+      const button = html.match(new RegExp('<button\\b[^>]*class="[^"]*' + name + '[^"]*"[^>]*>'))?.[0] || '';
+      if (!/\bdisabled(?:="")?(?:\s|>)/.test(button))
+        errors.push(f + ': daily reveal must wait for hydration');
+    }
+  }
   if (
-    /^\/(en\/)?(agent|bazi|iching|tarot|ziwei|journal)\/$/.test(url) &&
+    /^\/(en\/)?(daily|agent|bazi|iching|tarot|ziwei|journal)\/$/.test(url) &&
     !/<main\b[^>]*data-clarity-mask="true"/.test(html)
   )
     errors.push(f + ': missing Clarity private-content mask');

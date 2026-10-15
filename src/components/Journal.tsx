@@ -7,6 +7,7 @@ import ReadingView from './ReadingView';
 import CloudSaveStatus from './CloudSaveStatus';
 import RecordBoundary from './RecordBoundary';
 import { initializeAccount } from '../lib/account-client';
+import { isDailyReading, dailyPractice } from '../lib/daily';
 export default function Journal({ locale }: { locale: Locale }) {
   const t = (zh: string, en: string) => choose(locale, zh, en);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -157,7 +158,10 @@ export default function Journal({ locale }: { locale: Locale }) {
                   }}
                 >
                   <span className="eyebrow">
-                    {t(toolInfo[e.kind].zh, toolInfo[e.kind].en)} ·{' '}
+                    {isDailyReading(e.result)
+                      ? t('日签', 'Daily card')
+                      : t(toolInfo[e.kind].zh, toolInfo[e.kind].en)}{' '}
+                    ·{' '}
                     {new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en-GB', {
                       month: 'short',
                       day: 'numeric',
@@ -220,6 +224,17 @@ export default function Journal({ locale }: { locale: Locale }) {
                 <RecordBoundary key={current.id} locale={locale}>
                   <ReadingView result={current.result} locale={locale} />
                 </RecordBoundary>
+                {isDailyReading(current.result) && (
+                  <div className="reflection-callout">
+                    <span>{t('这一签的小行动', 'A SMALL ACTION FROM THIS CARD')}</span>
+                    <p>{dailyPractice(current.result, locale).action}</p>
+                    <span>{t('回看问题', 'A QUESTION FOR LATER')}</span>
+                    <p>{dailyPractice(current.result, locale).question}</p>
+                    <a className="text-link" href={href(locale, 'daily')}>
+                      {t('打开日签，继续记录', 'Open your daily card to keep reflecting')} ↗
+                    </a>
+                  </div>
+                )}
                 {current.answer && (
                   <div className="ai-reading">
                     <span className="eyebrow">{t('AI 生成的象征性解读', 'AI-GENERATED REFLECTION')}</span>

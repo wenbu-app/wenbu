@@ -1,5 +1,21 @@
 // Shared translations for the administrative UI; user-provided content is never translated.
 export const insightsEnglish: Record<string, string> = {
+  日签: 'Daily card',
+  日签服务成功响应: 'Daily card server response',
+  日签首次揭开可见: 'First daily card reveal visible',
+  回看已揭开的日签: 'Revisited a daily card',
+  保存日签笔记到浏览器: 'Daily reflection saved in browser',
+  从日签继续对话: 'Daily card carried into Agent',
+  日签入口: 'Daily card entry',
+  揭开日签: 'Reveal daily card',
+  日签账号保存邀请: 'Daily card account-save invitation',
+  日签回看笔记: 'Daily card reflection',
+  日签带入对话: 'Carry daily card into Agent',
+  日签历史: 'Daily card history',
+  导出日签: 'Export daily card',
+  日签内容推广: 'Daily card campaign',
+  '服务器确认完成非示例计算、解读、日签响应或问卜 Agent 回合的去重浏览器标识；仅统计可关联标识的浏览器流量。日签响应不等于结果已被看见。':
+    'Distinct browser IDs linked to a server-confirmed non-example calculation, interpretation, daily card response or completed Wenbu Agent turn. A daily card response does not prove that the result was viewed.',
   已完成观察的试用队列: 'Fully observed trial cohorts',
   '成熟试用队列 · 7 天转化': 'Mature trials · 7-day conversion',
   首次完成日期: 'First completed',

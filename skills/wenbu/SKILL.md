@@ -76,6 +76,10 @@ Current limits: 12 Agent turns per network per Shanghai day, up to five model ca
 
 ## 中文使用要点
 
+每日日签：`POST https://wenbu.app/api/v1/daily`，请求 `{"action":"reveal","timezone":"Asia/Shanghai","locale":"zh"}`。也可以使用 `node wenbu.mjs daily '{"timezone":"Asia/Shanghai"}'`。返回服务器日期、下次当地零点和一张固定正位牌。`action:"status"` 只查询日期，不揭牌。原生调用可传一个稳定的随机 UUID `seed` 来区分用户；不要使用邮箱、生日或其他个人标识。未传 seed 的原生客户端共用公开日签，与网页游客或账号的日签不保证相同。无需模型或出生资料；不要描述成个人流日计算、吉凶概率或经过验证的预测。牌义练习和用户笔记应明确区分。网页的跨设备保存需要用户主动登录，公开 CLI/MCP 不能读取私人历史。
+
+Daily card: use `POST /api/v1/daily` with `{"action":"reveal","timezone":"UTC","locale":"en"}` or `node wenbu.mjs daily '{"timezone":"UTC"}'`. The server supplies the date and next local midnight. `status` returns only the clock. Native clients may pass a stable random UUID `seed` (never an email or birth detail); without a seed they share a public card, which need not match the website identity. This uses no model and makes no predictive claim. Preserve the returned card rather than drawing a replacement. Private account history is not available to public native clients.
+
 先确定用户想做什么，再收集必要资料。不知道怎么开始时，可以给出「看懂命盘」「围绕一件事思考」「查一个术语」「比较计算约定」等选项，不必一开始就索要出生资料。
 
 MCP 供用户自己的 Agent 调用计算和资料工具，不会调用问卜的 DeepSeek；内置 Agent 才会把消息和所选上下文发给 DeepSeek。每次明确填写 `locale:"zh"` 可以避免接口默认语言差异。导出的资料包与 `/api/v1/agent` 请求不是同一种格式，发送前按协议选择字段。

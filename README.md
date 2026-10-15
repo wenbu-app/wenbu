@@ -20,6 +20,7 @@ Connect remote MCP at `https://wenbu.app/mcp`, use the dependency-free CLI, or i
 
 | 你想做什么               | 建议入口                                                             | 需要准备什么                                         |
 | ------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------- |
+| 每天留一点新的视角       | [日签](https://wenbu.app/daily/) | 不用填写资料；免费揭牌、记录和回看，不消耗对话回合 |
 | 还不知道怎么问           | [Agent 对话](https://wenbu.app/agent/)                               | 选一个主题和目标，再修改生成的草稿；点击发送后才开始 |
 | 围绕眼前一件事思考       | [塔罗](https://wenbu.app/tarot/) / [易经](https://wenbu.app/iching/) | 一个具体问题，不需要出生资料                         |
 | 看出生资料对应的传统命盘 | [八字](https://wenbu.app/bazi/) / [紫微](https://wenbu.app/ziwei/)   | 公历生日与当地时间；八字还需时区，紫微必须知道时刻   |
@@ -28,6 +29,8 @@ Connect remote MCP at `https://wenbu.app/mcp`, use the dependency-free CLI, or i
 传统符号适合学习和自我反思。历法计算能否复核，与解释能否预测现实是两件事；问卜不把排盘结果当作人生结论。
 
 ### 有哪些功能
+
+- 日签：每天一张固定正位牌、一个小行动和一个回看问题，配原创牌面与克制揭签动效。无需资料或模型回合，可选云端保存、笔记和带原牌继续对话。[Daily card in English](https://wenbu.app/en/daily/).
 
 - 八字：四柱、可见五行计数、未知时辰处理、午夜或子初换日选项，以及可选的近似真太阳时修正。五行数量不等于旺衰或喜用神。
 - 易经：三钱法起卦，保留自下而上的六爻、动爻、本卦与之卦。
@@ -43,6 +46,8 @@ Connect remote MCP at `https://wenbu.app/mcp`, use the dependency-free CLI, or i
 未登录时，会话与手记暂存在当前浏览器。邮箱验证码登录后可开启云端记录、选择导入旧记录，并跨设备回看；不要求注册才能查看完整结果。计算请求会发送至问卜的 Cloudflare 服务；使用 AI 时，消息和所选上下文会经该服务发送给 DeepSeek。导出文件可能包含私人资料，下载不等于自动分享，也不等于匿名化。详见[隐私说明](https://wenbu.app/privacy/)。
 
 ## Start with a question
+
+For a short daily practice, try the [free daily card](https://wenbu.app/en/daily/): one stable upright card for the local date, an original action prompt and a question for later. No birth details, account or Agent turn required. Keep a note, optionally save to an account, or explicitly carry the same card into a conversation. It is a reflective practice, not a personal horoscope.
 
 Use [Wenbu Agent](https://wenbu.app/en/agent/) if you would like help framing a question. Choose a topic and an aim, edit the suggested draft, then send it. Choosing an option does not submit the draft for you.
 
