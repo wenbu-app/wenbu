@@ -112,7 +112,7 @@ export const editorialReviewSchema = z
     useful: z.boolean(),
     original: z.boolean(),
     natural: z.boolean(),
-    issues: z.array(z.string().max(400)).max(15),
+    issues: z.array(z.string().max(2000)).max(30),
   })
   .strict();
 
@@ -170,7 +170,7 @@ export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], to
     if (/https?:\/\/|<\/?[a-z]|\bTODO\b|\bTBD\b|待补|待核实来源/i.test(full))
       issues.push(`${locale}:unsafe_or_placeholder_text`);
     if (
-      /保证.{0,8}(准确|预测|转运)|百分之百|100% accura|guaranteed.{0,15}(prediction|ranking)|scientifically proven.{0,30}(tarot|astrology)/i.test(
+      /(?<!不|无法|不能|不会)保证[^，。！？;\n]{0,8}(准确|预测|转运)|百分之百|100% accura|(?<!not |no )guaranteed.{0,15}(prediction|ranking)|(?<!not )scientifically proven.{0,30}(tarot|astrology)/i.test(
         full,
       )
     )

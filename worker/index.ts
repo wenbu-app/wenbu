@@ -32,6 +32,7 @@ import { editorialResponse } from './editorial-render';
 import { editorialDiscovery } from './editorial-discovery';
 import {
   dispatchEditorial,
+  recoverEditorial,
   EDITORIAL_CRON,
   EDITORIAL_HEALTH_CRON,
   EDITORIAL_PLANNING_CRON,
@@ -209,6 +210,13 @@ export default {
           if (path === '/api/admin/editorial/run') {
             await seedEditorial(env);
             return json(await dispatchEditorial(env));
+          }
+          if (path === '/api/admin/editorial/recover') {
+            const recovery = z
+              .object({ runId: z.string().regex(/^editorial-[a-z0-9-]{10,90}$/) })
+              .strict()
+              .parse(await boundedBody(request, 2000));
+            return json(await recoverEditorial(env, recovery.runId));
           }
           if (path === '/api/admin/editorial/check') {
             if (!env.EDITORIAL_WORKFLOW) return json({ error: { code: 'editorial_unavailable' } }, 503);

@@ -10,10 +10,15 @@ import {
   failEditorial,
   renewEditorialLease,
 } from '../worker/editorial-store';
-import { dispatchEditorial } from '../worker/editorial-workflow';
+import { dispatchEditorial, recoverEditorial } from '../worker/editorial-workflow';
 import { preserveExtendedMetadata, originalComparisonMarkdown } from '../worker/editorial-render';
 import { editorialModel, researchEditorial } from '../worker/editorial-research';
-import { draftIssues, type EditorialDocument, type ResearchSource } from '../worker/editorial-schema';
+import {
+  draftIssues,
+  publicationSlot,
+  type EditorialDocument,
+  type ResearchSource,
+} from '../worker/editorial-schema';
 const packet: ResearchSource[] = ['daily', 'tarot', 'review'].map((id) => ({
   id,
   ...editorialSources[id],
@@ -108,6 +113,25 @@ describe('editorial review regressions', () => {
     expect(JSON.parse(request.mock.calls[0][1]!.body as string).thinking).toEqual({ type: 'disabled' });
     expect(capture).toHaveBeenCalledOnce();
   });
+  it('requires an eligible blocked run for explicit recovery and retains the original failure', async () => {
+    const { env, sql } = database();
+    env.EDITORIAL_ENABLED = 'true';
+    env.EDITORIAL_WORKFLOW = { createBatch: vi.fn().mockResolvedValue([]) } as unknown as NonNullable<
+      typeof env.EDITORIAL_WORKFLOW
+    >;
+    await seedEditorial(env);
+    const slot = publicationSlot(Date.now()),
+      id = `editorial-${slot}`;
+    await claimEditorial(env, id, slot);
+    expect((await recoverEditorial(env, id)).status).toBe('recovery_ineligible');
+    await failEditorial(env, id, 'editorial_schema_failed');
+    await releaseEditorial(env, id);
+    const recovered = await recoverEditorial(env, id);
+    expect(recovered.status).toBe('queued');
+    expect((await recoverEditorial(env, id)).id).toBe(recovered.id);
+    expect(sql.prepare('SELECT status FROM editorial_runs WHERE id=?').get(id)?.status).toBe('blocked');
+    expect(sql.prepare('SELECT COUNT(*) AS n FROM editorial_runs').get()?.n).toBe(2);
+  });
   it('follows bounded same-site official redirects and rejects redirects to an unrelated host', async () => {
     const { env } = database();
     env.SITE_URL = 'https://wenbu.app';
@@ -170,6 +194,13 @@ describe('editorial review regressions', () => {
     expect(draftIssues(fixtureDraft(), packet, { ...document().topic, slug: 'compare-something' })).toContain(
       'reserved_slug_prefix',
     );
+  });
+  it('keeps explicit rejections of accuracy guarantees while rejecting actual guarantees', () => {
+    const d = fixtureDraft();
+    d.zh.sections[0].paragraphs[0] += ' 它不保证选择正确，也不预测结果。';
+    expect(draftIssues(d, packet, document().topic)).not.toContain('zh:unsupported_claim');
+    d.zh.sections[0].paragraphs[0] += ' 我们保证预测准确。';
+    expect(draftIssues(d, packet, document().topic)).toContain('zh:unsupported_claim');
   });
   it('reads both canonical language editions before extending a guide', async () => {
     const { env } = database();

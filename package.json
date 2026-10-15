@@ -26,7 +26,8 @@
     "smoke": "node scripts/smoke.mjs",
     "audit:knowledge": "node scripts/audit-knowledge.mjs",
     "test:accounts": "node scripts/test-accounts.mjs",
-    "test:editorial": "node scripts/test-editorial.mjs"
+    "test:editorial": "node scripts/test-editorial.mjs",
+    "content:recover": "node scripts/editorial.mjs recover"
   },
   "dependencies": {
     "@astrojs/react": "7.0.0",

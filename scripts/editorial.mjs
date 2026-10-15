@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 const command = process.argv[2] ?? 'status';
-if (!['status', 'run', 'check', 'observe'].includes(command))
-  throw new Error('Use status, run, check or observe.');
+if (!['status', 'run', 'check', 'observe', 'recover'].includes(command))
+  throw new Error('Use status, run, check, observe or recover.');
 const token =
   process.env.WENBU_ADMIN_TOKEN ||
   (
@@ -13,7 +13,14 @@ const token =
 if (!token) throw new Error('Admin credential unavailable; configure WENBU_ADMIN_TOKEN_FILE.');
 const filename = process.argv[3];
 if (command === 'observe' && !filename) throw new Error('Pass a JSON observation file.');
-const body = command === 'observe' ? await readFile(filename, 'utf8') : undefined;
+if (command === 'recover' && !filename)
+  throw new Error('Pass the failed run ID after fixing its underlying issue.');
+const body =
+  command === 'observe'
+    ? await readFile(filename, 'utf8')
+    : command === 'recover'
+      ? JSON.stringify({ runId: filename })
+      : undefined;
 if (body) JSON.parse(body);
 const response = await fetch(
   'https://wenbu.app/api/admin/editorial' + (command === 'status' ? '' : '/' + command),

@@ -70,8 +70,8 @@ const mf = new Miniflare({
             review = input.messages[0].content.startsWith('You are a strict');
           assert.equal(
             input.thinking.type,
-            'disabled',
-            'JSON writing and review do not consume hidden thinking budget',
+            review ? 'enabled' : 'disabled',
+            'draft and editorial review use explicit reasoning budgets',
           );
           if (!review && malformedNext) {
             malformedNext = false;
