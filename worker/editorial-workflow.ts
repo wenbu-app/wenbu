@@ -153,7 +153,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
             deterministicIssues: produced.issues,
             reviewSchema: z.toJSONSchema(editorialReviewSchema),
           }),
-          12000,
+          32768,
           async (record) => {
             await archive(this.env, runId, `model-review-${pass}-${crypto.randomUUID()}`, record);
             await archive(this.env, runId, `model-review-${pass}`, record);
@@ -190,11 +190,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         produced = await step.do('repair-editorial-issues', stepConfig, () =>
           produce({ deterministic: produced.issues, review: checked }, produced.raw),
         );
-        checked = await step.do(
-          'review-repaired-editions',
-          { ...stepConfig, retries: { ...stepConfig.retries, limit: 0 } },
-          () => review(2),
-        );
+        checked = await step.do('review-repaired-editions', stepConfig, () => review(2));
       }
       if (!pass()) {
         await step.do('record-quality-block', async () =>

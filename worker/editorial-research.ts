@@ -68,7 +68,8 @@ export async function researchEditorial(env: Env, topic: EditorialTopic): Promis
       });
     }
   }
-  for (const id of topic.sources) {
+  // Product comparisons must also see the current daily practice, beyond engine/API documentation.
+  for (const id of new Set([...topic.sources, ...(topic.category === 'compare' ? ['daily'] : [])])) {
     const source = editorialSources[id];
     if (!source) throw new Error('unapproved_source');
     const url = new URL(source.url),

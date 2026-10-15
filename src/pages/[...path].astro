@@ -1,4 +1,5 @@
 ---
+import { editorialArt } from '../lib/editorial-art';
 import Layout from '../layouts/Layout.astro';
 import DomainMove from '../components/DomainMove.astro';
 import '../styles/library.css';
@@ -367,8 +368,7 @@ const ctaLabels: Record<string, [string, string]> = {
             {comparisons.map((c) => (
               <a class="editorial-card" href={href(locale, `compare/${c.slug}`)}>
                 <div class="editorial-card-art" aria-hidden="true">
-                  <span>问</span>
-                  <span>⇄</span>
+                  <Fragment set:html={editorialArt('agent', true)} />
                 </div>
                 <small>
                   {c.reviewed} · {t('产品对比', 'PRODUCT COMPARISON')}
@@ -394,6 +394,7 @@ const ctaLabels: Record<string, [string, string]> = {
             {comparisons.map((c) => (
               <a href={href(locale, `compare/${c.slug}`)}>{c[locale].title} ↗</a>
             ))}
+            <a href={href(locale, 'compare')}>{t('查看全部产品对比', 'Browse all product comparisons')} ↗</a>
             <a href={href(locale, 'learn')}>{t('翻开知识手册', 'Browse the library')} ↗</a>
           </div>
         </>
