@@ -11,6 +11,7 @@ export function database() {
   const prepare = (query: string, args: (string | number | null)[] = []) => ({
     bind: (...values: (string | number | null)[]) => prepare(query, values),
     all: async () => ({ results: sql.prepare(query).all(...args), success: true, meta: { changes: 0 } }),
+    first: async () => sql.prepare(query).get(...args) ?? null,
     run: async () => ({
       results: [],
       success: true,

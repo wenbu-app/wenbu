@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Env } from './types';
+import { registerPublishedRoutes } from './editorial-store';
 import { classifyTraffic, contentTarget } from './traffic';
 import {
   actions,
@@ -139,6 +140,7 @@ function trafficValues(request: Request, resource: string, status: number | null
   ];
 }
 export async function collectEvents(raw: unknown, request: Request, env: Env) {
+  if (env.EDITORIAL_ENABLED === 'true') await registerPublishedRoutes(env);
   const { events } = eventBatch.parse(raw);
   if (noTracking(request)) return { accepted: 0 };
   if (!env.ANALYTICS) throw new Error('Analytics unavailable');

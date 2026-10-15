@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import config from '../src/data/indexnow.json';
 import type { Env } from './types';
+import { mergePublishedManifest } from './editorial-discovery';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const manifestSchema = z.object({
@@ -14,7 +15,7 @@ const manifestSchema = z.object({
 });
 type State = { lease_owner: string; retry_at: number; failures: number };
 type Page = { url: string; content_hash: string };
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 10;
 const LEASE_MS = 5 * 60_000;
 export const INDEXNOW_CRON = '*/15 * * * *';
 
@@ -39,13 +40,19 @@ export async function indexNowStatus(env: Env) {
     ).all(),
     env.ANALYTICS.prepare('SELECT COUNT(*) AS total FROM indexnow_pages').all(),
     env.ANALYTICS.prepare(
-      'SELECT id, submitted_at, revision, http_status, outcome, url_count FROM indexnow_submissions ORDER BY submitted_at DESC LIMIT 20',
+      'SELECT id, submitted_at, revision, http_status, outcome, url_count, retry_after_ms, endpoint_host, response_request_id, failure_streak FROM indexnow_submissions ORDER BY submitted_at DESC LIMIT 20',
     ).all(),
   ]);
   return {
     available: true,
     origin: config.origin,
     schedule: INDEXNOW_CRON,
+    batchPolicy: {
+      normal: BATCH_SIZE,
+      repeatedFailure: 1,
+      receiptCooldownMinutes: 60,
+      fingerprints: 'substantive_content_v2',
+    },
     trackedPages: pages.results[0]?.total ?? 0,
     state: state.results[0],
     receipts: receipts.results,
@@ -91,7 +98,7 @@ export async function submitIndexNow(env: Env) {
     if (raw.length > 2_000_000) throw new Error('manifest_too_large');
     const parsed = manifestSchema.safeParse(JSON.parse(raw));
     if (!parsed.success) throw new Error('manifest_invalid');
-    const manifest = parsed.data;
+    const manifest = await mergePublishedManifest(env, parsed.data);
     const current = new Map(manifest.pages.map((p) => [p.url, p.hash]));
     if (current.size !== manifest.pages.length || !manifest.pages.every((p) => canonicalUrl(p.url)))
       throw new Error('manifest_invalid_urls');
@@ -124,7 +131,9 @@ export async function submitIndexNow(env: Env) {
     const keyLocation = `${config.origin}/${config.key}.txt`;
     const key = await env.ASSETS.fetch(new Request(keyLocation, { signal: AbortSignal.timeout(10_000) }));
     if (key.status !== 200 || (await key.text()).trim() !== config.key) throw new Error('key_unavailable');
-    const batch = changes.slice(0, BATCH_SIZE),
+    // New URLs have not been received before. Prioritize them, then changed pages and removals.
+    changes.sort((a, b) => Number(previous.has(a.url)) - Number(previous.has(b.url)));
+    const batch = changes.slice(0, failures >= 3 ? 1 : BATCH_SIZE),
       urls = batch.map((p) => p.url);
     const ownership = await db
       .prepare('SELECT id FROM indexnow_state WHERE id = 1 AND lease_owner = ? AND lease_until > ?')
@@ -134,13 +143,17 @@ export async function submitIndexNow(env: Env) {
     let httpStatus: number | null = null,
       retryAfter = 0;
     let transportError: string | null = null;
+    let responseRequestId: string | null = null;
     try {
       const response = await fetch(config.endpoint, {
         method: 'POST',
         // workerd rejects redirect: 'error'. Do not follow a redirect with our POST body.
         redirect: 'manual',
         signal: AbortSignal.timeout(30_000),
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'User-Agent': 'WenbuIndexNow/2.0 (+https://wenbu.app/about/)',
+        },
         body: JSON.stringify({
           host: new URL(config.origin).host,
           key: config.key,
@@ -151,6 +164,12 @@ export async function submitIndexNow(env: Env) {
       httpStatus = response.status;
       const header = response.headers.get('Retry-After');
       if (header) retryAfter = /^\d+$/.test(header) ? Number(header) * 1000 : Date.parse(header) - now;
+      responseRequestId =
+        (
+          response.headers.get('x-request-id') ??
+          response.headers.get('x-msedge-ref') ??
+          response.headers.get('cf-ray')
+        )?.slice(0, 160) ?? null;
       await response.body?.cancel();
     } catch (cause) {
       // Retain the changed URLs for the next attempt. Do not record remote response bodies.
@@ -167,14 +186,14 @@ export async function submitIndexNow(env: Env) {
         : `http_${httpStatus}`;
     const delay = Math.max(
       Math.min(86400_000, 15 * 60_000 * 2 ** Math.min(failures, 7)),
-      Number.isFinite(retryAfter) ? Math.min(Math.max(0, retryAfter), 7 * 86400_000) : 0,
+      Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : 0,
     );
-    const retryAt = received ? 0 : now + delay;
+    const retryAt = received ? (env.EDITORIAL_ENABLED === 'true' ? now + 3600_000 : 0) : now + delay;
     const writes = [
       db
         .prepare(
-          `INSERT INTO indexnow_submissions (id, submitted_at, revision, http_status, outcome, url_count, urls_json)
-        SELECT ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM indexnow_state WHERE id = 1 AND lease_owner = ?)`,
+          `INSERT INTO indexnow_submissions (id, submitted_at, revision, http_status, outcome, url_count, urls_json, retry_after_ms, endpoint_host, response_request_id, failure_streak)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM indexnow_state WHERE id = 1 AND lease_owner = ?)`,
         )
         .bind(
           crypto.randomUUID(),
@@ -184,6 +203,10 @@ export async function submitIndexNow(env: Env) {
           outcome,
           urls.length,
           JSON.stringify(urls),
+          Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : null,
+          new URL(config.endpoint).hostname,
+          responseRequestId,
+          received ? 0 : failures + 1,
           owner,
         ),
     ];

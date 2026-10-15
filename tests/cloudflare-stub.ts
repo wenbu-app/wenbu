@@ -4,3 +4,9 @@ export class DurableObject {
     public env: unknown,
   ) {}
 }
+export class WorkflowEntrypoint {
+  constructor(
+    public ctx: unknown,
+    public env: unknown,
+  ) {}
+}

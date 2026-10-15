@@ -172,6 +172,7 @@ export const pagePaths = [
   'ziwei',
   'journal',
   'learn',
+  'compare',
   'blog',
   'blog/connect-your-agent',
   'agents',
@@ -209,13 +210,23 @@ export const pagePaths = [
   'blog/a-reading-you-can-return-to',
   'blog/why-calculation-comes-first',
 ] as const;
+const registeredEditorialPaths = new Set<string>();
+export function registerEditorialPaths(paths: string[]) {
+  for (const path of paths)
+    if (/^(?:learn|compare)\/[a-z][a-z0-9-]{2,65}$/.test(path)) registeredEditorialPaths.add(path);
+}
+export function isEditorialPath(path: string) {
+  return registeredEditorialPaths.has(path.replace(/^\//, '').replace(/\/$/, ''));
+}
 export function safePage(path: string): string {
   const p = path
     .split(/[?#]/)[0]
     .replace(/^\//, '')
     .replace(/^en\/?/, '')
     .replace(/\/$/, '');
-  return (pagePaths as readonly string[]).includes(p) ? '/' + (p ? p + '/' : '') : '/other/';
+  return (pagePaths as readonly string[]).includes(p) || registeredEditorialPaths.has(p)
+    ? '/' + (p ? p + '/' : '')
+    : '/other/';
 }
 export function referrerSource(referrer: string, origin: string): (typeof sources)[number] {
   if (!referrer) return 'direct';

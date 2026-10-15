@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import '../styles/editorial.css';
 import FeedbackWidget from '../components/FeedbackWidget.astro';
 import AccountPanel from '../components/AccountPanel';
 import '@fontsource-variable/dm-sans';
@@ -303,7 +304,7 @@ const schema = {
             <a href={href(locale, 'learn')}>{t('知识手册', 'The library')}</a>
             <a href={href(locale, 'methodology')}>{t('计算与依据', 'Our methodology')}</a>
             <a href={href(locale, 'sources')}>{t('参考文献', 'Sources & reading')}</a>
-            <a href={href(locale, 'compare/fatetell')}>Wenbu & FateTell</a>
+            <a href={href(locale, 'compare')}>{t('产品对比', 'Compare products')}</a>
           </div>
           <div>
             <span>{t('关于', 'WENBU')}</span>

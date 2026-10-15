@@ -5,7 +5,7 @@ import {
   type actorPurposes,
   type classificationEvidence,
 } from '../src/lib/traffic-contract';
-import { pagePaths, safePage } from '../src/lib/analytics-contract';
+import { pagePaths, safePage, isEditorialPath } from '../src/lib/analytics-contract';
 import { articles } from '../src/data/articles';
 
 type Type = (typeof actorTypes)[number];
@@ -143,15 +143,19 @@ export function contentTarget(request: Request) {
   if (discovery.has(path)) return { page: path, resource: 'discovery', locale: 'en' };
   if (path === '/knowledge/index.json') return { page: path, resource: 'json', locale: 'en' };
   const guide = path.match(/^\/knowledge\/(zh|en)\/([a-z0-9-]+)\.(md|json)$/);
-  if (guide && guides.has(guide[2]))
+  if (
+    guide &&
+    (guides.has(guide[2]) ||
+      isEditorialPath(guide[2].startsWith('compare-') ? 'compare/' + guide[2].slice(8) : 'learn/' + guide[2]))
+  )
     return {
-      page: `/learn/${guide[2]}/`,
+      page: guide[2].startsWith('compare-') ? `/compare/${guide[2].slice(8)}/` : `/learn/${guide[2]}/`,
       resource: guide[3] === 'md' ? 'markdown' : 'json',
       locale: guide[1],
     };
   const normalized = path.replace(/^\/en(?=\/|$)/, '') || '/';
   const canonical = normalized.endsWith('/') ? normalized : normalized + '/';
-  if (!publicPaths.has(canonical)) return;
+  if (!publicPaths.has(canonical) && !isEditorialPath(canonical)) return;
   return {
     page: safePage(canonical),
     resource: 'html',

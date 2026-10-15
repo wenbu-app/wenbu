@@ -29,4 +29,7 @@ export interface Env {
   AGENT_GLOBAL_DAILY_LIMIT?: string;
   AI_NETWORK_DAILY_LIMIT?: string;
   AGENT_NETWORK_DAILY_LIMIT?: string;
+  EDITORIAL_ENABLED?: string;
+  EDITORIAL_AUTOPUBLISH?: string;
+  EDITORIAL_WORKFLOW?: Workflow<{ kind: 'content' | 'health' | 'planning'; slot?: string }>;
 }

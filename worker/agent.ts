@@ -10,7 +10,8 @@ import {
   readingInput,
   toolTrace,
 } from './agent-tools';
-import { libraryDocuments, libraryContextSnapshot, readLibrary, readReference } from './agent-library';
+import { readReference } from './agent-library';
+import { completeLibraryDocuments, completeLibrarySnapshot, readCompleteLibrary } from './editorial-library';
 import { reportConclusion } from '../src/lib/agent-outcome';
 import { reportSourceIds } from '../src/lib/agent-report';
 import { allowsClarification, writtenQuestion } from './agent-guidance-policy';
@@ -253,7 +254,7 @@ export async function agentResponse(
   const generatedRandom = new Set<string>();
   const allowNewDraw = input.newDraw || requestsNewDraw(input.message);
   const sourceContext = new Map<string, unknown>();
-  const catalogue = libraryDocuments(input.locale);
+  const catalogue = await completeLibraryDocuments(input.locale, env);
   const knownDocumentIds = new Set(catalogue.map((document) => document.id));
   const knownReferenceIds = new Set(
     catalogue.filter((document) => document.kind === 'reference').map((document) => document.id),
@@ -266,7 +267,7 @@ export async function agentResponse(
   for (const id of input.context.sourceIds) {
     if (id.startsWith('reference-')) continue; // External pages must actually be read again, never trust client receipts.
     try {
-      const doc = libraryContextSnapshot(id, input.locale);
+      const doc = await completeLibrarySnapshot(id, input.locale, env);
       if (!doc.requiresReadBeforeCitation) sources.set(doc.source.id, doc.source);
       sourceContext.set(doc.source.id, doc);
     } catch {
@@ -437,7 +438,7 @@ export async function agentResponse(
             const doc =
               name === 'read_reference'
                 ? await readReference(id, abort.signal)
-                : readLibrary(id, input.locale);
+                : await readCompleteLibrary(id, input.locale, undefined, env);
             sources.set(doc.source.id, doc.source);
             sourceContext.set(doc.source.id, doc);
             emit({ type: 'source', source: doc.source });
@@ -653,6 +654,7 @@ export async function agentResponse(
             try {
               toolInput = JSON.parse(call.function.arguments);
               const output = await executeAgentTool(call.function.name, toolInput, {
+                env,
                 locale: input.locale,
                 signal: abort.signal,
                 emit: (event) => {

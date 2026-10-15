@@ -38,6 +38,7 @@ export function getStaticPaths() {
     'journal',
     'move',
     'learn',
+    'compare',
     'blog',
     'agents',
     'agent',
@@ -72,6 +73,7 @@ const titles: Record<string, [string, string]> = {
   journal: ['我的手记', 'Your reading journal'],
   move: ['迁移本地记录', 'Move your local history'],
   learn: ['知识手册', 'The Wenbu library'],
+  compare: ['选择适合你的工具', 'Find the right tool for your question'],
   blog: ['问卜札记', 'Notes from Wenbu'],
   agents: ['与你的 Agent 一起探索', 'Wenbu for agents · MCP, CLI & Skills'],
   agent: ['命理 Agent · 对话、排盘与有依据的研习', 'Wenbu Agent · chat, charts & sourced research'],
@@ -340,6 +342,32 @@ const ctaLabels: Record<string, [string, string]> = {
       )}
       {path === 'journal' && <Journal locale={locale} client:load />}
       {path === 'learn' && <KnowledgeLibrary locale={locale} />}
+      {(path === 'learn' || path === 'compare') && <div data-editorial-catalogue></div>}
+      {path === 'compare' && (
+        <section class="editorial-catalogue">
+          <p>
+            {t(
+              '从你想完成的事出发，对照免费范围、使用方式、记录与开放接口。公开页面核对不等于付费体验测试。',
+              'Compare access, workflows, records and integrations for the task you have. A public-page review is not a paid-account test.',
+            )}
+          </p>
+          <div class="editorial-cards">
+            {comparisons.map((c) => (
+              <a class="editorial-card" href={href(locale, `compare/${c.slug}`)}>
+                <div class="editorial-card-art" aria-hidden="true">
+                  <span>问</span>
+                  <span>⇄</span>
+                </div>
+                <small>
+                  {c.reviewed} · {t('产品对比', 'PRODUCT COMPARISON')}
+                </small>
+                <h3>{c[locale].title}</h3>
+                <p>{c[locale].description}</p>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
       {path === 'blog' && (
         <>
           <div class="article-grid library-grid">

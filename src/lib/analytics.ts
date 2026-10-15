@@ -9,6 +9,7 @@ import {
   mediums,
   referrerSource,
   safePage,
+  registerEditorialPaths,
   sources,
   type ClientEvent,
   type tools,
@@ -229,6 +230,8 @@ async function flush() {
   }
 }
 export function initializeAnalytics() {
+  const editorialPath = document.querySelector('meta[name="wenbu-editorial-path"]')?.getAttribute('content');
+  if (editorialPath) registerEditorialPaths([editorialPath]);
   syncAnalyticsPreference();
   try {
     if (isAnalyticsTest())
