@@ -1,6 +1,6 @@
 {
   "name": "wenbu",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
   "description": "Wenbu · 问卜 — free, transparent tools for Eastern wisdom and reflection.",
@@ -13,15 +13,22 @@
     "deploy": "npm run build && wrangler deploy && node scripts/indexnow.mjs --after-deploy",
     "indexnow:submit": "node scripts/indexnow.mjs",
     "indexnow:status": "node scripts/indexnow.mjs --status",
+    "content:status": "node scripts/editorial.mjs status",
+    "content:run": "node scripts/editorial.mjs run",
+    "content:check": "node scripts/editorial.mjs check",
+    "content:observe": "node scripts/editorial.mjs observe",
     "lint": "eslint .",
     "format": "prettier --write .",
     "audit:site": "node scripts/audit-site.mjs",
     "audit:art": "node scripts/audit-art.mjs",
-    "verify": "npm run check && npm test && npm run test:accounts && npm run build && npm run audit:site && npm run audit:art && npm run audit:knowledge && npm run audit:indexnow",
+    "verify": "npm run check && npm test && npm run test:accounts && npm run build && npm run test:editorial && npm run audit:site && npm run audit:art && npm run audit:knowledge && npm run audit:indexnow",
     "audit:indexnow": "node scripts/audit-indexnow.mjs",
     "smoke": "node scripts/smoke.mjs",
     "audit:knowledge": "node scripts/audit-knowledge.mjs",
-    "test:accounts": "node scripts/test-accounts.mjs"
+    "test:accounts": "node scripts/test-accounts.mjs",
+    "test:editorial": "node scripts/test-editorial.mjs",
+    "content:recover": "node scripts/editorial.mjs recover",
+    "content:revise": "node scripts/editorial.mjs revise"
   },
   "dependencies": {
     "@astrojs/react": "7.0.0",

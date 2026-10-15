@@ -1,4 +1,5 @@
 ---
+import { editorialArt } from '../lib/editorial-art';
 import Layout from '../layouts/Layout.astro';
 import DomainMove from '../components/DomainMove.astro';
 import '../styles/library.css';
@@ -38,6 +39,7 @@ export function getStaticPaths() {
     'journal',
     'move',
     'learn',
+    'compare',
     'blog',
     'agents',
     'agent',
@@ -72,6 +74,7 @@ const titles: Record<string, [string, string]> = {
   journal: ['我的手记', 'Your reading journal'],
   move: ['迁移本地记录', 'Move your local history'],
   learn: ['知识手册', 'The Wenbu library'],
+  compare: ['命理与塔罗工具，怎样选择？', 'Compare tarot and astrology tools'],
   blog: ['问卜札记', 'Notes from Wenbu'],
   agents: ['与你的 Agent 一起探索', 'Wenbu for agents · MCP, CLI & Skills'],
   agent: ['命理 Agent · 对话、排盘与有依据的研习', 'Wenbu Agent · chat, charts & sourced research'],
@@ -79,6 +82,10 @@ const titles: Record<string, [string, string]> = {
   sources: ['参考资料与研究来源', 'Sources & further reading'],
 };
 const descriptions: Record<string, [string, string]> = {
+  compare: [
+    '对比问卜与 FateTell、Labyrinthos 等工具的免费范围、学习方式、手记与 Agent 接口。按具体需求选择，查看官方来源与适用边界。',
+    'Compare Wenbu with FateTell, Labyrinthos and other tarot and astrology tools. Check free access, learning, journals and agent connections against official sources.',
+  ],
   daily: [
     '每天免费揭开一张日签：原创塔罗牌面、一个可尝试的小行动和一句晚间回看。无需注册或出生资料，不消耗对话回合；可选账号保存与跨设备回看。',
     'Reveal a free daily tarot card with original artwork, a small action and a question for later. No account or birth details needed. Save to a free account and revisit across devices.',
@@ -229,7 +236,15 @@ const ctaLabels: Record<string, [string, string]> = {
               <span>/</span>
             </>
           ) : null}
-          <span>{kind ? t(tool!.zh, tool!.en) : article ? t('阅读', 'Reading') : t('探索', 'Explore')}</span>
+          <span>
+            {kind
+              ? t(tool!.zh, tool!.en)
+              : article
+                ? t('阅读', 'Reading')
+                : path === 'compare'
+                  ? t('产品对比', 'Product comparisons')
+                  : t('探索', 'Explore')}
+          </span>
         </div>
         <span class="eyebrow">
           {(tool ? t(tool.eyebrowZh, tool.eyebrow) : null) ||
@@ -237,8 +252,8 @@ const ctaLabels: Record<string, [string, string]> = {
               ? article.category === 'blog'
                 ? t('问卜札记', 'NOTES FROM WENBU')
                 : t('知识手册', 'THE WENBU LIBRARY')
-              : comparison
-                ? t('产品比较', 'PRODUCT COMPARISON')
+              : comparison || path === 'compare'
+                ? t('产品比较', 'PRODUCT COMPARISONS')
                 : path === 'learn'
                   ? t('一起从基础读起', 'A GUIDE TO GETTING STARTED')
                   : path === 'journal'
@@ -340,6 +355,31 @@ const ctaLabels: Record<string, [string, string]> = {
       )}
       {path === 'journal' && <Journal locale={locale} client:load />}
       {path === 'learn' && <KnowledgeLibrary locale={locale} />}
+      {(path === 'learn' || path === 'compare') && <div data-editorial-catalogue></div>}
+      {path === 'compare' && (
+        <section class="editorial-catalogue">
+          <p>
+            {t(
+              '从你想完成的事出发，对照免费范围、使用方式、记录与开放接口。公开页面核对不等于付费体验测试。',
+              'Compare access, workflows, records and integrations for the task you have. A public-page review is not a paid-account test.',
+            )}
+          </p>
+          <div class="editorial-cards">
+            {comparisons.map((c) => (
+              <a class="editorial-card" href={href(locale, `compare/${c.slug}`)}>
+                <div class="editorial-card-art" aria-hidden="true">
+                  <Fragment set:html={editorialArt('agent', true)} />
+                </div>
+                <small>
+                  {c.reviewed} · {t('产品对比', 'PRODUCT COMPARISON')}
+                </small>
+                <h3>{c[locale].title}</h3>
+                <p>{c[locale].description}</p>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
       {path === 'blog' && (
         <>
           <div class="article-grid library-grid">
@@ -354,6 +394,7 @@ const ctaLabels: Record<string, [string, string]> = {
             {comparisons.map((c) => (
               <a href={href(locale, `compare/${c.slug}`)}>{c[locale].title} ↗</a>
             ))}
+            <a href={href(locale, 'compare')}>{t('查看全部产品对比', 'Browse all product comparisons')} ↗</a>
             <a href={href(locale, 'learn')}>{t('翻开知识手册', 'Browse the library')} ↗</a>
           </div>
         </>

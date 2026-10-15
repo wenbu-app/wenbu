@@ -4,7 +4,9 @@ import { castSchema, tarotSchema, ziweiSchema, type Locale } from '../src/lib/sc
 import type { AgentEvent, AgentSource, ReadingInput, ToolTrace } from '../src/lib/agent-protocol';
 import { agentBirthSchema, reportSchema } from './agent-schema';
 import { reportSourceIds } from '../src/lib/agent-report';
-import { readLibrary, readReference, searchLibrary } from './agent-library';
+import { readReference } from './agent-library';
+import { readCompleteLibrary, searchCompleteLibrary } from './editorial-library';
+import type { Env } from './types';
 
 const planSchema = z
   .object({
@@ -105,6 +107,7 @@ export function readingInput(reading: Reading): ReadingInput {
   };
 }
 type ToolContext = {
+  env?: Env;
   locale: Locale;
   signal: AbortSignal;
   emit: (event: AgentEvent) => void;
@@ -133,14 +136,16 @@ export async function executeAgentTool(name: string, raw: unknown, ctx: ToolCont
   if (key === 'search_library') {
     const data = searchSchema.parse(input);
     return {
-      results: searchLibrary(data.query, ctx.locale, data.limit),
+      results: await searchCompleteLibrary(data.query, ctx.locale, data.limit, ctx.env),
       scope: 'Wenbu curated library and reference catalogue; not the whole web.',
     };
   }
   if (key === 'read_library' || key === 'read_reference') {
     const { id, section } = libraryReadSchema.parse(input);
     const doc =
-      key === 'read_library' ? readLibrary(id, ctx.locale, section) : await readReference(id, ctx.signal);
+      key === 'read_library'
+        ? await readCompleteLibrary(id, ctx.locale, section, ctx.env)
+        : await readReference(id, ctx.signal);
     ctx.sources.set(doc.source.id, doc.source);
     ctx.emit({ type: 'source', source: doc.source });
     return doc;

@@ -102,8 +102,8 @@ describe('deployed IndexNow submissions', () => {
     ]);
     expect(await submitIndexNow(f.env)).toMatchObject({ submitted: 3 });
     expect(JSON.parse(f.send.mock.calls[1][1].body).urlList).toEqual([
-      origin + '/',
       origin + '/learn/',
+      origin + '/',
       origin + '/en/',
     ]);
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'unchanged' });
@@ -209,12 +209,12 @@ describe('deployed IndexNow submissions', () => {
   it('bounds each submission and resumes the remaining changes', async () => {
     const f = fixture();
     f.setEntries(
-      Array.from({ length: 1001 }, (_, i) => ({
+      Array.from({ length: 11 }, (_, i) => ({
         url: `${origin}/learn/test-${i}/`,
         hash: digest(String(i)),
       })),
     );
-    expect(await submitIndexNow(f.env)).toMatchObject({ submitted: 1000, remaining: 1 });
+    expect(await submitIndexNow(f.env)).toMatchObject({ submitted: 10, remaining: 1 });
     expect(await submitIndexNow(f.env)).toMatchObject({ submitted: 1, remaining: 0 });
   });
   it('runs IndexNow only on its own cron, leaving the archive schedule independent', async () => {

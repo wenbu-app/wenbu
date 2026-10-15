@@ -22,7 +22,11 @@ try {
       cache: 'no-store',
       signal: AbortSignal.timeout(20_000),
     });
-    if (deployed.status !== 200 || (await deployed.json()).revision !== local.revision)
+    const deployedManifest = deployed.status === 200 ? await deployed.json() : null;
+    if (
+      !deployedManifest ||
+      (deployedManifest.staticRevision ?? deployedManifest.revision) !== local.revision
+    )
       throw new Error('The live manifest does not match this build. No manual submission was made.');
     const key = await fetch(`${config.origin}/${config.key}.txt`, {
       redirect: 'error',

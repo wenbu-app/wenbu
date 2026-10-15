@@ -8,7 +8,26 @@ export function isNoIndex(html) {
   });
 }
 
-// No timestamps or build IDs: identical deployed HTML has an identical fingerprint.
+// Substantive content, metadata and destinations; shared CSS/JS/navigation changes are not article edits.
+export function substantiveContent(html) {
+  const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1] ?? html;
+  const withoutRuntime = main
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<!--([\s\S]*?)-->/g, '');
+  const metadata = [
+    html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] ?? '',
+    ...[...html.matchAll(/<meta\b[^>]*name="description"[^>]*>/gi)].map(([t]) => t),
+    ...[...html.matchAll(/<link\b[^>]*rel="canonical"[^>]*>/gi)].map(([t]) => t),
+  ].join(' ');
+  const destinations = [...withoutRuntime.matchAll(/\b(?:href|src|alt)="([^"]*)"/g)]
+    .map(([, v]) => v)
+    .filter((v) => !v.startsWith('/_astro/'))
+    .join(' ');
+  return [metadata, withoutRuntime.replace(/<[^>]+>/g, ' '), destinations]
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 export function indexNowManifest(pages, origin) {
   const entries = pages
     .map(({ url, html }) => {
@@ -18,7 +37,7 @@ export function indexNowManifest(pages, origin) {
       if (/^\/(?:en\/)?(?:api|mcp|insights|journal|move)(?:\/|$)/.test(parsed.pathname))
         throw new Error('Private and migration routes must not be included in IndexNow.');
       if (isNoIndex(html)) throw new Error('A noindex page was included in IndexNow.');
-      return { url, hash: createHash('sha256').update(html).digest('hex') };
+      return { url, hash: createHash('sha256').update(substantiveContent(html)).digest('hex') };
     })
     .sort((a, b) => a.url.localeCompare(b.url, 'en'));
   if (!entries.length || new Set(entries.map((p) => p.url)).size !== entries.length)

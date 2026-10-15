@@ -16,7 +16,7 @@ const waite = {
 export const beginnerArticles: Article[] = [
   {
     slug: 'first-reading',
-    updated: '2026-10-05',
+    updated: '2026-10-15',
     category: 'learn',
     symbol: '始',
     minutes: 4,
@@ -30,7 +30,7 @@ export const beginnerArticles: Article[] = [
           heading: '先选一件最近在意的事',
           paragraphs: [
             '第一次不必回答“我这一生会怎样”。挑一件范围小、最近需要面对的事就够了，比如准备和朋友谈一次分歧，或者比较继续当前工作与接受新机会。',
-            '打开问卜 Agent，选择一句贴近当下的开场白，或直接写自己的问题。点击示例就会开始对话；Agent 会在需要时给出选项或询问背景。还没想好也可以开始，不需要先完成一份问卷。',
+            '打开问卜 Agent，可以先点“先看一份完整示例”：它会打开独立预览，不需要填写资料，也不消耗对话回合。准备好以后，再选择开场方向或直接写自己的问题；引导会逐步询问必要背景，不需要先完成一份问卷。',
           ],
         },
         {
@@ -70,7 +70,7 @@ export const beginnerArticles: Article[] = [
           heading: 'Choose something on your mind',
           paragraphs: [
             'You do not need to begin with a question about your whole life. Pick something you are facing now: a difficult conversation with a friend, or a choice between your current job and a new role.',
-            'Open the Wenbu Agent and choose a relevant conversation starter, or type your own question. Selecting an example starts the conversation immediately. The Agent can then ask for missing context through choices or follow-up questions. You do not need to finish a questionnaire first.',
+            'Open Wenbu Agent and choose “See a complete example” for a separate preview. It needs no personal details and uses no conversation turns. When you are ready, choose a starting point or type your question. The guided flow asks for the context it needs one step at a time; there is no questionnaire to finish before you can explore.',
           ],
         },
         {

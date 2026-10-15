@@ -7,7 +7,9 @@ import { castIching } from '../src/lib/iching';
 import { drawTarot } from '../src/lib/tarot';
 import { calculateZiwei } from '../src/lib/ziwei';
 import { knowledgeIndex } from '../src/lib/knowledge';
-import { searchLibrary, readLibrary } from './agent-library';
+import { searchCompleteLibrary, readCompleteLibrary } from './editorial-library';
+import type { Env } from './types';
+import { editorialDiscovery } from './editorial-discovery';
 import type { ToolKind } from '../src/lib/schema';
 type ToolReceipt = (
   tool: ToolKind | 'mcp',
@@ -24,7 +26,7 @@ const pack = (data: Record<string, unknown>) => ({
   structuredContent: data,
 });
 
-export function createMcpServer(receipt?: ToolReceipt) {
+export function createMcpServer(receipt?: ToolReceipt, env?: Env) {
   const server = new McpServer(
     { name: 'wenbu', version: releaseVersion },
     {
@@ -36,7 +38,7 @@ export function createMcpServer(receipt?: ToolReceipt) {
     name: string,
     description: string,
     inputSchema: Record<string, z.ZodType>,
-    fn: (a: unknown) => Record<string, unknown>,
+    fn: (a: unknown) => Record<string, unknown> | Promise<Record<string, unknown>>,
     random = false,
   ) => {
     server.registerTool(
@@ -63,7 +65,7 @@ export function createMcpServer(receipt?: ToolReceipt) {
             } as Partial<Record<string, ToolKind>>
           )[name] ?? 'mcp';
         try {
-          const result = fn(args);
+          const result = await fn(args);
           if (kind !== 'mcp') receipt?.(kind, true, Date.now() - started);
           return pack(result);
         } catch {
@@ -131,9 +133,9 @@ export function createMcpServer(receipt?: ToolReceipt) {
     'search_library',
     'Search Wenbu original guides, symbols and curated reference metadata. This is a bounded catalogue, not a web search. Search snippets do not mean the source was read.',
     { query: z.string().min(1).max(160), locale: language, limit: z.number().int().min(1).max(8).default(6) },
-    (a) => {
+    async (a) => {
       const { query, locale, limit } = a as { query: string; locale: 'zh' | 'en'; limit: number };
-      return { results: searchLibrary(query, locale, limit) };
+      return { results: await searchCompleteLibrary(query, locale, limit, env) };
     },
   );
   register(
@@ -142,7 +144,7 @@ export function createMcpServer(receipt?: ToolReceipt) {
     { id: z.string().min(1).max(100), locale: language, section: z.string().min(1).max(80).optional() },
     (a) => {
       const { id, locale, section } = a as { id: string; locale: 'zh' | 'en'; section?: string };
-      return readLibrary(id, locale, section);
+      return readCompleteLibrary(id, locale, section, env);
     },
   );
   server.registerResource('methodology', 'wenbu://methodology', { mimeType: 'text/plain' }, async () => ({
@@ -163,13 +165,21 @@ export function createMcpServer(receipt?: ToolReceipt) {
     },
     async () => ({
       contents: [
-        { uri: 'wenbu://knowledge', mimeType: 'application/json', text: JSON.stringify(knowledgeIndex()) },
+        {
+          uri: 'wenbu://knowledge',
+          mimeType: 'application/json',
+          text: env
+            ? ((await (
+                await editorialDiscovery(new Request(env.SITE_URL + '/knowledge/index.json'), env)
+              )?.text()) ?? JSON.stringify(knowledgeIndex()))
+            : JSON.stringify(knowledgeIndex()),
+        },
       ],
     }),
   );
   return server;
 }
-export async function handleMcp(request: Request, receipt?: ToolReceipt) {
+export async function handleMcp(request: Request, receipt?: ToolReceipt, env?: Env) {
   const started = Date.now();
   const body =
     request.method === 'POST'
@@ -179,7 +189,7 @@ export async function handleMcp(request: Request, receipt?: ToolReceipt) {
           .catch(() => null)) as { method?: string } | null)
       : null;
   const isToolCall = body?.method === 'tools/call';
-  const server = createMcpServer(receipt);
+  const server = createMcpServer(receipt, env);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

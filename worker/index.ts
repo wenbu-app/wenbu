@@ -28,6 +28,18 @@ import { requestActor, resultReceipt } from './account-operations';
 import { accountAgentResponse } from './account-agent';
 import { accountInsights } from './account-insights';
 import { getDaily } from './daily';
+import { editorialResponse } from './editorial-render';
+import { editorialDiscovery } from './editorial-discovery';
+import {
+  dispatchEditorial,
+  recoverEditorial,
+  reviseEditorial,
+  EDITORIAL_CRON,
+  EDITORIAL_HEALTH_CRON,
+  EDITORIAL_PLANNING_CRON,
+} from './editorial-workflow';
+import { editorialStatus, observeEditorial, seedEditorial } from './editorial-store';
+export { EditorialWorkflow } from './editorial-workflow';
 
 const apiHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -97,7 +109,10 @@ export default {
     const path = url.pathname;
     if (!path.startsWith('/api/') && path !== '/mcp' && path !== '/mcp/') {
       const started = Date.now();
-      const response = await env.ASSETS.fetch(request);
+      const response =
+        (await editorialDiscovery(request, env)) ??
+        (await editorialResponse(request, env)) ??
+        (await env.ASSETS.fetch(request));
       const task = recordContent(request, response, env, Date.now() - started).catch(() =>
         console.error('WENBU_ANALYTICS_WRITE_FAILED'),
       );
@@ -167,6 +182,7 @@ export default {
           return accountJson(await accountInsights(url, env));
         if (!env.ANALYTICS) return json({ error: { code: 'analytics_unavailable' } }, 503);
         if (request.method === 'GET') {
+          if (path === '/api/admin/editorial') return json(await editorialStatus(env));
           if (path === '/api/admin/indexnow') return json(await indexNowStatus(env));
           if (path === '/api/admin/analytics') return json(await analyticsReport(url, env));
           if (path === '/api/admin/events') return json(await historyReport(url, env, 'events'));
@@ -188,6 +204,69 @@ export default {
           if (request.headers.get('Origin') !== url.origin)
             return json({ error: { code: 'origin_denied' } }, 403);
           return json(await archiveAnalytics(env));
+        }
+        if (request.method === 'POST' && path.startsWith('/api/admin/editorial/')) {
+          if (request.headers.get('Origin') !== env.SITE_URL)
+            return json({ error: { code: 'origin_denied' } }, 403);
+          if (path === '/api/admin/editorial/run') {
+            await seedEditorial(env);
+            return json(await dispatchEditorial(env));
+          }
+          if (path === '/api/admin/editorial/recover') {
+            const recovery = z
+              .object({ runId: z.string().regex(/^editorial-[a-z0-9-]{10,90}$/) })
+              .strict()
+              .parse(await boundedBody(request, 2000));
+            return json(await recoverEditorial(env, recovery.runId));
+          }
+          if (path === '/api/admin/editorial/revise') {
+            const revision = z
+              .object({
+                path: z.string().regex(/^(learn|compare)\/[a-z][a-z0-9-]{2,65}$/),
+                expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
+                instructions: z.string().min(20).max(1500),
+              })
+              .strict()
+              .parse(await boundedBody(request, 3000));
+            return json(await reviseEditorial(env, revision));
+          }
+          if (path === '/api/admin/editorial/check') {
+            if (!env.EDITORIAL_WORKFLOW) return json({ error: { code: 'editorial_unavailable' } }, 503);
+            const id = 'editorial-health-' + new Date().toISOString().slice(0, 10);
+            await env.EDITORIAL_WORKFLOW.createBatch([{ id, params: { kind: 'health' } }]);
+            return json({ status: 'queued', id });
+          }
+          if (path === '/api/admin/editorial/observe') {
+            const observation = z
+              .object({
+                kind: z.enum([
+                  'search_console',
+                  'bing_webmaster',
+                  'geo_citation',
+                  'weekly_review',
+                  'topic_research',
+                ]),
+                status: z.enum(['observed', 'attention', 'unavailable', 'passed']),
+                period: z
+                  .object({
+                    start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+                    end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+                  })
+                  .optional(),
+                evidence: z.record(z.string(), z.unknown()),
+              })
+              .strict()
+              .parse(await boundedBody(request, 100_000));
+            return json(
+              await observeEditorial(
+                env,
+                observation.kind,
+                observation.evidence,
+                observation.status,
+                observation.period,
+              ),
+            );
+          }
         }
         if (request.method === 'POST' && path === '/api/admin/indexnow/run') {
           if (url.origin !== env.SITE_URL || request.headers.get('Origin') !== url.origin)
@@ -240,13 +319,16 @@ export default {
             body: JSON.stringify(body),
           });
         }
-        const response = await handleMcp(request, (tool, success, duration, status) =>
-          record({
-            event: tool === 'mcp' ? 'mcp_finished' : success ? 'calculation_succeeded' : 'api_failed',
-            tool,
-            status: status ?? (success ? 'complete' : 'invalid_input'),
-            duration,
-          }),
+        const response = await handleMcp(
+          request,
+          (tool, success, duration, status) =>
+            record({
+              event: tool === 'mcp' ? 'mcp_finished' : success ? 'calculation_succeeded' : 'api_failed',
+              tool,
+              status: status ?? (success ? 'complete' : 'invalid_input'),
+              duration,
+            }),
+          env,
         );
         const headers = new Headers(response.headers);
         for (const [k, v] of Object.entries(apiHeaders)) if (k !== 'Content-Type') headers.set(k, v);
@@ -369,6 +451,29 @@ export default {
       ctx.waitUntil(archiveAnalytics(env));
       ctx.waitUntil(pruneAccountMetadata(env));
     }
-    if (event.cron === INDEXNOW_CRON) ctx.waitUntil(submitIndexNow(env));
+    if (event.cron === INDEXNOW_CRON) {
+      ctx.waitUntil(submitIndexNow(env));
+      ctx.waitUntil(dispatchEditorial(env, event.scheduledTime));
+    }
+    if (event.cron === EDITORIAL_CRON) ctx.waitUntil(dispatchEditorial(env, event.scheduledTime));
+    if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_HEALTH_CRON)
+      ctx.waitUntil(
+        env.EDITORIAL_WORKFLOW.createBatch([
+          {
+            id: 'editorial-health-' + new Date(event.scheduledTime + 8 * 3600_000).toISOString().slice(0, 10),
+            params: { kind: 'health' },
+          },
+        ]),
+      );
+    if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_PLANNING_CRON)
+      ctx.waitUntil(
+        env.EDITORIAL_WORKFLOW.createBatch([
+          {
+            id:
+              'editorial-planning-' + new Date(event.scheduledTime + 8 * 3600_000).toISOString().slice(0, 10),
+            params: { kind: 'planning' },
+          },
+        ]),
+      );
   },
 } satisfies ExportedHandler<Env>;

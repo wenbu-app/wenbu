@@ -1,6 +1,7 @@
 import type { Locale } from '../lib/schema';
 import { InsightsLocale, useInsightsLocale } from '../lib/insights-locale';
 import AnalyticsExplorer from './AnalyticsExplorer';
+import EditorialOperations from './EditorialOperations';
 import { audiences } from '../lib/measurement-contract';
 import { AnalyticsTrend, AnalyticsBreakdownCharts, AnalyticsTrafficCharts } from './AnalyticsCharts';
 import { useEffect, useRef, useState } from 'react';
@@ -255,6 +256,7 @@ function DashboardContent() {
             <button onClick={logout}>{t('退出')}</button>
           </div>
           {tab === 'overview' && <AccountInsights token={token.trim()} />}
+          {tab === 'overview' && <EditorialOperations token={token.trim()} />}
           {tab !== 'overview' ? (
             <AnalyticsExplorer
               key={tab + linked.operation}
