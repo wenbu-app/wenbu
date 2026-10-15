@@ -30,6 +30,7 @@ await build({
 });
 const { fixtureDraft } = await import(pathToFileURL(path.join(temp, 'draft.mjs')).href);
 let failReview = false,
+  malformedNext = false,
   calls = 0,
   checks = 0;
 const mf = new Miniflare({
@@ -67,6 +68,22 @@ const mf = new Miniflare({
           if (calls === 1) return new Response('Synthetic transient provider failure', { status: 503 });
           const input = await request.json(),
             review = input.messages[0].content.startsWith('You are a strict');
+          assert.equal(
+            input.thinking.type,
+            'disabled',
+            'JSON writing and review do not consume hidden thinking budget',
+          );
+          if (!review && malformedNext) {
+            malformedNext = false;
+            return Response.json({
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: { content: JSON.stringify({ zh: { title: 'Malformed sample' } }) },
+                },
+              ],
+            });
+          }
           const draft = fixtureDraft();
           if (!review) {
             const packet = JSON.parse(input.messages[1].content),
@@ -220,6 +237,29 @@ try {
   check(
     'quality failure uses four logical model stages',
     state.runs.find((r) => r.slot === '2026-10-15-15').model_calls === 4,
+  );
+  failReview = false;
+  malformedNext = true;
+  // Keep this fixture on a first-party learning task; real vendor HTTP is not mocked here.
+  await db.prepare("UPDATE editorial_topics SET status='blocked' WHERE category='compare'").run();
+  await mf.dispatchFetch('https://wenbu.app/__test/dispatch', {
+    method: 'POST',
+    body: JSON.stringify({ time: Date.parse('2026-10-15T13:00:00Z') }),
+  });
+  for (let i = 0; i < 100; i++) {
+    state = await admin();
+    if (state.runs.some((r) => r.slot === '2026-10-15-21' && ['published', 'blocked'].includes(r.status)))
+      break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const repaired = state.runs.find((r) => r.slot === '2026-10-15-21');
+  check(
+    'schema-invalid model output enters bounded repair and then passes editorial review',
+    repaired.status === 'published' && repaired.model_calls === 3,
+  );
+  check(
+    'schema repair preserves the earlier failed run',
+    state.runs.some((r) => r.slot === '2026-10-15-15' && r.status === 'blocked'),
   );
   console.log(
     JSON.stringify({

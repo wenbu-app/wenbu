@@ -19,3 +19,11 @@ Grok CLI completed the initial read-only review with actionable findings (see `g
 The quote check verifies literal presence, not semantic truth. A separate editorial model checks support and scope. AI review is not independent expert validation; unusual or unsupported material must remain blocked.
 
 Also corrected conditional-asset caching: dynamic responses strip original validators and body lengths, so a static 304 cannot conceal a newly published addition.
+
+## Follow-up review and live-model findings
+
+Grok's follow-up found six areas requiring attention. Same-site HTTPS redirects are now bounded and checked at every hop; unrelated-host redirects remain excluded. Transient failures retain retryable topics with a 24-hour cooldown, while three actual quality failures quarantine a topic. Content diversity is a preference rather than a compare-only backlog deadlock. Orphaned queued rows reconcile with actual Workflow state. Existing guide titles survive on HTML, knowledge-index and Agent library surfaces. All source-bearing components now render their citations, evidence notes are public, and Chinese quote characters count toward the external quotation limit.
+
+The review's statement that the array-form createBatch throws for duplicate IDs is incorrect: current official Cloudflare documentation states that it silently skips existing IDs. The stale queued-row risk is nevertheless real, and is repaired through terminal-state reconciliation.
+
+The first real provider run exposed truncation and schema failures despite successful synthetic checks. Structured calls now explicitly disable the provider's default thinking mode, writing has a bounded section/length budget and full JSON Schema, raw visible outputs are archived before parsing, and schema failures enter the same single repair cycle with precise field paths. A native regression proves malformed output can be repaired and reviewed, without publishing the invalid first draft. Migration 0006 preserves failed attempts and permits one fresh attempt per failed slot, with no historical row deletion.

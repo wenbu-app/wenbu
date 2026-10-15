@@ -192,7 +192,8 @@ export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], to
         .filter((e) => e.sourceId === source.id)
         .map((e) => e.quote)
         .join(' ');
-      if (quotes.split(/\s+/).length > 20) issues.push('external_quote_budget');
+      if ((quotes.match(/[\u3400-\u9fff]|[^\s\u3400-\u9fff]+/gu) ?? []).length > 20)
+        issues.push('external_quote_budget');
       if (
         topic.category === 'compare' &&
         ![...draft.zh.evidence, ...draft.en.evidence].some((e) => e.sourceId === source.id)

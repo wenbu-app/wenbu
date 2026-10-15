@@ -1,5 +1,10 @@
 import { contentHash, pathForTopic } from './editorial-schema';
-import { editorialMarkdown, originalComparisonMarkdown, assetRequest } from './editorial-render';
+import {
+  editorialMarkdown,
+  originalComparisonMarkdown,
+  assetRequest,
+  editorialIdentity,
+} from './editorial-render';
 import { publishedDocuments } from './editorial-store';
 import type { Env } from './types';
 import { readLibrary } from './agent-library';
@@ -73,8 +78,7 @@ export async function editorialDiscovery(request: Request, env: Env): Promise<Re
           id: `editorial-${doc.topic.id}`,
           slug: `${doc.topic.category === 'compare' ? 'compare-' : ''}${doc.topic.slug}`,
           locale: lang,
-          title: doc[lang].title,
-          description: doc[lang].description,
+          ...editorialIdentity(doc, lang),
           html: `${env.SITE_URL}/${lang === 'en' ? 'en/' : ''}${pathForTopic(doc.topic)}/`,
           markdown: `${env.SITE_URL}/knowledge/${lang}/${doc.topic.category === 'compare' ? 'compare-' : ''}${doc.topic.slug}.md`,
           json: `${env.SITE_URL}/knowledge/${lang}/${doc.topic.category === 'compare' ? 'compare-' : ''}${doc.topic.slug}.json`,
@@ -145,7 +149,7 @@ export async function editorialLibraryDocuments(env: Env, locale: 'zh' | 'en') {
         ? 'guide-' + doc.topic.slug
         : `editorial-${doc.topic.id}`,
     alias: `editorial-${doc.topic.id}`,
-    title: doc[locale].title,
+    title: editorialIdentity(doc, locale).title,
     url: `${env.SITE_URL}/${locale === 'en' ? 'en/' : ''}${pathForTopic(doc.topic)}/`,
     kind: 'guide' as const,
     level: 'editorial' as const,

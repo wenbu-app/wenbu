@@ -47,20 +47,21 @@ export async function claimEditorial(env: Env, runId: string, slot: string) {
   const rows = (
     await db
       .prepare(
-        "SELECT id,definition_json FROM editorial_topics WHERE status='ready' AND attempts<3 AND (last_published_at IS NULL OR last_published_at<?) ORDER BY last_attempt_at IS NOT NULL,priority DESC,created_at,id LIMIT 80",
+        "SELECT id,definition_json FROM editorial_topics WHERE status='ready' AND (last_published_at IS NULL OR last_published_at<?) AND (last_attempt_at IS NULL OR last_attempt_at<?) ORDER BY last_attempt_at IS NOT NULL,priority DESC,created_at,id LIMIT 80",
       )
-      .bind(now - 28 * 86400_000)
+      .bind(now - 28 * 86400_000, now - 86400_000)
       .all<{ id: string; definition_json: string }>()
   ).results;
   const candidates = rows.map((r) => JSON.parse(r.definition_json) as EditorialTopic);
-  const chosen = candidates.find(
-    (t) =>
-      !(
-        recent.length === 2 &&
-        recent.every((r) => r.path.startsWith('compare/')) &&
-        t.category === 'compare'
-      ),
-  );
+  const chosen =
+    candidates.find(
+      (t) =>
+        !(
+          recent.length === 2 &&
+          recent.every((r) => r.path.startsWith('compare/')) &&
+          t.category === 'compare'
+        ),
+    ) ?? candidates[0];
   if (!chosen) throw new Error('editorial_backlog_exhausted');
   await db.batch([
     db
@@ -163,7 +164,7 @@ export async function publishEditorial(env: Env, runId: string, doc: EditorialDo
       .bind(doc.revision, JSON.stringify(urls), now, runId, path, doc.revision),
     db
       .prepare(
-        "UPDATE editorial_topics SET last_published_at=?,attempts=0,status='published' WHERE id=? AND EXISTS(SELECT 1 FROM editorial_publications WHERE path=? AND revision=?)",
+        "UPDATE editorial_topics SET last_published_at=?,attempts=0,quality_failures=0,status='published' WHERE id=? AND EXISTS(SELECT 1 FROM editorial_publications WHERE path=? AND revision=?)",
       )
       .bind(now, doc.topic.id, path, doc.revision),
     db.prepare('UPDATE editorial_state SET last_content_at=? WHERE id=1 AND lease_owner=?').bind(now, runId),
@@ -172,18 +173,23 @@ export async function publishEditorial(env: Env, runId: string, doc: EditorialDo
   return { urls, revision: doc.revision };
 }
 export async function failEditorial(env: Env, runId: string, code: string) {
-  await env
-    .ANALYTICS!.prepare(
-      "UPDATE editorial_runs SET status='blocked',error_code=?,updated_at=? WHERE id=? AND status!='published'",
-    )
-    .bind(code.slice(0, 160), Date.now(), runId)
-    .run();
-  await env
-    .ANALYTICS!.prepare(
-      "UPDATE editorial_topics SET status='blocked' WHERE attempts>=3 AND id=(SELECT topic_id FROM editorial_runs WHERE id=?)",
-    )
-    .bind(runId)
-    .run();
+  const db = env.ANALYTICS!;
+  await db.batch([
+    ...(/^quality_gate:|^editorial_schema_failed$/.test(code)
+      ? [
+          db
+            .prepare(
+              "UPDATE editorial_topics SET quality_failures=quality_failures+1,status=CASE WHEN quality_failures>=2 THEN 'blocked' ELSE status END WHERE id=(SELECT topic_id FROM editorial_runs WHERE id=? AND status NOT IN ('blocked','published'))",
+            )
+            .bind(runId),
+        ]
+      : []),
+    db
+      .prepare(
+        "UPDATE editorial_runs SET status='blocked',error_code=?,updated_at=? WHERE id=? AND status!='published'",
+      )
+      .bind(code.slice(0, 160), Date.now(), runId),
+  ]);
 }
 export async function observeEditorial(
   env: Env,

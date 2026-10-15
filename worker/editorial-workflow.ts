@@ -28,7 +28,7 @@ import type { Env } from './types';
 
 export const EDITORIAL_CRON = '0 1,7,13 * * *';
 export const EDITORIAL_HEALTH_CRON = '30 23 * * *';
-export const EDITORIAL_PLANNING_CRON = '0 22 * * 6';
+export const EDITORIAL_PLANNING_CRON = '30 2 * * 0';
 type Parameters = { kind: 'content' | 'health' | 'planning'; slot?: string };
 const stepConfig = {
   retries: { limit: 1, delay: '30 seconds' as const, backoff: 'exponential' as const },
@@ -85,18 +85,43 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
             topic,
             sources: packet,
             shape: draftShape,
+            schema: z.toJSONSchema(editorialDraftSchema),
             ...(feedback ? { revisionInstructions: feedback, previousDraft } : {}),
           }),
-          16000,
+          20000,
+          async (record) => {
+            await archive(
+              this.env,
+              runId,
+              `model-draft-${feedback ? 'repair' : 'initial'}-${crypto.randomUUID()}`,
+              record,
+            );
+          },
         );
-        const draft = editorialDraftSchema.parse(raw),
-          issues = draftIssues(draft, packet, topic);
-        const key = await archive(this.env, runId, feedback ? 'revised-draft' : 'draft', { draft, issues });
+        const parsed = editorialDraftSchema.safeParse(raw);
+        const draft = parsed.success ? parsed.data : null;
+        const issues = parsed.success
+          ? draftIssues(parsed.data, packet, topic)
+          : parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+        const key = await archive(this.env, runId, feedback ? 'revised-draft' : 'draft', {
+          raw,
+          draft,
+          issues,
+        });
         await editorialStage(this.env, runId, 'reviewing', 'draft_key', key);
-        return { draft, issues };
+        return { draft, raw, issues };
       };
       let produced = await step.do('write-complete-bilingual-editions', stepConfig, () => produce());
       const review = async (pass: number) => {
+        if (!produced.draft)
+          return {
+            factual: false,
+            bilingual: false,
+            useful: false,
+            original: false,
+            natural: false,
+            issues: ['Repair the JSON Schema violations before editorial review.'],
+          };
         await countCall(this.env, runId);
         const raw = await editorialModel(
           this.env,
@@ -107,7 +132,10 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
             draft: produced.draft,
             deterministicIssues: produced.issues,
           }),
-          2500,
+          5000,
+          async (record) => {
+            await archive(this.env, runId, `model-review-${pass}-${crypto.randomUUID()}`, record);
+          },
         );
         const checked = editorialReviewSchema.parse(raw),
           key = await archive(this.env, runId, `review-${pass}`, checked);
@@ -125,7 +153,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         checked.natural;
       if (!pass()) {
         produced = await step.do('repair-editorial-issues', stepConfig, () =>
-          produce({ deterministic: produced.issues, review: checked }, produced.draft),
+          produce({ deterministic: produced.issues, review: checked }, produced.raw),
         );
         checked = await step.do(
           'review-repaired-editions',
@@ -144,6 +172,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         return { status: 'quality_blocked', topic: topic.id };
       }
       const document = await step.do('prepare-immutable-publication', stepConfig, async () => {
+        if (!produced.draft) throw new Error('editorial_schema_failed');
         const now = new Date().toISOString(),
           revision = await contentHash(
             JSON.stringify({ draft: produced.draft, topic, sources: packet.map((s) => s.hash) }),
@@ -190,7 +219,7 @@ export async function dispatchEditorial(env: Env, time = Date.now()) {
   const date = shanghaiDay(time),
     hour = new Date(time + 8 * 3600_000).getUTCHours();
   const slots = [9, 15, 21].filter((h) => h <= hour).map((h) => `${date}-${String(h).padStart(2, '0')}`);
-  const existing = (
+  let existing = (
     await env.ANALYTICS.prepare('SELECT id,slot,status,updated_at FROM editorial_runs WHERE slot LIKE ?')
       .bind(`${date}-%`)
       .all<{ id: string; slot: string; status: string; updated_at: number }>()
@@ -200,7 +229,14 @@ export async function dispatchEditorial(env: Env, time = Date.now()) {
     await env.EDITORIAL_WORKFLOW.createBatch([
       { id: queued.id, params: { kind: 'content', slot: queued.slot } },
     ]);
-    return { status: 'queued', id: queued.id, slot: queued.slot };
+    if (queued.updated_at > Date.now() - 30 * 60_000)
+      return { status: 'queued', id: queued.id, slot: queued.slot };
+    const instance = await env.EDITORIAL_WORKFLOW.get(queued.id);
+    const state = await instance.status();
+    if (!['complete', 'errored', 'terminated'].includes(state.status))
+      return { status: 'busy', id: queued.id, slot: queued.slot };
+    await failEditorial(env, queued.id, 'editorial_orphaned_queue');
+    existing = existing.map((r) => (r.id === queued.id ? { ...r, status: 'blocked' } : r));
   }
   if (
     existing.some(
@@ -208,10 +244,16 @@ export async function dispatchEditorial(env: Env, time = Date.now()) {
     )
   )
     return { status: 'busy' };
-  const missing = slots.find((s) => !existing.some((r) => r.slot === s));
+  const missing =
+    slots.find((s) => !existing.some((r) => r.slot === s)) ??
+    slots.find((s) => {
+      const attempts = existing.filter((r) => r.slot === s);
+      return attempts.length === 1 && attempts[0].status === 'blocked';
+    });
   if (!missing) return { status: 'no_due_slot' };
   // The instance ID is stable across Cron retries and deployment hooks.
-  const id = `editorial-${missing}`;
+  const attempt = existing.filter((r) => r.slot === missing).length;
+  const id = `editorial-${missing}${attempt ? '-retry-1' : ''}`;
   await env.ANALYTICS.prepare(
     "INSERT OR IGNORE INTO editorial_runs(id,slot,status,created_at,updated_at) VALUES(?,?,'queued',?,?)",
   )

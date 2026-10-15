@@ -3,6 +3,19 @@ import { pathForTopic } from './editorial-schema';
 import { publishedDocument, publishedDocuments } from './editorial-store';
 import type { Env } from './types';
 import { comparisons } from '../src/data/comparisons';
+import { articles } from '../src/data/articles';
+export function editorialIdentity(doc: EditorialDocument, locale: 'zh' | 'en') {
+  const original =
+    doc.topic.mode === 'extend'
+      ? (doc.topic.category === 'learn' ? articles : comparisons).find(
+          (item) => item.slug === doc.topic.slug,
+        )?.[locale]
+      : undefined;
+  return {
+    title: original?.title ?? doc[locale].title,
+    description: original?.description ?? doc[locale].description,
+  };
+}
 export const escapeHtml = (value: string) =>
   value
     .replace(/&/g, '&amp;')
@@ -90,10 +103,12 @@ export function editorialMarkdown(doc: EditorialDocument, locale: 'zh' | 'en') {
     e.description,
     `Updated: ${doc.updatedAt.slice(0, 10)} · Wenbu AI-assisted editorial`,
     e.answer,
+    refs(e.answerSourceIds),
     ...e.takeaways.map((t) => `- ${t}`),
     `## ${e.figure.title}`,
     ...e.figure.steps.map((s, i) => `${i + 1}. **${s.label}** — ${s.detail}`),
     e.figure.caption,
+    refs(e.figure.sourceIds),
     ...e.sections.flatMap((s) => [`## ${s.heading}`, ...s.paragraphs, refs(s.sourceIds)]),
     `## ${e.table.title}`,
     '| ' + e.table.columns.join(' | ') + ' |',
@@ -104,10 +119,13 @@ export function editorialMarkdown(doc: EditorialDocument, locale: 'zh' | 'en') {
     e.example.intro,
     ...e.example.steps.map((s, i) => `${i + 1}. ${s}`),
     e.example.conclusion,
+    refs(e.example.sourceIds),
     '## FAQ',
-    ...e.faq.flatMap((f) => [`### ${f.question}`, f.answer]),
+    ...e.faq.flatMap((f) => [`### ${f.question}`, f.answer, refs(f.sourceIds)]),
     '## Glossary',
-    ...e.glossary.map((g) => `- **${g.term}**: ${g.definition}`),
+    ...e.glossary.map((g) => `- **${g.term}**: ${g.definition} ${refs(g.sourceIds)}`),
+    '## Evidence notes',
+    ...e.evidence.map((item) => `- ${item.claim} — “${item.quote}” (${item.kind}); ${refs([item.sourceId])}`),
     '## Sources',
     ...doc.sources.map(
       (s) =>
@@ -126,13 +144,14 @@ function citations(doc: EditorialDocument, ids: string[]) {
 export function editorialBody(doc: EditorialDocument, locale: 'zh' | 'en') {
   const e: EditorialEdition = doc[locale],
     t = (zh: string, en: string) => (locale === 'zh' ? zh : en);
-  return `<div class="editorial-answer"><p>${h(e.answer)}</p></div><ul>${e.takeaways.map((x) => `<li>${h(x)}</li>`).join('')}</ul>
-    <figure class="editorial-figure"><h2>${h(e.figure.title)}</h2><ol>${e.figure.steps.map((s, i) => `<li><b aria-hidden="true">${String(i + 1).padStart(2, '0')}</b><strong>${h(s.label)}</strong><p>${h(s.detail)}</p></li>`).join('')}</ol><figcaption>${h(e.figure.caption)}</figcaption></figure>
+  return `<div class="editorial-answer"><p>${h(e.answer)}</p>${citations(doc, e.answerSourceIds)}</div><ul>${e.takeaways.map((x) => `<li>${h(x)}</li>`).join('')}</ul>
+    <figure class="editorial-figure"><h2>${h(e.figure.title)}</h2><ol>${e.figure.steps.map((s, i) => `<li><b aria-hidden="true">${String(i + 1).padStart(2, '0')}</b><strong>${h(s.label)}</strong><p>${h(s.detail)}</p></li>`).join('')}</ol><figcaption>${h(e.figure.caption)}</figcaption>${citations(doc, e.figure.sourceIds)}</figure>
     ${e.sections.map((s, i) => `<section id="editorial-section-${i}"><h2>${h(s.heading)}</h2>${s.paragraphs.map((p) => `<p>${h(p)}</p>`).join('')}${citations(doc, s.sourceIds)}</section>`).join('')}
     <div class="editorial-table" role="region" aria-label="${h(e.table.title)}" tabindex="0"><table><caption>${h(e.table.title)}</caption><thead><tr>${e.table.columns.map((c) => `<th scope="col">${h(c)}</th>`).join('')}</tr></thead><tbody>${e.table.rows.map((row) => `<tr>${row.map((c) => `<td>${h(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${citations(doc, e.table.sourceIds)}
-    <section class="editorial-example"><h2>${h(e.example.title)}</h2><p>${h(e.example.intro)}</p><ol>${e.example.steps.map((s) => `<li>${h(s)}</li>`).join('')}</ol><p>${h(e.example.conclusion)}</p></section>
-    <section><h2>${t('常见问题', 'Questions you may have')}</h2>${e.faq.map((f) => `<details><summary>${h(f.question)}</summary><p>${h(f.answer)}</p></details>`).join('')}</section>
-    <section><h2>${t('术语速查', 'Terms in this guide')}</h2><dl>${e.glossary.map((g) => `<dt><strong>${h(g.term)}</strong></dt><dd>${h(g.definition)}</dd>`).join('')}</dl></section>
+    <section class="editorial-example"><h2>${h(e.example.title)}</h2><p>${h(e.example.intro)}</p><ol>${e.example.steps.map((s) => `<li>${h(s)}</li>`).join('')}</ol><p>${h(e.example.conclusion)}</p>${citations(doc, e.example.sourceIds)}</section>
+    <section><h2>${t('常见问题', 'Questions you may have')}</h2>${e.faq.map((f) => `<details><summary>${h(f.question)}</summary><p>${h(f.answer)}</p>${citations(doc, f.sourceIds)}</details>`).join('')}</section>
+    <section><h2>${t('术语速查', 'Terms in this guide')}</h2><dl>${e.glossary.map((g) => `<dt><strong>${h(g.term)}</strong></dt><dd>${h(g.definition)}${citations(doc, g.sourceIds)}</dd>`).join('')}</dl></section>
+    <details class="editorial-evidence"><summary>${t('查看事实与来源的核对笔记', 'See the claim and source notes')}</summary><ul>${e.evidence.map((item) => `<li><p>${h(item.claim)}</p><q>${h(item.quote)}</q>${citations(doc, [item.sourceId])}</li>`).join('')}</ul></details>
     <section class="editorial-sources"><h2>${t('来源与核对范围', 'Sources and review scope')}</h2><p>${t('这是问卜的 AI 辅助编辑内容，经过自动结构检查和独立生成的编辑检查；不代表独立专家审稿。公开产品介绍不等于付费体验测试。', 'This AI-assisted Wenbu article passed automated structure checks and a separate editorial model pass. It is not independent expert review or a paid-account product test.')}</p><ol>${doc.sources.map((s) => `<li><a href="${h(s.url)}" rel="noreferrer">${h(s.title)} ↗</a><small>${h(s.role)} · ${s.fetchedAt.slice(0, 10)} · ${s.truncated ? t('已读选段', 'Read excerpt') : t('已取回正文', 'Fetched text')}</small></li>`).join('')}</ol></section>
     <section class="editorial-cta"><h2>${h(e.cta.label)}</h2><p>${h(e.cta.reason)}</p><a class="button primary" href="${pref(locale)}${doc.topic.tool}/">${h(e.cta.label)} ↗</a><div class="editorial-downloads"><a href="/knowledge/${locale}/${machineSlug(doc)}.md">Markdown ↗</a><a href="/knowledge/${locale}/${machineSlug(doc)}.json">JSON ↗</a><a href="${pref(locale)}${locale === 'en' ? 'compare/' : 'compare/'}">${t('比较不同产品', 'Compare products')} ↗</a></div></section>`;
 }

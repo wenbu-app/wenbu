@@ -8,7 +8,7 @@ Current operating target: **three reader tasks per day, each published in comple
 | ----------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Research, writing, separate review, publication | Three daily slots; 15-minute missed-slot check | Cloudflare `wenbu-editorial` Workflow; D1 run and immutable revision; private R2 research/draft/review objects                           |
 | Technical search checks                         | Daily 07:30 Shanghai                           | Workflow checks public HTML, language alternates, canonical, sitemap and machine formats; records an observation                         |
-| Candidate replenishment                         | Sunday 06:00 Shanghai                          | Distinct reader-task proposals, separate commissioning review, canonical-owner check, allowlisted sources; no invented traffic estimates |
+| Candidate replenishment                         | Sunday 10:30 Shanghai                          | Distinct reader-task proposals, separate commissioning review, canonical-owner check, allowlisted sources; no invented traffic estimates |
 | Google/Bing reports and AI answer observations  | Daily Codex review; deeper Sunday review       | Authenticated browser sessions and available research tools; results written to D1 through the authenticated observation API             |
 | IndexNow                                        | After deployment and every 15 minutes          | Only changed public URLs; persisted 200/202/429 evidence, concurrency lease and retry schedule                                           |
 
@@ -29,7 +29,7 @@ At 7 days, inspect discovery, sources and obvious usability errors. At 14 and 28
 1. At least two sources actually fetched, including a vendor source for comparisons. An unavailable/challenged page is not counted as read. Excerpts are explicitly labelled.
 2. Complete Chinese and English editions with equivalent sections, useful text, explanatory figure, table, worked practice, FAQs and terminology. Reject unsafe markup, unknown citations, repeated paragraphs, thin text and unsupported certainty.
 3. A separate model pass checks support, bilingual parity, usefulness, originality and natural expression. This is AI-assisted review, not independent expert review.
-4. One bounded repair is allowed. A run has four logical model stages (write, review, optional repair and re-review); each permits at most one transport retry, with an eight-request physical cap. Failures retain private evidence and remain blocked; another deployment does not reset the slot.
+4. One bounded repair is allowed. A run has four logical model stages (write, review, optional repair and re-review); each permits at most one transport retry, with an eight-request physical cap. Invalid schemas enter that same bounded repair path with exact field diagnostics. Raw visible output and finish reason are archived before validation, including truncation. Each failed attempt remains immutable; at most one fresh attempt may refill a failed slot, with its own eight-request cap. A partial unique index permits only one live or published attempt per slot.
 5. Both editions become visible in one D1 transaction. Public HTML, Markdown, JSON, internal discovery, RSS and sitemap reflect the same committed revision. Existing base guides remain intact, with reviewed additions on their original canonical URL.
 
 ## Operations
@@ -44,7 +44,7 @@ npm run content:observe -- /absolute/path/to/observation.json
 npm run indexnow:status
 ```
 
-`content:run` only queues an unfilled due slot. It cannot choose an arbitrary date, topic or model prompt. `content:check` is idempotent for the current day. The Insights overview includes an authenticated editorial status panel. All private operations use `no-store`, `noindex`, authentication and origin checks for mutations.
+`content:run` only queues an unfilled due slot, or one bounded fresh attempt after all existing attempts for that slot failed. It cannot choose an arbitrary date, topic or model prompt. `content:check` is idempotent for the current day. The Insights overview includes an authenticated editorial status panel. All private operations use `no-store`, `noindex`, authentication and origin checks for mutations.
 
 An observation JSON has `kind` (`search_console`, `bing_webmaster`, `geo_citation`, `weekly_review` or `topic_research`), `status` (`observed`, `attention`, `unavailable` or `passed`), optional `period` (`start`, `end`) and an `evidence` object. Keep snapshots outside Git and exclude secrets, cookies, private user text and account identifiers. Record provider, exact prompt, language, market, time, answer/citation URLs and coverage for AI observations. Search-result appearances are not AI answer citations.
 
@@ -60,6 +60,6 @@ Read back `retry_after_ms`, endpoint host, response request ID and failure strea
 
 Stop new publications by setting `EDITORIAL_AUTOPUBLISH=false`, preserving rendering and existing publications. `EDITORIAL_ENABLED=false` disables the dynamic feature and falls back to the static site; it does not delete D1 or R2 history. Never change static noindex templates into public guides directly.
 
-Investigate a blocked run through its archived research, draft and review keys. Fix the underlying source/schema/quality issue, test it, and use the Workflow's explicit instance controls if a technical retry is warranted. Do not erase a failed run to manufacture a success. Immutable `editorial_revisions` are the recovery source for a published document. Preserve the existing hourly analytics/account maintenance triggers when changing schedules.
+Investigate a blocked run through its archived research, draft and review keys. Fix the underlying source/schema/quality issue and test it. A fresh attempt has a new Workflow ID and preserves the earlier failed row and R2 evidence; it does not restart an old instance on an unknown code version. Transient source/provider failures do not permanently quarantine a topic; retries of that topic have a 24-hour cooldown. Three distinct quality failures quarantine it for operator review. Queued rows are reconciled with actual terminal Workflow state after 30 minutes, so an orphaned row cannot block later slots. Do not erase a failed run to manufacture a success. Immutable `editorial_revisions` are the recovery source for a published document. Preserve the existing hourly analytics/account maintenance triggers when changing schedules.
 
 The quality workflow runs unit tests, native account checks, native Workflows/D1/R2/HTMLRewriter editorial checks and built content audits. A synthetic provider test is never reported as a real model publication.

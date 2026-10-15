@@ -12,7 +12,7 @@ import {
 } from '../worker/editorial-store';
 import { dispatchEditorial } from '../worker/editorial-workflow';
 import { preserveExtendedMetadata, originalComparisonMarkdown } from '../worker/editorial-render';
-import { researchEditorial } from '../worker/editorial-research';
+import { editorialModel, researchEditorial } from '../worker/editorial-research';
 import { draftIssues, type EditorialDocument, type ResearchSource } from '../worker/editorial-schema';
 const packet: ResearchSource[] = ['daily', 'tarot', 'review'].map((id) => ({
   id,
@@ -66,7 +66,7 @@ describe('editorial review regressions', () => {
     await failEditorial(env, 'editorial-2026-10-16-09', 'source_unavailable');
     expect((await dispatchEditorial(env, time)).slot).toBe('2026-10-16-15');
   });
-  it('moves to an unattempted task after failure and closes exhausted candidates', async () => {
+  it('moves past a transient failure without quarantining its topic', async () => {
     const { env, sql } = database();
     await seedEditorial(env);
     const first = await claimEditorial(env, 'failure-a', '2026-10-16-09');
@@ -76,8 +76,60 @@ describe('editorial review regressions', () => {
     sql.prepare('UPDATE editorial_topics SET attempts=3 WHERE id=?').run(first!.id);
     await failEditorial(env, 'failure-a', 'exhausted');
     expect(sql.prepare('SELECT status FROM editorial_topics WHERE id=?').get(first!.id)?.status).toBe(
-      'blocked',
+      'ready',
     );
+  });
+  it('retries a failed slot once with a new immutable attempt and preserves its failure', async () => {
+    const { env, sql } = database();
+    env.EDITORIAL_ENABLED = 'true';
+    env.EDITORIAL_WORKFLOW = { createBatch: vi.fn().mockResolvedValue([]) } as unknown as NonNullable<
+      typeof env.EDITORIAL_WORKFLOW
+    >;
+    const time = Date.parse('2026-10-16T01:00:00Z');
+    await dispatchEditorial(env, time);
+    await failEditorial(env, 'editorial-2026-10-16-09', 'source_unavailable');
+    const retry = await dispatchEditorial(env, time);
+    expect(retry.id).toBe('editorial-2026-10-16-09-retry-1');
+    expect(sql.prepare('SELECT COUNT(*) AS n FROM editorial_runs').get()?.n).toBe(2);
+    await failEditorial(env, retry.id!, 'source_unavailable');
+    expect((await dispatchEditorial(env, time)).status).toBe('no_due_slot');
+  });
+  it('explicitly disables provider thinking and archives a truncated response before rejecting it', async () => {
+    const { env } = database();
+    env.DEEPSEEK_API_KEY = 'synthetic';
+    const request = vi.fn(async () =>
+      Response.json({ choices: [{ finish_reason: 'length', message: { content: '{"zh":' } }] }),
+    );
+    vi.stubGlobal('fetch', request);
+    const capture = vi.fn();
+    await expect(editorialModel(env, 'JSON', '{}', 20000, capture)).rejects.toThrow(
+      'editorial_model_truncated',
+    );
+    expect(JSON.parse(request.mock.calls[0][1]!.body as string).thinking).toEqual({ type: 'disabled' });
+    expect(capture).toHaveBeenCalledOnce();
+  });
+  it('follows bounded same-site official redirects and rejects redirects to an unrelated host', async () => {
+    const { env } = database();
+    env.SITE_URL = 'https://wenbu.app';
+    env.ASSETS = {
+      fetch: async () => new Response('Wenbu public implementation. '.repeat(30)),
+    } as unknown as Fetcher;
+    const topic = editorialTopics.find((t) => t.id === 'compare-chani')!;
+    let unrelated = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (request: Request) =>
+        request.url.endsWith('/app')
+          ? new Response(null, {
+              status: 301,
+              headers: { Location: unrelated ? 'https://unrelated.example/app/' : '/app/' },
+            })
+          : new Response('Official CHANI product description. '.repeat(30)),
+      ),
+    );
+    expect((await researchEditorial(env, topic)).some((s) => s.id === 'chani')).toBe(true);
+    unrelated = true;
+    await expect(researchEditorial(env, topic)).rejects.toThrow('vendor_source_unavailable');
   });
   it('preserves the original headline, source list and publication date on extension', async () => {
     const d = document(editorialTopics.find((t) => t.slug === 'first-reading')!),
