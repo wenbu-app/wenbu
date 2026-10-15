@@ -133,7 +133,12 @@ export async function publishedDocument(env: Env, path: string) {
   registerEditorialPaths([pathForTopic(doc.topic)]);
   return doc;
 }
-export async function publishEditorial(env: Env, runId: string, doc: EditorialDocument) {
+export async function publishEditorial(
+  env: Env,
+  runId: string,
+  doc: EditorialDocument,
+  expectedRevision: string | null = null,
+) {
   if (env.EDITORIAL_AUTOPUBLISH !== 'true') throw new Error('editorial_publication_disabled');
   const db = env.ANALYTICS!;
   const retained = await db
@@ -146,6 +151,26 @@ export async function publishEditorial(env: Env, runId: string, doc: EditorialDo
     path = pathForTopic(doc.topic),
     json = JSON.stringify(doc);
   const urls = ['', 'en/'].map((prefix) => `${env.SITE_URL}/${prefix}${path}/`);
+  if (retained) {
+    const completed = await db
+      .prepare('SELECT status,revision FROM editorial_runs WHERE id=?')
+      .bind(runId)
+      .first<{ status: string; revision: string | null }>();
+    // Acknowledging an earlier commit must never move a newer public revision backwards.
+    if (completed?.status === 'published' && completed.revision === doc.revision)
+      return { urls, revision: doc.revision };
+  }
+  const current = await db
+    .prepare('SELECT revision,run_id FROM editorial_publications WHERE path=?')
+    .bind(path)
+    .first<{ revision: string; run_id: string }>();
+  if (
+    current
+      ? current.revision !== expectedRevision &&
+        !(current.revision === doc.revision && current.run_id === runId)
+      : expectedRevision !== null
+  )
+    throw new Error('editorial_stale_revision');
   const committed = await db.batch([
     db
       .prepare(
@@ -154,9 +179,9 @@ export async function publishEditorial(env: Env, runId: string, doc: EditorialDo
       .bind(doc.revision, path, json, runId, now, runId, now),
     db
       .prepare(
-        'INSERT INTO editorial_publications(path,topic_id,revision,document_json,published_at,updated_at,run_id) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM editorial_revisions WHERE revision=? AND run_id=?) ON CONFLICT(path) DO UPDATE SET revision=excluded.revision,document_json=excluded.document_json,updated_at=excluded.updated_at,run_id=excluded.run_id',
+        'INSERT INTO editorial_publications(path,topic_id,revision,document_json,published_at,updated_at,run_id) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM editorial_revisions WHERE revision=? AND run_id=?) ON CONFLICT(path) DO UPDATE SET revision=excluded.revision,document_json=excluded.document_json,updated_at=excluded.updated_at,run_id=excluded.run_id WHERE editorial_publications.revision=? OR (editorial_publications.revision=excluded.revision AND editorial_publications.run_id=excluded.run_id)',
       )
-      .bind(path, doc.topic.id, doc.revision, json, now, now, runId, doc.revision, runId),
+      .bind(path, doc.topic.id, doc.revision, json, now, now, runId, doc.revision, runId, expectedRevision),
     db
       .prepare(
         "UPDATE editorial_runs SET status='published',revision=?,published_urls_json=?,updated_at=? WHERE id=? AND EXISTS(SELECT 1 FROM editorial_publications WHERE path=? AND revision=?)",

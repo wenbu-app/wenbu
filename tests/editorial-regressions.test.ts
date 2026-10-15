@@ -58,6 +58,36 @@ describe('editorial review regressions', () => {
     );
     expect(JSON.parse(revision as string).updatedAt).toBe(original.updatedAt);
   });
+  it('acknowledges a committed publication replay without reverting a later revision', async () => {
+    const { env, sql } = database();
+    env.EDITORIAL_AUTOPUBLISH = 'true';
+    env.SITE_URL = 'https://wenbu.app';
+    await seedEditorial(env);
+    await claimEditorial(env, 'original', publicationSlot(Date.now()));
+    const a = document();
+    await publishEditorial(env, 'original', a);
+    await releaseEditorial(env, 'original');
+    for (const [id, expected, next] of [
+      ['correction-a', a.revision, 'd'.repeat(64)],
+      ['correction-b', 'd'.repeat(64), 'e'.repeat(64)],
+    ]) {
+      sql
+        .prepare(
+          "INSERT INTO editorial_runs(id,slot,topic_id,status,created_at,updated_at) VALUES(?,?,?,'reviewing',?,?)",
+        )
+        .run(id, 'revision-' + id, a.topic.id, Date.now(), Date.now());
+      await renewEditorialLease(env, id);
+      await publishEditorial(env, id, { ...a, revision: next }, expected);
+      await releaseEditorial(env, id);
+    }
+    expect(
+      (await publishEditorial(env, 'correction-a', { ...a, revision: 'd'.repeat(64) }, a.revision)).revision,
+    ).toBe('d'.repeat(64));
+    expect(sql.prepare('SELECT revision FROM editorial_publications').get()?.revision).toBe('e'.repeat(64));
+    expect((await publishEditorial(env, 'original', a)).revision).toBe(a.revision);
+    expect(sql.prepare('SELECT revision FROM editorial_publications').get()?.revision).toBe('e'.repeat(64));
+    expect(sql.prepare('SELECT COUNT(*) AS n FROM editorial_revisions').get()?.n).toBe(3);
+  });
   it('persists a queued slot before dispatch and advances after an early workflow failure', async () => {
     const { env, sql } = database();
     env.EDITORIAL_ENABLED = 'true';
@@ -159,6 +189,39 @@ describe('editorial review regressions', () => {
     expect(sql.prepare('SELECT status FROM editorial_runs WHERE id=?').get('original-run')?.status).toBe(
       'published',
     );
+  });
+  it('dispatches an archived correction request after an interrupted workflow enqueue', async () => {
+    const { env, sql } = database();
+    env.EDITORIAL_ENABLED = 'true';
+    env.EDITORIAL_AUTOPUBLISH = 'true';
+    env.SITE_URL = 'https://wenbu.app';
+    const createBatch = vi.fn().mockRejectedValueOnce(new Error('transport')).mockResolvedValue([]);
+    env.EDITORIAL_WORKFLOW = { createBatch } as unknown as NonNullable<typeof env.EDITORIAL_WORKFLOW>;
+    const objects = new Map<string, string>();
+    env.ANALYTICS_ARCHIVE = {
+      put: async (key: string, value: string) => objects.set(key, value),
+      get: async (key: string) =>
+        objects.has(key) ? { json: async () => JSON.parse(objects.get(key)!) } : null,
+    } as unknown as R2Bucket;
+    await seedEditorial(env);
+    await claimEditorial(env, 'published-before-enqueue', publicationSlot(Date.now()));
+    const d = document();
+    await publishEditorial(env, 'published-before-enqueue', d);
+    await releaseEditorial(env, 'published-before-enqueue');
+    await expect(
+      reviseEditorial(env, {
+        path: 'learn/daily-card-reflection',
+        expectedRevision: d.revision,
+        instructions: 'Clarify random results and preserve the original record.',
+      }),
+    ).rejects.toThrow('transport');
+    const pending = sql.prepare("SELECT id FROM editorial_runs WHERE status='queued'").get();
+    const dispatched = await dispatchEditorial(env);
+    expect(dispatched.id).toBe(pending?.id);
+    expect(createBatch.mock.calls[1][0][0].params.revision.path).toBe('learn/daily-card-reflection');
+    expect(
+      sql.prepare("SELECT COUNT(*) AS n FROM editorial_runs WHERE slot LIKE 'revision-%'").get()?.n,
+    ).toBe(1);
   });
   it('follows bounded same-site official redirects and rejects redirects to an unrelated host', async () => {
     const { env } = database();
