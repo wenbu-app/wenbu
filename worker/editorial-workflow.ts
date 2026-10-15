@@ -224,12 +224,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         await renewEditorialLease(this.env, runId);
         if (!pass() || draftIssues(document, packet, topic).length)
           throw new Error('editorial_quality_gate_failed');
-        if (
-          original &&
-          (await publishedDocument(this.env, pathForTopic(topic)))?.revision !== original.revision
-        )
-          throw new Error('editorial_stale_revision');
-        return publishEditorial(this.env, runId, document);
+        return publishEditorial(this.env, runId, document, original?.revision ?? null);
       });
       published = true;
       return { status: 'published', ...receipt };
