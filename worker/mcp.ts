@@ -9,6 +9,7 @@ import { calculateZiwei } from '../src/lib/ziwei';
 import { knowledgeIndex } from '../src/lib/knowledge';
 import { searchCompleteLibrary, readCompleteLibrary } from './editorial-library';
 import type { Env } from './types';
+import { editorialDiscovery } from './editorial-discovery';
 import type { ToolKind } from '../src/lib/schema';
 type ToolReceipt = (
   tool: ToolKind | 'mcp',
@@ -164,7 +165,15 @@ export function createMcpServer(receipt?: ToolReceipt, env?: Env) {
     },
     async () => ({
       contents: [
-        { uri: 'wenbu://knowledge', mimeType: 'application/json', text: JSON.stringify(knowledgeIndex()) },
+        {
+          uri: 'wenbu://knowledge',
+          mimeType: 'application/json',
+          text: env
+            ? ((await (
+                await editorialDiscovery(new Request(env.SITE_URL + '/knowledge/index.json'), env)
+              )?.text()) ?? JSON.stringify(knowledgeIndex()))
+            : JSON.stringify(knowledgeIndex()),
+        },
       ],
     }),
   );

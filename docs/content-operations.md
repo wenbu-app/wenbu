@@ -29,7 +29,7 @@ At 7 days, inspect discovery, sources and obvious usability errors. At 14 and 28
 1. At least two sources actually fetched, including a vendor source for comparisons. An unavailable/challenged page is not counted as read. Excerpts are explicitly labelled.
 2. Complete Chinese and English editions with equivalent sections, useful text, explanatory figure, table, worked practice, FAQs and terminology. Reject unsafe markup, unknown citations, repeated paragraphs, thin text and unsupported certainty.
 3. A separate model pass checks support, bilingual parity, usefulness, originality and natural expression. This is AI-assisted review, not independent expert review.
-4. One bounded repair is allowed. A run has at most four model requests. Failures retain private evidence and remain blocked; another deployment does not reset the slot.
+4. One bounded repair is allowed. A run has four logical model stages (write, review, optional repair and re-review); each permits at most one transport retry, with an eight-request physical cap. Failures retain private evidence and remain blocked; another deployment does not reset the slot.
 5. Both editions become visible in one D1 transaction. Public HTML, Markdown, JSON, internal discovery, RSS and sitemap reflect the same committed revision. Existing base guides remain intact, with reviewed additions on their original canonical URL.
 
 ## Operations

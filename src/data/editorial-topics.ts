@@ -128,6 +128,26 @@ export const editorialSources: Record<string, { title: string; url: string; role
     url: 'https://biddytarot.com/learn-tarot/',
     role: 'Vendor course offering; no paid-course evaluation',
   },
+  trusted: {
+    title: 'Trusted Tarot · official free reading',
+    url: 'https://www.trustedtarot.com/free-reading/',
+    role: 'Vendor descriptions of spreads and free access; accuracy claims are not verified',
+  },
+  sage: {
+    title: 'Sage · official tarot journal',
+    url: 'https://sagetarot.app/',
+    role: 'Vendor description of recording physical-deck draws and local storage; no security audit',
+  },
+  tarotjournal: {
+    title: 'Tarot Journal · official product',
+    url: 'https://tarotjournal.com/',
+    role: 'Vendor features; public journals are not permission to copy personal readings',
+  },
+  learntarot: {
+    title: 'Learning the Tarot · Joan Bunning official course',
+    url: 'https://learntarot.com/',
+    role: 'Course structure and requirements; do not reproduce copyrighted lessons',
+  },
   wenbu: {
     title: 'Wenbu · current free access',
     url: 'https://wenbu.app/free/',
@@ -162,7 +182,33 @@ const compare = (
   en: `Wenbu vs ${name}: choose for the task you have`,
   task: `Help a reader decide between Wenbu and ${name} for a concrete reading, learning or record-keeping task.`,
   unique:
-    'A source-linked decision matrix, three realistic reader scenarios and a five-minute evaluation checklist. Give the competitor appropriate credit. Never invent pricing, missing features, account tests or accuracy rankings.',
+    (
+      {
+        chani:
+          'Compare an astrology-led audio/reflection routine with a browser-based practice across Chinese traditions and tarot. Show what each actually helps the reader do; do not call them interchangeable chart systems.',
+        costar:
+          'Compare a socially oriented astrology experience with a question-led browser workspace. Explain the different traditions and evaluate which input/context a reader would need; do not infer app privacy or undocumented features.',
+        'astro-com':
+          'A Western natal-chart calculation and learning workflow versus Chinese chart tools and tarot reflection. Explain system differences before the decision matrix. A five-minute checklist must use the same real task without pretending that Western and BaZi charts are equivalent.',
+        'cafe-astrology':
+          'Compare self-service Western astrology reports with a sourced multi-tradition conversation. Give three practical reader scenarios and distinguish free report access from paid or untested features.',
+        'biddy-tarot':
+          'Compare structured tarot learning with a first reading and reflection workflow. Credit the competitor’s educational scope; Wenbu is not a substitute for an entire course.',
+        fatetell:
+          'Add a fresh decision matrix around BaZi calculators, report products, daily practice and actual agent integrations. Keep existing comparison evidence; do not claim that a missing API description proves an API does not exist.',
+        labyrinthos:
+          'A serious tarot-learning and spread practice versus a simple multi-tradition browser session. Compare documented journal access and course scope without inventing paid limits.',
+        'trusted-tarot':
+          'Compare multiple manually selected spreads and configurable reversals with simple upright daily practice and an optional sourced conversation. Give the user a reproducible selection checklist; vendor predictive claims remain vendor claims.',
+        'sage-tarot':
+          'Distinguish recording cards drawn from a physical deck from drawing cards on a website. Compare local-only journal portability with optional Wenbu account/cloud saving, without claiming that local storage is universally better or worse.',
+        'tarot-journal':
+          'Compare a dedicated multi-deck/spread journal and client-record workflow with a lightweight reading-to-reflection workspace. Never quote or reuse community members’ personal journal examples.',
+        'learning-the-tarot':
+          'Compare a self-paced 19-lesson course requiring a deck with a browser tool that helps practice and ask questions. A sensible combined workflow may be the best option; do not pretend every reader must replace the course.',
+      } as Record<string, string>
+    )[slug] +
+    ' Include source-linked trade-offs, three real reader scenarios, one explanatory figure and a concise evaluation worksheet. Never invent pricing, account tests or accuracy rankings.',
   sources: ['wenbu', 'methods', 'agents', ...sources],
   priority: 90,
 });
@@ -176,6 +222,10 @@ export const editorialTopics: EditorialTopic[] = [
   compare('biddy-tarot', 'Biddy Tarot', ['biddy']),
   compare('fatetell', 'FateTell', ['fatetell', 'fatetellCalculator'], 'extend'),
   compare('labyrinthos', 'Labyrinthos', ['labyrinthos', 'labyrinthosLearn'], 'extend'),
+  compare('trusted-tarot', 'Trusted Tarot', ['trusted']),
+  compare('sage-tarot', 'Sage Tarot Journal', ['sage']),
+  compare('tarot-journal', 'Tarot Journal', ['tarotjournal']),
+  compare('learning-the-tarot', 'Learning the Tarot', ['learntarot']),
   topic(
     'daily-reflection',
     'daily-card-reflection',

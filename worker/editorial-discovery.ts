@@ -1,5 +1,5 @@
 import { contentHash, pathForTopic } from './editorial-schema';
-import { editorialMarkdown } from './editorial-render';
+import { editorialMarkdown, originalComparisonMarkdown, assetRequest } from './editorial-render';
 import { publishedDocuments } from './editorial-store';
 import type { Env } from './types';
 import { readLibrary } from './agent-library';
@@ -42,11 +42,14 @@ export async function editorialDiscovery(request: Request, env: Env): Promise<Re
     return null;
   const docs = await publishedDocuments(env);
   if (!docs.length) return null;
-  const source = await env.ASSETS.fetch(request);
+  const source = await env.ASSETS.fetch(assetRequest(request));
   if (!source.ok) return null;
   let text = await source.text();
   const headers = new Headers(source.headers);
   headers.set('Cache-Control', 'public, max-age=60');
+  headers.delete('Content-Length');
+  headers.delete('ETag');
+  headers.delete('Last-Modified');
   if (path === '/indexnow-manifest.json')
     text = JSON.stringify(await mergePublishedManifest(env, JSON.parse(text)));
   else if (path === '/sitemap.xml') {
@@ -98,7 +101,13 @@ export async function editorialDiscovery(request: Request, env: Env): Promise<Re
           })),
       };
       const found = index.guides?.findIndex((g: { slug: string }) => g.slug === slug) ?? -1;
-      if (found >= 0) index.guides[found] = guide;
+      if (found >= 0)
+        index.guides[found] = {
+          ...index.guides[found],
+          translations: guide.translations,
+          updated: doc.updatedAt,
+          editorialId: guide.id,
+        };
       else index.guides?.push(guide);
     }
     index.editorialUpdated = docs[0].updatedAt;
@@ -131,14 +140,20 @@ export async function editorialDiscovery(request: Request, env: Env): Promise<Re
 
 export async function editorialLibraryDocuments(env: Env, locale: 'zh' | 'en') {
   return (await publishedDocuments(env)).map((doc) => ({
-    id: `editorial-${doc.topic.id}`,
+    id:
+      doc.topic.mode === 'extend' && doc.topic.category === 'learn'
+        ? 'guide-' + doc.topic.slug
+        : `editorial-${doc.topic.id}`,
+    alias: `editorial-${doc.topic.id}`,
     title: doc[locale].title,
     url: `${env.SITE_URL}/${locale === 'en' ? 'en/' : ''}${pathForTopic(doc.topic)}/`,
     kind: 'guide' as const,
     level: 'editorial' as const,
     content:
-      (doc.topic.mode === 'extend' && doc.topic.category === 'learn'
-        ? readLibrary('guide-' + doc.topic.slug, locale).content + '\n\n---\n\n'
+      (doc.topic.mode === 'extend'
+        ? (doc.topic.category === 'learn'
+            ? readLibrary('guide-' + doc.topic.slug, locale).content
+            : originalComparisonMarkdown(doc.topic.slug, locale)) + '\n\n---\n\n'
         : '') + editorialMarkdown(doc, locale),
     keywords: `${doc.topic.tool} ${doc.topic.zh} ${doc.topic.en}`,
   }));

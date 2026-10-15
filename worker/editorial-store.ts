@@ -47,7 +47,7 @@ export async function claimEditorial(env: Env, runId: string, slot: string) {
   const rows = (
     await db
       .prepare(
-        "SELECT id,definition_json FROM editorial_topics WHERE status='ready' AND attempts<3 AND (last_published_at IS NULL OR last_published_at<?) ORDER BY last_published_at IS NOT NULL,priority DESC,created_at,id LIMIT 80",
+        "SELECT id,definition_json FROM editorial_topics WHERE status='ready' AND attempts<3 AND (last_published_at IS NULL OR last_published_at<?) ORDER BY last_attempt_at IS NOT NULL,priority DESC,created_at,id LIMIT 80",
       )
       .bind(now - 28 * 86400_000)
       .all<{ id: string; definition_json: string }>()
@@ -65,7 +65,7 @@ export async function claimEditorial(env: Env, runId: string, slot: string) {
   await db.batch([
     db
       .prepare(
-        "INSERT INTO editorial_runs(id,slot,topic_id,status,created_at,updated_at) VALUES(?,?,?,'researching',?,?) ON CONFLICT(id) DO UPDATE SET status='researching',updated_at=excluded.updated_at",
+        "INSERT INTO editorial_runs(id,slot,topic_id,status,created_at,updated_at) VALUES(?,?,?,'researching',?,?) ON CONFLICT(id) DO UPDATE SET topic_id=excluded.topic_id,status='researching',updated_at=excluded.updated_at",
       )
       .bind(runId, slot, chosen.id, now, now),
     db
@@ -73,6 +73,16 @@ export async function claimEditorial(env: Env, runId: string, slot: string) {
       .bind(now, chosen.id),
   ]);
   return chosen;
+}
+export async function renewEditorialLease(env: Env, runId: string) {
+  const now = Date.now();
+  const result = await env
+    .ANALYTICS!.prepare(
+      'UPDATE editorial_state SET lease_owner=?,lease_until=? WHERE id=1 AND (lease_owner=? OR lease_until<?)',
+    )
+    .bind(runId, now + 25 * 60_000, runId, now)
+    .run();
+  if (!result.meta.changes) throw new Error('editorial_busy');
 }
 export async function releaseEditorial(env: Env, runId: string) {
   await env
@@ -124,8 +134,14 @@ export async function publishedDocument(env: Env, path: string) {
 }
 export async function publishEditorial(env: Env, runId: string, doc: EditorialDocument) {
   if (env.EDITORIAL_AUTOPUBLISH !== 'true') throw new Error('editorial_publication_disabled');
-  const db = env.ANALYTICS!,
-    now = Date.now(),
+  const db = env.ANALYTICS!;
+  const retained = await db
+    .prepare('SELECT document_json,run_id,published_at FROM editorial_revisions WHERE revision=?')
+    .bind(doc.revision)
+    .first<{ document_json: string; run_id: string; published_at: number }>();
+  if (retained && retained.run_id !== runId) throw new Error('editorial_no_substantial_change');
+  if (retained) doc = JSON.parse(retained.document_json) as EditorialDocument;
+  const now = retained?.published_at ?? Date.now(),
     path = pathForTopic(doc.topic),
     json = JSON.stringify(doc);
   const urls = ['', 'en/'].map((prefix) => `${env.SITE_URL}/${prefix}${path}/`);
@@ -161,6 +177,12 @@ export async function failEditorial(env: Env, runId: string, code: string) {
       "UPDATE editorial_runs SET status='blocked',error_code=?,updated_at=? WHERE id=? AND status!='published'",
     )
     .bind(code.slice(0, 160), Date.now(), runId)
+    .run();
+  await env
+    .ANALYTICS!.prepare(
+      "UPDATE editorial_topics SET status='blocked' WHERE attempts>=3 AND id=(SELECT topic_id FROM editorial_runs WHERE id=?)",
+    )
+    .bind(runId)
     .run();
 }
 export async function observeEditorial(

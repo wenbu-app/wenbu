@@ -5,7 +5,8 @@ export async function completeLibraryDocuments(locale: 'zh' | 'en', env?: Env) {
   const original = libraryDocuments(locale);
   if (!env || env.EDITORIAL_ENABLED !== 'true') return original;
   const additions = await editorialLibraryDocuments(env, locale);
-  return [...original, ...additions];
+  const replaced = new Set(additions.map((d) => d.id));
+  return [...original.filter((d) => !replaced.has(d.id)), ...additions];
 }
 export async function searchCompleteLibrary(query: string, locale: 'zh' | 'en', limit = 6, env?: Env) {
   const docs = await completeLibraryDocuments(locale, env),
@@ -39,11 +40,10 @@ export async function searchCompleteLibrary(query: string, locale: 'zh' | 'en', 
     }));
 }
 export async function readCompleteLibrary(id: string, locale: 'zh' | 'en', section?: string, env?: Env) {
-  if (!id.startsWith('editorial-')) return readLibrary(id, locale, section);
-  if (section || id.includes('#')) throw new Error('Editorial editions currently require a full read.');
+  if (section || id.includes('#')) return readLibrary(id, locale, section);
   const docs = env ? await editorialLibraryDocuments(env, locale) : [];
-  const doc = docs.find((d) => d.id === id);
-  if (!doc) throw new Error('Unknown published editorial document.');
+  const doc = docs.find((d) => d.id === id || d.alias === id);
+  if (!doc) return readLibrary(id, locale, section);
   return {
     source: {
       id: doc.id,
@@ -63,9 +63,9 @@ export async function readCompleteLibrary(id: string, locale: 'zh' | 'en', secti
   };
 }
 export async function completeLibrarySnapshot(id: string, locale: 'zh' | 'en', env?: Env) {
-  if (!id.startsWith('editorial-')) return libraryContextSnapshot(id, locale);
+  if (sectionIdentifier(id)) return libraryContextSnapshot(id, locale);
   const doc = await readCompleteLibrary(id, locale, undefined, env);
-  return doc.content.length > 1800
+  return doc.scope === 'full' && doc.content.length > 1800
     ? {
         ...doc,
         content: doc.content.slice(0, 1800),
@@ -75,4 +75,7 @@ export async function completeLibrarySnapshot(id: string, locale: 'zh' | 'en', e
         requiresReadBeforeCitation: true,
       }
     : { ...doc, requiresReadBeforeCitation: false };
+}
+function sectionIdentifier(id: string) {
+  return id.includes('#');
 }

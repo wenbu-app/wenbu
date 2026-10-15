@@ -11,6 +11,20 @@ const edition = z
     title: text.max(160),
     description: text.max(350),
     answer: text.min(80),
+    answerSourceIds: ids,
+    evidence: z
+      .array(
+        z
+          .object({
+            claim: text.min(10),
+            sourceId: z.string(),
+            quote: text.min(4).max(220),
+            kind: z.enum(['fact', 'tradition', 'editorial']),
+          })
+          .strict(),
+      )
+      .min(3)
+      .max(10),
     takeaways: z.array(text).min(3).max(5),
     sections: z
       .array(
@@ -24,6 +38,7 @@ const edition = z
       .object({
         title: text.max(160),
         caption: text,
+        sourceIds: ids,
         steps: z
           .array(z.object({ label: text.max(90), detail: text.max(500) }).strict())
           .min(3)
@@ -42,14 +57,20 @@ const edition = z
       })
       .strict(),
     example: z
-      .object({ title: text.max(160), intro: text, steps: z.array(text).min(4).max(7), conclusion: text })
+      .object({
+        title: text.max(160),
+        intro: text,
+        steps: z.array(text).min(4).max(7),
+        conclusion: text,
+        sourceIds: ids,
+      })
       .strict(),
     faq: z
-      .array(z.object({ question: text.max(180), answer: text.min(40) }).strict())
+      .array(z.object({ question: text.max(180), answer: text.min(40), sourceIds: ids }).strict())
       .min(3)
       .max(5),
     glossary: z
-      .array(z.object({ term: text.max(90), definition: text }).strict())
+      .array(z.object({ term: text.max(90), definition: text, sourceIds: ids }).strict())
       .min(3)
       .max(6),
     cta: z.object({ label: text.max(100), reason: text }).strict(),
@@ -128,8 +149,22 @@ export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], to
       issues.push(`${locale}:insufficient_depth`);
     if (e.table.rows.some((row) => row.length !== e.table.columns.length))
       issues.push(`${locale}:table_width`);
-    for (const s of [...e.sections, e.table])
+    for (const s of [
+      ...e.sections,
+      e.table,
+      e.figure,
+      e.example,
+      ...e.faq,
+      ...e.glossary,
+      { sourceIds: e.answerSourceIds },
+    ])
       if (s.sourceIds.some((id) => !allowed.has(id))) issues.push(`${locale}:unread_source`);
+    const normalize = (value: string) => value.normalize('NFKC').replace(/\s+/g, ' ').toLowerCase();
+    for (const evidence of e.evidence) {
+      const source = sources.find((s) => s.id === evidence.sourceId);
+      if (!source || !normalize(source.excerpt).includes(normalize(evidence.quote)))
+        issues.push(`${locale}:unverified_evidence_quote`);
+    }
     if (new Set(e.sections.map((s) => s.heading.toLowerCase())).size !== e.sections.length)
       issues.push(`${locale}:repeated_heading`);
     if (/https?:\/\/|<\/?[a-z]|\bTODO\b|\bTBD\b|待补|待核实来源/i.test(full))
@@ -150,6 +185,20 @@ export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], to
     issues.push('bilingual_structure');
   if (topic.category === 'compare' && !sources.some((s) => new URL(s.url).hostname !== 'wenbu.app'))
     issues.push('comparison_without_vendor_source');
+  if (topic.category === 'learn' && topic.slug.startsWith('compare-')) issues.push('reserved_slug_prefix');
+  for (const source of sources)
+    if (new URL(source.url).hostname !== 'wenbu.app') {
+      const quotes = [...draft.zh.evidence, ...draft.en.evidence]
+        .filter((e) => e.sourceId === source.id)
+        .map((e) => e.quote)
+        .join(' ');
+      if (quotes.split(/\s+/).length > 20) issues.push('external_quote_budget');
+      if (
+        topic.category === 'compare' &&
+        ![...draft.zh.evidence, ...draft.en.evidence].some((e) => e.sourceId === source.id)
+      )
+        issues.push('vendor_claim_evidence_missing');
+    }
   return [...new Set(issues)];
 }
 

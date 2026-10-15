@@ -64,8 +64,23 @@ const mf = new Miniflare({
         outboundService: async (request) => {
           if (new URL(request.url).hostname !== 'api.deepseek.com') return new Response('', { status: 503 });
           calls++;
+          if (calls === 1) return new Response('Synthetic transient provider failure', { status: 503 });
           const input = await request.json(),
             review = input.messages[0].content.startsWith('You are a strict');
+          const draft = fixtureDraft();
+          if (!review) {
+            const packet = JSON.parse(input.messages[1].content),
+              source = packet.sources[0];
+            for (const e of [draft.zh, draft.en]) {
+              e.answerSourceIds = [source.id];
+              for (const s of [...e.sections, e.figure, e.table, e.example, ...e.faq, ...e.glossary])
+                s.sourceIds = [source.id];
+              for (const ev of e.evidence) {
+                ev.sourceId = source.id;
+                ev.quote = source.excerpt.slice(0, 30).trim();
+              }
+            }
+          }
           return Response.json({
             choices: [
               {
@@ -81,7 +96,7 @@ const mf = new Miniflare({
                           natural: true,
                           issues: failReview ? ['Unverified example'] : [],
                         }
-                      : fixtureDraft(),
+                      : draft,
                   ),
                 },
               },
@@ -117,7 +132,7 @@ try {
   });
   check('native Workflow dispatch accepts a stable slot', (await response.json()).status === 'queued');
   let state;
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 250; i++) {
     state = await admin();
     if (state.runs[0]?.status === 'published' || state.runs[0]?.status === 'blocked') break;
     await new Promise((r) => setTimeout(r, 200));
@@ -127,8 +142,8 @@ try {
     state.runs[0]?.status === 'published',
   );
   check(
-    'native model budget records separate writing and review passes',
-    state.runs[0].model_calls === 2 && calls === 2,
+    'native model budget allows one transport retry before writing and review',
+    state.runs[0].model_calls === 3 && calls === 3,
   );
   for (const prefix of ['', 'en/']) {
     response = await mf.dispatchFetch(`https://wenbu.app/${prefix}learn/daily-card-reflection/`);
@@ -203,7 +218,7 @@ try {
     (await db.prepare('SELECT COUNT(*) AS n FROM editorial_publications').first()).n === 1,
   );
   check(
-    'repair cannot exceed four model calls',
+    'quality failure uses four logical model stages',
     state.runs.find((r) => r.slot === '2026-10-15-15').model_calls === 4,
   );
   console.log(

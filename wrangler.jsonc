@@ -26,6 +26,8 @@
     "AI_PER_USER_DAILY_LIMIT": "5",
     "AGENT_PER_USER_DAILY_LIMIT": "12",
     "AGENT_GLOBAL_DAILY_LIMIT": "600",
+    "EDITORIAL_ENABLED": "true",
+    "EDITORIAL_AUTOPUBLISH": "true",
   },
   "durable_objects": {
     "bindings": [
@@ -72,7 +74,10 @@
     },
   ],
   "r2_buckets": [{ "binding": "ANALYTICS_ARCHIVE", "bucket_name": "wenbu-analytics-archive" }],
-  "triggers": { "crons": ["15 * * * *", "*/15 * * * *"] },
+  "workflows": [
+    { "name": "wenbu-editorial", "binding": "EDITORIAL_WORKFLOW", "class_name": "EditorialWorkflow" },
+  ],
+  "triggers": { "crons": ["15 * * * *", "*/15 * * * *", "0 1,7,13 * * *", "30 23 * * *", "0 22 * * 6"] },
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false },

@@ -2,6 +2,7 @@ import type { EditorialDocument, EditorialEdition } from './editorial-schema';
 import { pathForTopic } from './editorial-schema';
 import { publishedDocument, publishedDocuments } from './editorial-store';
 import type { Env } from './types';
+import { comparisons } from '../src/data/comparisons';
 export const escapeHtml = (value: string) =>
   value
     .replace(/&/g, '&amp;')
@@ -13,6 +14,69 @@ const h = escapeHtml;
 const pref = (locale: 'zh' | 'en') => (locale === 'en' ? '/en/' : '/');
 const machineSlug = (doc: EditorialDocument) =>
   `${doc.topic.category === 'compare' ? 'compare-' : ''}${doc.topic.slug}`;
+export function originalComparisonMarkdown(slug: string, locale: 'zh' | 'en') {
+  const comparison = comparisons.find((c) => c.slug === slug);
+  if (!comparison) throw new Error('original_comparison_unavailable');
+  const e = comparison[locale];
+  return [
+    `# ${e.title}`,
+    e.description,
+    e.intro,
+    '| Dimension | Wenbu | ' + comparison.name + ' |',
+    '| --- | --- | --- |',
+    ...e.rows.map((row) => '| ' + row.join(' | ') + ' |'),
+    e.conclusion,
+    '## Sources',
+    ...comparison.sources.map((s) => `- [${s.title}](${s.url})`),
+  ].join('\n\n');
+}
+export function assetRequest(request: Request) {
+  const headers = new Headers(request.headers);
+  headers.delete('If-None-Match');
+  headers.delete('If-Modified-Since');
+  return new Request(request, { headers, method: 'GET' });
+}
+export async function preserveExtendedMetadata(
+  response: Response,
+  doc: EditorialDocument,
+  locale: 'zh' | 'en',
+  base: string,
+) {
+  const canonical = `${base}${pref(locale)}${pathForTopic(doc.topic)}/`;
+  let html = await response.text();
+  html = html.replace(
+    /<script([^>]*type="application\/ld\+json"[^>]*)>([\s\S]*?)<\/script>/g,
+    (whole, attributes, raw) => {
+      try {
+        const schema = JSON.parse(raw);
+        const nodes = schema['@graph'] ?? [schema];
+        for (const node of nodes)
+          if (node.url === canonical || node['@id'] === canonical) {
+            node.dateModified = doc.updatedAt;
+            node.citation = [...new Set([...(node.citation ?? []), ...doc.sources.map((s) => s.url)])];
+            node.hasPart = {
+              '@type': 'CreativeWork',
+              name: doc[locale].title,
+              url: canonical + '#editorial-addition',
+              datePublished: doc.publishedAt,
+            };
+          }
+        return `<script${attributes}>${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>`;
+      } catch {
+        return whole;
+      }
+    },
+  );
+  html = html.replace(
+    '</head>',
+    `<meta name="wenbu-editorial-path" content="${h(pathForTopic(doc.topic))}"></head>`,
+  );
+  const headers = new Headers(response.headers);
+  headers.delete('Content-Length');
+  headers.delete('ETag');
+  headers.delete('Last-Modified');
+  return new Response(html, { status: response.status, headers });
+}
 export function editorialMarkdown(doc: EditorialDocument, locale: 'zh' | 'en') {
   const e = doc[locale];
   const refs = (ids: string[]) =>
@@ -72,6 +136,29 @@ export function editorialBody(doc: EditorialDocument, locale: 'zh' | 'en') {
     <section class="editorial-sources"><h2>${t('来源与核对范围', 'Sources and review scope')}</h2><p>${t('这是问卜的 AI 辅助编辑内容，经过自动结构检查和独立生成的编辑检查；不代表独立专家审稿。公开产品介绍不等于付费体验测试。', 'This AI-assisted Wenbu article passed automated structure checks and a separate editorial model pass. It is not independent expert review or a paid-account product test.')}</p><ol>${doc.sources.map((s) => `<li><a href="${h(s.url)}" rel="noreferrer">${h(s.title)} ↗</a><small>${h(s.role)} · ${s.fetchedAt.slice(0, 10)} · ${s.truncated ? t('已读选段', 'Read excerpt') : t('已取回正文', 'Fetched text')}</small></li>`).join('')}</ol></section>
     <section class="editorial-cta"><h2>${h(e.cta.label)}</h2><p>${h(e.cta.reason)}</p><a class="button primary" href="${pref(locale)}${doc.topic.tool}/">${h(e.cta.label)} ↗</a><div class="editorial-downloads"><a href="/knowledge/${locale}/${machineSlug(doc)}.md">Markdown ↗</a><a href="/knowledge/${locale}/${machineSlug(doc)}.json">JSON ↗</a><a href="${pref(locale)}${locale === 'en' ? 'compare/' : 'compare/'}">${t('比较不同产品', 'Compare products')} ↗</a></div></section>`;
 }
+export function editorialArt(tool: string, comparison = false) {
+  if (!comparison && (tool === 'tarot' || tool === 'daily'))
+    return '<div class="editorial-art-cards"><img src="/images/tarot/09-hermit.webp" width="96" height="160" loading="lazy" alt=""><img src="/images/tarot/17-star.webp" width="96" height="160" loading="lazy" alt=""></div>';
+  const motif = comparison
+    ? '<rect x="94" y="66" width="140" height="168" rx="5"/><rect x="366" y="66" width="140" height="168" rx="5"/><path d="M118 101h92m-92 23h68m-68 48h92m-92 23h78M390 101h92m-92 23h68m-68 48h92m-92 23h78M250 134h100m-12-10 12 10-12 10M350 166H250m12-10-12 10 12 10"/><circle cx="300" cy="150" r="78" opacity=".25"/>'
+    : tool === 'bazi'
+      ? '<g><rect x="130" y="70" width="65" height="160" rx="4"/><rect x="222" y="70" width="65" height="160" rx="4"/><rect x="314" y="70" width="65" height="160" rx="4"/><rect x="406" y="70" width="65" height="160" rx="4"/><path d="M130 150h65m27 0h65m27 0h65m27 0h65"/><circle cx="163" cy="110" r="13"/><circle cx="255" cy="190" r="13"/><circle cx="347" cy="110" r="13"/><circle cx="439" cy="190" r="13"/></g>'
+      : tool === 'iching'
+        ? Array.from(
+            { length: 6 },
+            (_, i) =>
+              `<path d="M135 ${80 + i * 28}h${i % 3 === 0 ? '44m20 0h44' : '108'}M357 ${80 + i * 28}h${i % 2 === 0 ? '108' : '44m20 0h44'}" stroke-width="8"/>`,
+          ).join('') + '<path d="M265 150h70m-13-12 13 12-13 12"/>'
+        : tool === 'ziwei'
+          ? '<rect x="194" y="44" width="212" height="212"/>' +
+            Array.from(
+              { length: 3 },
+              (_, i) => `<path d="M${247 + i * 53} 44v53m0 106v53M194 ${97 + i * 53}h53m106 0h53"/>`,
+            ).join('') +
+            '<rect x="247" y="97" width="106" height="106"/><circle cx="300" cy="150" r="29"/>'
+          : '<path d="M138 76q80-18 162 14 82-32 162-14v157q-82-18-162 14-80-32-162-14Z"/><path d="M300 90v157M166 112h102m-102 29h102m-102 29h74M332 112h102m-102 29h102m-102 29h74"/><circle cx="110" cy="150" r="14"/><circle cx="490" cy="150" r="14"/><path d="M83 150H62m476 0h-21"/>';
+  return `<svg viewBox="0 0 600 300" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><g opacity=".22"><circle cx="230" cy="150" r="124"/><circle cx="370" cy="150" r="124"/><path d="M28 48V28h20m504 0h20v20M28 252v20h20m504 0h20v-20"/></g>${motif}</svg>`;
+}
 export function editorialCards(
   docs: EditorialDocument[],
   locale: 'zh' | 'en',
@@ -79,7 +166,7 @@ export function editorialCards(
 ) {
   const relevant = docs.filter((d) => d.topic.category === category).slice(0, 12);
   if (!relevant.length) return '';
-  return `<section class="editorial-catalogue"><h2>${category === 'compare' ? (locale === 'zh' ? '按需求，找到适合的工具' : 'Choose a tool for your task') : locale === 'zh' ? '最近补充的实践与指南' : 'Recent guides and practical additions'}</h2><div class="editorial-cards">${relevant.map((d) => `<a class="editorial-card" href="${pref(locale)}${pathForTopic(d.topic)}/"><div class="editorial-card-art" aria-hidden="true"><span>${h(d.topic.tool === 'tarot' ? '✧' : d.topic.tool === 'bazi' ? '甲' : d.topic.tool === 'iching' ? '☰' : '↗')}</span><span>${h(d.topic.category === 'compare' ? '⇄' : '◌')}</span></div><small>${d.updatedAt.slice(0, 10)} · ${d.topic.mode === 'extend' ? (locale === 'zh' ? '新增练习' : 'Updated practice') : locale === 'zh' ? '图解指南' : 'Illustrated guide'}</small><h3>${h(d[locale].title)}</h3><p>${h(d[locale].description)}</p></a>`).join('')}</div></section>`;
+  return `<section class="editorial-catalogue"><h2>${category === 'compare' ? (locale === 'zh' ? '按需求，找到适合的工具' : 'Choose a tool for your task') : locale === 'zh' ? '最近补充的实践与指南' : 'Recent guides and practical additions'}</h2><div class="editorial-cards">${relevant.map((d) => `<a class="editorial-card" href="${pref(locale)}${pathForTopic(d.topic)}/"><div class="editorial-card-art" aria-hidden="true">${editorialArt(d.topic.tool, d.topic.category === 'compare')}</div><small>${d.updatedAt.slice(0, 10)} · ${d.topic.mode === 'extend' ? (locale === 'zh' ? '新增练习' : 'Updated practice') : locale === 'zh' ? '图解指南' : 'Illustrated guide'}</small><h3>${h(d[locale].title)}</h3><p>${h(d[locale].description)}</p></a>`).join('')}</div></section>`;
 }
 function rewriteMetadata(response: Response, doc: EditorialDocument, locale: 'zh' | 'en', base: string) {
   const e = doc[locale],
@@ -177,11 +264,16 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
     if (machine) {
       const lang = machine[1] as 'zh' | 'en';
       let markdown = editorialMarkdown(doc, lang);
-      if (doc.topic.mode === 'extend' && doc.topic.category === 'learn') {
-        const original = await env.ASSETS.fetch(
-          new Request(`${env.SITE_URL}/knowledge/${lang}/${doc.topic.slug}.md`),
-        );
-        if (original.ok) markdown = (await original.text()) + '\n\n---\n\n' + markdown;
+      if (doc.topic.mode === 'extend') {
+        if (doc.topic.category === 'compare')
+          markdown = originalComparisonMarkdown(doc.topic.slug, lang) + '\n\n---\n\n' + markdown;
+        else {
+          const original = await env.ASSETS.fetch(
+            new Request(`${env.SITE_URL}/knowledge/${lang}/${doc.topic.slug}.md`),
+          );
+          if (!original.ok) throw new Error('original_article_unavailable');
+          markdown = (await original.text()) + '\n\n---\n\n' + markdown;
+        }
       }
       return new Response(
         request.method === 'HEAD'
@@ -199,6 +291,7 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
                 updated: doc.updatedAt,
                 content: markdown,
                 edition: doc[lang],
+                editionScope: doc.topic.mode === 'extend' ? 'addition' : 'full',
                 sources: doc.sources,
               }),
         {
@@ -214,9 +307,9 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
     }
     let response: Response;
     if (doc.topic.mode === 'extend') {
-      response = await env.ASSETS.fetch(request);
+      response = await env.ASSETS.fetch(assetRequest(request));
       if (!response.ok) return null;
-      const addition = `<section class="editorial-addition editorial-prose"><p class="eyebrow">${locale === 'zh' ? '新增实践与核对' : 'ADDITIONAL PRACTICE'} · ${doc.updatedAt.slice(0, 10)}</p>${editorialBody(doc, locale)}</section>`;
+      const addition = `<section id="editorial-addition" class="editorial-addition editorial-prose"><p class="eyebrow">${locale === 'zh' ? '新增实践与核对' : 'ADDITIONAL PRACTICE'} · ${doc.updatedAt.slice(0, 10)}</p><h2>${h(doc[locale].title)}</h2>${editorialBody(doc, locale)}</section>`;
       response = new HTMLRewriter()
         .on('article.prose,.comparison-body', {
           element(el) {
@@ -226,7 +319,7 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
         .transform(response);
       // Comparisons have a different static layout; append inside main if there is no article prose.
       if (doc.topic.category === 'compare') {
-        const original = await env.ASSETS.fetch(request);
+        const original = await env.ASSETS.fetch(assetRequest(request));
         response = new HTMLRewriter()
           .on('main', {
             element(el) {
@@ -236,30 +329,38 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
           .transform(original);
       }
     } else {
-      response = await env.ASSETS.fetch(new Request(`${env.SITE_URL}/${locale==='en'?'en/':''}editorial-template/`));
+      response = await env.ASSETS.fetch(
+        new Request(`${env.SITE_URL}/${locale === 'en' ? 'en/' : ''}editorial-template/`),
+      );
       if (!response.ok) return null;
       const e = doc[locale];
       response = new HTMLRewriter()
         .on('#editorial-document', {
           element(el) {
             el.setInnerContent(
-              `<div class="shell editorial-reading"><nav class="breadcrumbs" aria-label="${locale === 'zh' ? '当前位置' : 'Breadcrumb'}"><a href="${pref(locale)}">${locale === 'zh' ? '首页' : 'Home'}</a> / <a href="${pref(locale)}${doc.topic.category}/">${doc.topic.category === 'compare' ? (locale === 'zh' ? '产品对比' : 'Comparisons') : locale === 'zh' ? '知识手册' : 'Library'}</a></nav><header class="editorial-heading"><span class="eyebrow">WENBU · ${doc.topic.category === 'compare' ? 'SIDE BY SIDE' : 'FIELD NOTES'}</span><h1>${h(e.title)}</h1><p>${h(e.description)}</p><div class="editorial-meta"><span>Wenbu · ${locale === 'zh' ? 'AI 辅助编辑' : 'AI-assisted editorial'}</span><time datetime="${doc.updatedAt}">${doc.updatedAt.slice(0, 10)}</time><span>${locale === 'zh' ? '图解 · 实例 · 来源' : 'Figures · Worked example · Sources'}</span></div></header><div class="editorial-grid"><article class="editorial-prose">${editorialBody(doc, locale)}</article><aside class="editorial-toc"><strong>${locale === 'zh' ? '这一篇讲什么' : 'On this page'}</strong><nav>${e.sections.map((s, i) => `<a href="#editorial-section-${i}">${h(s.heading)}</a>`).join('')}</nav></aside></div></div>`,
+              `<div class="shell editorial-reading"><nav class="breadcrumbs" aria-label="${locale === 'zh' ? '当前位置' : 'Breadcrumb'}"><a href="${pref(locale)}">${locale === 'zh' ? '首页' : 'Home'}</a> / <a href="${pref(locale)}${doc.topic.category}/">${doc.topic.category === 'compare' ? (locale === 'zh' ? '产品对比' : 'Comparisons') : locale === 'zh' ? '知识手册' : 'Library'}</a></nav><header class="editorial-heading"><span class="eyebrow">WENBU · ${doc.topic.category === 'compare' ? 'SIDE BY SIDE' : 'FIELD NOTES'}</span><h1>${h(e.title)}</h1><p>${h(e.description)}</p><div class="editorial-meta"><span>Wenbu · ${locale === 'zh' ? 'AI 辅助编辑' : 'AI-assisted editorial'}</span><time datetime="${doc.updatedAt}">${doc.updatedAt.slice(0, 10)}</time><span>${locale === 'zh' ? '图解 · 实例 · 来源' : 'Figures · Worked example · Sources'}</span></div><div class="editorial-hero-art" aria-hidden="true">${editorialArt(doc.topic.tool, doc.topic.category === 'compare')}</div></header><div class="editorial-grid"><article class="editorial-prose">${editorialBody(doc, locale)}</article><aside class="editorial-toc"><strong>${locale === 'zh' ? '这一篇讲什么' : 'On this page'}</strong><nav>${e.sections.map((s, i) => `<a href="#editorial-section-${i}">${h(s.heading)}</a>`).join('')}</nav></aside></div></div>`,
               { html: true },
             );
           },
         })
         .transform(response);
     }
-    response = rewriteMetadata(response, doc, locale, env.SITE_URL);
+    response =
+      doc.topic.mode === 'extend'
+        ? await preserveExtendedMetadata(response, doc, locale, env.SITE_URL)
+        : rewriteMetadata(response, doc, locale, env.SITE_URL);
     const headers = new Headers(response.headers);
     headers.set('Cache-Control', 'public, max-age=60');
     headers.delete('X-Robots-Tag');
+    headers.delete('Content-Length');
+    headers.delete('ETag');
+    headers.delete('Last-Modified');
     return new Response(request.method === 'HEAD' ? null : response.body, { status: 200, headers });
   }
   if (normalized === '/learn/' || normalized === '/compare/') {
     const docs = await publishedDocuments(env),
       category = normalized === '/compare/' ? 'compare' : 'learn';
-    const response = await env.ASSETS.fetch(request);
+    const response = await env.ASSETS.fetch(assetRequest(request));
     return new HTMLRewriter()
       .on('[data-editorial-catalogue]', {
         element(el) {

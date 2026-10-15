@@ -82,5 +82,33 @@ export function fixtureDraft(): EditorialDraft {
           `${i}-${j}：${'先观察画面中实际可见的细节，再区分个人联想和传统解释，选择一个能够亲自完成的小行动，并在晚上记录真实发生的情况。不要把象征当作对他人想法或未来事件的事实判断。'.repeat(7)}`,
       )),
   );
-  return { zh, en };
+  for (const edition of [zh, en]) {
+    Object.assign(edition, {
+      answerSourceIds: ['daily'],
+      evidence: [
+        {
+          claim: 'A practice can be reviewed later.',
+          sourceId: 'daily',
+          quote: 'Source material',
+          kind: 'editorial',
+        },
+        {
+          claim: 'An observation is a starting point.',
+          sourceId: 'tarot',
+          quote: 'Source material',
+          kind: 'editorial',
+        },
+        {
+          claim: 'Review keeps the process useful.',
+          sourceId: 'review',
+          quote: 'Source material',
+          kind: 'editorial',
+        },
+      ],
+    });
+    Object.assign(edition.figure, { sourceIds: ['daily'] });
+    Object.assign(edition.example, { sourceIds: ['review'] });
+    for (const item of [...edition.faq, ...edition.glossary]) Object.assign(item, { sourceIds: ['tarot'] });
+  }
+  return { zh, en } as EditorialDraft;
 }

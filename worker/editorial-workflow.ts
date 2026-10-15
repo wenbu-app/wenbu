@@ -20,6 +20,7 @@ import {
   publishEditorial,
   releaseEditorial,
   seedEditorial,
+  renewEditorialLease,
 } from './editorial-store';
 import { draftShape, editorialModel, editorialSystem, researchEditorial } from './editorial-research';
 import { checkEditorialHealth } from './editorial-health';
@@ -43,9 +44,12 @@ async function archive(env: Env, runId: string, kind: string, data: unknown) {
   return key;
 }
 async function countCall(env: Env, runId: string) {
+  await renewEditorialLease(env, runId);
   const result = await env
-    .ANALYTICS!.prepare('UPDATE editorial_runs SET model_calls=model_calls+1 WHERE id=? AND model_calls<4')
-    .bind(runId)
+    .ANALYTICS!.prepare(
+      'UPDATE editorial_runs SET model_calls=model_calls+1,updated_at=? WHERE id=? AND model_calls<8',
+    )
+    .bind(Date.now(), runId)
     .run();
   if (!result.meta.changes) throw new Error('editorial_model_budget');
 }
@@ -72,7 +76,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         await editorialStage(this.env, runId, 'drafting', 'research_key', key);
         return sources;
       });
-      const produce = async (feedback?: unknown) => {
+      const produce = async (feedback?: unknown, previousDraft?: unknown) => {
         await countCall(this.env, runId);
         const raw = await editorialModel(
           this.env,
@@ -81,7 +85,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
             topic,
             sources: packet,
             shape: draftShape,
-            ...(feedback ? { revisionInstructions: feedback } : {}),
+            ...(feedback ? { revisionInstructions: feedback, previousDraft } : {}),
           }),
           16000,
         );
@@ -92,7 +96,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         return { draft, issues };
       };
       let produced = await step.do('write-complete-bilingual-editions', stepConfig, () => produce());
-      const review = async () => {
+      const review = async (pass: number) => {
         await countCall(this.env, runId);
         const raw = await editorialModel(
           this.env,
@@ -106,11 +110,11 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
           2500,
         );
         const checked = editorialReviewSchema.parse(raw),
-          key = await archive(this.env, runId, 'review', checked);
+          key = await archive(this.env, runId, `review-${pass}`, checked);
         await editorialStage(this.env, runId, 'reviewed', 'review_key', key);
         return checked;
       };
-      let checked = await step.do('independent-editorial-pass', stepConfig, review);
+      let checked = await step.do('independent-editorial-pass', stepConfig, () => review(1));
       const pass = () =>
         produced.issues.length === 0 &&
         checked.issues.length === 0 &&
@@ -121,12 +125,12 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         checked.natural;
       if (!pass()) {
         produced = await step.do('repair-editorial-issues', stepConfig, () =>
-          produce({ deterministic: produced.issues, review: checked }),
+          produce({ deterministic: produced.issues, review: checked }, produced.draft),
         );
         checked = await step.do(
           'review-repaired-editions',
           { ...stepConfig, retries: { ...stepConfig.retries, limit: 0 } },
-          review,
+          () => review(2),
         );
       }
       if (!pass()) {
@@ -139,7 +143,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         );
         return { status: 'quality_blocked', topic: topic.id };
       }
-      const receipt = await step.do('atomic-bilingual-publication', stepConfig, async () => {
+      const document = await step.do('prepare-immutable-publication', stepConfig, async () => {
         const now = new Date().toISOString(),
           revision = await contentHash(
             JSON.stringify({ draft: produced.draft, topic, sources: packet.map((s) => s.hash) }),
@@ -153,7 +157,12 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
           revision,
           review: checked,
         };
-        return publishEditorial(this.env, runId, doc);
+        await archive(this.env, runId, 'publication', doc);
+        return doc;
+      });
+      const receipt = await step.do('atomic-bilingual-publication', stepConfig, async () => {
+        await renewEditorialLease(this.env, runId);
+        return publishEditorial(this.env, runId, document);
       });
       published = true;
       return { status: 'published', ...receipt };
@@ -182,14 +191,32 @@ export async function dispatchEditorial(env: Env, time = Date.now()) {
     hour = new Date(time + 8 * 3600_000).getUTCHours();
   const slots = [9, 15, 21].filter((h) => h <= hour).map((h) => `${date}-${String(h).padStart(2, '0')}`);
   const existing = (
-    await env.ANALYTICS.prepare('SELECT slot,status FROM editorial_runs WHERE slot LIKE ?')
+    await env.ANALYTICS.prepare('SELECT id,slot,status,updated_at FROM editorial_runs WHERE slot LIKE ?')
       .bind(`${date}-%`)
-      .all<{ slot: string; status: string }>()
+      .all<{ id: string; slot: string; status: string; updated_at: number }>()
   ).results;
+  const queued = existing.find((r) => r.status === 'queued');
+  if (queued) {
+    await env.EDITORIAL_WORKFLOW.createBatch([
+      { id: queued.id, params: { kind: 'content', slot: queued.slot } },
+    ]);
+    return { status: 'queued', id: queued.id, slot: queued.slot };
+  }
+  if (
+    existing.some(
+      (r) => !['published', 'blocked'].includes(r.status) && r.updated_at > Date.now() - 30 * 60_000,
+    )
+  )
+    return { status: 'busy' };
   const missing = slots.find((s) => !existing.some((r) => r.slot === s));
   if (!missing) return { status: 'no_due_slot' };
   // The instance ID is stable across Cron retries and deployment hooks.
   const id = `editorial-${missing}`;
+  await env.ANALYTICS.prepare(
+    "INSERT OR IGNORE INTO editorial_runs(id,slot,status,created_at,updated_at) VALUES(?,?,'queued',?,?)",
+  )
+    .bind(id, missing, Date.now(), Date.now())
+    .run();
   await env.EDITORIAL_WORKFLOW.createBatch([{ id, params: { kind: 'content', slot: missing } }]);
   return { status: 'queued', id, slot: missing };
 }
@@ -308,6 +335,7 @@ export async function replenishTopics(env: Env) {
     // Automated replenishment cannot overwrite an existing guide or silently add a vendor source.
     if (
       t.mode !== 'new' ||
+      (t.category === 'learn' && t.slug.startsWith('compare-')) ||
       (t.category === 'compare' &&
         !t.sources.some((id) => new URL(editorialSources[id].url).hostname !== 'wenbu.app'))
     )

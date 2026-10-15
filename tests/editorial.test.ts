@@ -167,7 +167,9 @@ describe('durable publication', () => {
     expect(createBatch.mock.calls[0][0][0].id).toBe('editorial-2026-10-15-09');
     for (const h of ['09', '15', '21'])
       sql
-        .prepare('INSERT INTO editorial_runs(id,slot,status,created_at,updated_at) VALUES(?,?,?,?,?)')
+        .prepare(
+          'INSERT OR REPLACE INTO editorial_runs(id,slot,status,created_at,updated_at) VALUES(?,?,?,?,?)',
+        )
         .run(h, `2026-10-15-${h}`, 'published', 0, 0);
     expect(await dispatchEditorial(env, Date.parse('2026-10-15T15:59:00Z'))).toMatchObject({
       status: 'no_due_slot',
