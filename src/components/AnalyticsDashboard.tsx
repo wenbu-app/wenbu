@@ -16,6 +16,7 @@ import {
 } from '../lib/analytics-report';
 import '../styles/analytics-dashboard.css';
 import AccountInsights from './AccountInsights';
+import DailyInsights from './DailyInsights';
 import { UserFacingError, uiErrorMessage } from '../lib/ui-error';
 const number = (value: unknown) => Number(value ?? 0).toLocaleString('zh-CN');
 export default function AnalyticsDashboard({ locale = 'zh' }: { locale?: Locale }) {
@@ -662,6 +663,7 @@ function DashboardContent() {
                 </p>
                 <AnalyticsTrafficCharts report={report} onFilter={pick} />
                 <AnalyticsBreakdownCharts report={report} onFilter={pick} />
+                <DailyInsights report={report} />
                 <details className="observatory-detail-tables">
                   <summary>
                     {t('展开详细统计表')}

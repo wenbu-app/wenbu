@@ -44,6 +44,44 @@ function report(db: DB, query = '') {
 }
 afterEach(() => vi.restoreAllMocks());
 describe('calendar-based analytics visualizations', () => {
+  it('separates daily visible usage, repeat dates and server responses without claiming cohort retention', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    const db = database();
+    for (const [time, patch] of [
+      ['2026-09-28T12:00:00Z', { event: 'daily_revealed', visitor_id: 'returning' }],
+      ['2026-09-29T05:00:00Z', { event: 'daily_revisited', visitor_id: 'returning' }],
+      ['2026-09-29T05:01:00Z', { event: 'daily_revisited', visitor_id: 'returning' }],
+      ['2026-09-29T05:10:00Z', { event: 'daily_revealed', visitor_id: 'new' }],
+      ['2026-09-29T05:20:00Z', { event: 'daily_revealed', visitor_id: 'test-only', is_test: 1 }],
+      [
+        '2026-09-29T05:30:00Z',
+        {
+          event: 'daily_ready',
+          origin: 'server',
+          visitor_id: 'server-only',
+          channel: 'web',
+          status: 'complete',
+        },
+      ],
+    ] as const)
+      event(db, time, { tool: 'daily', page: '/daily/', ...patch });
+    event(db, '2026-09-29T05:24:00Z', { tool: 'daily', page: '/daily/' });
+    event(db, '2026-09-29T05:25:00Z', {
+      tool: 'daily',
+      event: 'tool_started',
+      page: '/daily/',
+      action: 'daily-reveal',
+    });
+    const data = await report(db, 'days=3&tool=daily&timezone=UTC');
+    expect(data.data.daily_usage[0]).toMatchObject({ visitors: 2, repeat_visitors: 1, visitor_days: 3 });
+    expect(data.data.daily_events.find((row) => row.label === 'daily_ready')).toMatchObject({ count: 1 });
+    expect(data.data.daily_events.find((row) => row.label === 'daily_revealed')).toMatchObject({ count: 2 });
+    expect(data.data.summary[0]).toMatchObject({ service_requests: 1, calculations: 0, active_visitors: 1 });
+    expect(data.data.funnel[0]).toMatchObject({ visited: 1, started: 1, succeeded: 1 });
+    const today = await report(db, 'days=1&tool=daily&timezone=UTC');
+    expect(today.data.daily_usage[0]).toMatchObject({ visitors: 2, repeat_visitors: 0, visitor_days: 2 });
+    db.sql.close();
+  });
   it('returns 24 aligned local hours, leaves future slots null, excludes future/unreceived events and deduplicates visitors across the whole range', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(now);
     const db = database();

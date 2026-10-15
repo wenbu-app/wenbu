@@ -56,6 +56,7 @@ export const eventBatch = z.object({ events: z.array(eventSchema).min(1).max(10)
 export type ServiceMetric = {
   event:
     | 'calculation_succeeded'
+    | 'daily_ready'
     | 'interpret_succeeded'
     | 'agent_finished'
     | 'agent_tool_finished'

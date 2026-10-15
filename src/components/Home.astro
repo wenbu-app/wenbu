@@ -4,6 +4,7 @@ import ArticleCard from './ArticleCard.astro';
 import { articles } from '../data/articles';
 import { choose, href, toolInfo } from '../lib/i18n';
 import type { Locale, ToolKind } from '../lib/schema';
+import '../styles/daily.css';
 const { locale } = Astro.props as { locale: Locale };
 const t = (zh: string, en: string) => choose(locale, zh, en);
 const featuredArticles = ['first-reading', 'choose-a-tool', 'tarot-beginner']
@@ -69,6 +70,23 @@ const featuredArticles = ['first-reading', 'choose-a-tool', 'tarot-beginner']
       </strong>
     </span>
     <span class="home-agent-cta">{t('与命理 Agent 对话', 'Meet Wenbu Agent')} ↗</span>
+  </a>
+  <a class="home-daily-entry" data-track="daily-entry" href={href(locale, 'daily')}>
+    <span class="home-daily-art" aria-hidden="true">
+      <img src="/images/tarot/17-star-small.webp" width="56" height="84" alt="" loading="lazy" />
+      <img src="/images/tarot/19-sun-small.webp" width="56" height="84" alt="" loading="lazy" />
+    </span>
+    <span>
+      <small>{t('日签 · 一日一张牌', 'DAILY CARD · A MOMENT FOR TODAY')}</small>
+      <strong>{t('给今天，一点新的视角。', 'A little perspective for today.')}</strong>
+      <p>
+        {t(
+          '不用想好问题，不用填写资料。揭开一张牌，带走一件可以试的小事。',
+          'No question or forms needed. Turn over a card and take one small action into your day.',
+        )}
+      </p>
+    </span>
+    <span class="home-daily-cta">{t('免费揭开今日日签', 'Reveal your free daily card')} ↗</span>
   </a>
   <div class="almanac-strip">
     <div class="almanac-mark">

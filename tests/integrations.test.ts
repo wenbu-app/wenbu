@@ -14,8 +14,12 @@ it('ships the same Skill to website users and repository installers', async () =
 });
 it('honors native opt-out and test classification for both guide GET and calculation POST', async () => {
   const headers: Record<string, unknown>[] = [];
-  const server = createServer((req, res) => {
+  const bodies: unknown[] = [];
+  const server = createServer(async (req, res) => {
     headers.push({ ...req.headers, method: req.method });
+    let body = '';
+    for await (const chunk of req) body += String(chunk);
+    if (body) bodies.push(JSON.parse(body));
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ kind: 'iching', guides: [] }));
   });
@@ -30,7 +34,9 @@ it('honors native opt-out and test classification for both guide GET and calcula
     };
     await execute(process.execPath, ['public/wenbu.mjs', 'library'], { env });
     await execute(process.execPath, ['public/wenbu.mjs', 'iching', '{}'], { env });
-    expect(headers.map((r) => r.method)).toEqual(['GET', 'POST']);
+    await execute(process.execPath, ['public/wenbu.mjs', 'daily', '{}'], { env });
+    expect(headers.map((r) => r.method)).toEqual(['GET', 'POST', 'POST']);
+    expect(bodies.at(-1)).toEqual({ action: 'reveal', timezone: 'UTC' });
     for (const header of headers)
       expect(header).toMatchObject({
         'x-wenbu-client': 'cli',

@@ -27,6 +27,7 @@ import { AccountError, accountJson } from './account-security';
 import { requestActor, resultReceipt } from './account-operations';
 import { accountAgentResponse } from './account-agent';
 import { accountInsights } from './account-insights';
+import { getDaily } from './daily';
 
 const apiHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -110,7 +111,7 @@ export default {
     const observedTool = (
       path === '/mcp' || path === '/mcp/'
         ? 'mcp'
-        : path.match(/^\/api\/v1\/(bazi|iching|tarot|ziwei|agent|interpret)$/)?.[1]
+        : path.match(/^\/api\/v1\/(bazi|iching|tarot|ziwei|agent|interpret|daily)$/)?.[1]
     ) as ServiceMetric['tool'] | undefined;
     let locale: 'zh' | 'en' = 'en';
     const record = (metric: ServiceMetric) => {
@@ -256,6 +257,25 @@ export default {
       const raw = await boundedBody(request, path === '/api/v1/agent' ? AGENT_BODY_LIMIT : 8192);
       locale = raw && typeof raw === 'object' && raw.locale === 'zh' ? 'zh' : 'en';
       const actor = path.startsWith('/api/v1/') ? await requestActor(request, env) : undefined;
+      if (path === '/api/v1/daily') {
+        const daily = await getDaily(raw, env, actor);
+        if (daily.result)
+          record({
+            event: 'daily_ready',
+            tool: 'daily',
+            status: 'complete',
+            locale,
+            duration: Date.now() - started,
+          });
+        const receipt =
+          daily.result && actor
+            ? await resultReceipt(env, actor, 'journal', { result: daily.result })
+            : undefined;
+        return accountJson(daily, 200, {
+          ...(actor?.cookie ? { 'Set-Cookie': actor.cookie } : {}),
+          ...(receipt ? { 'X-Wenbu-Receipt': receipt } : {}),
+        });
+      }
       if (path === '/api/v1/agent')
         return await accountAgentResponse(
           raw,

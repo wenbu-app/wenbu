@@ -9,9 +9,12 @@ curl -fsS https://wenbu.app/wenbu.mjs -o wenbu.mjs
 # Inspect wenbu.mjs before running it.
 node wenbu.mjs --help
 node wenbu.mjs iching '{"lines":[7,7,7,7,7,7],"locale":"en"}'
+node wenbu.mjs daily '{"timezone":"Asia/Shanghai","locale":"en"}'
 node wenbu.mjs library
 node wenbu.mjs guide bazi-basics en
 ```
+
+The daily command returns a stable upright card, a small action and a reflection question for the server-confirmed local date. It does not use birth data or a model. Native clients without a `seed` share a public card; pass a stable random UUID `seed` for a separate identity, never an email or birth detail. This is independent of private website accounts.
 
 The fixed-lines example returns hexagram 1 with no changing lines. Calculations and guide reads do not call a model or require an account/key.
 

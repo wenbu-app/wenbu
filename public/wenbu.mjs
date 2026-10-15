@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 const [command, arg, ...extra] = process.argv.slice(2);
 if (!command || ['help', '--help', '-h'].includes(command)) {
   console.log(
-    'Wenbu CLI\n\n  node wenbu.mjs bazi \'{"date":"2000-08-16","time":"03:30","timezone":"Asia/Shanghai"}\'\n  node wenbu.mjs library\n  node wenbu.mjs guide bazi-basics en\n  node wenbu.mjs guide bazi-basics zh --json\n  node wenbu.mjs iching \'{}\'\n  node wenbu.mjs tarot \'{"count":3}\'\n  node wenbu.mjs ziwei --file private-input.json\n  cat private-input.json | node wenbu.mjs bazi -\n  node wenbu.mjs agent --file selected-context.json\n\nAgent input requires {"message":"...","consent":true}; sends selected context to DeepSeek.\nAgent stdout is newline-delimited JSON events, including text, artifacts and completion.\nNo history is read or saved automatically. See /agent-protocol.md and /openapi.json.\nUse a file or stdin to keep personal information out of shell history.\nWENBU_ANALYTICS=off disables coarse service-usage measurement; request content is never recorded.\nWENBU_URL may select another HTTPS deployment or a local development server.\nThese tools calculate cultural symbols, not factual predictions.',
+    'Wenbu CLI\n\n  node wenbu.mjs bazi \'{"date":"2000-08-16","time":"03:30","timezone":"Asia/Shanghai"}\'\n  node wenbu.mjs daily \'{"timezone":"Asia/Shanghai"}\'\n  node wenbu.mjs library\n  node wenbu.mjs guide bazi-basics en\n  node wenbu.mjs guide bazi-basics zh --json\n  node wenbu.mjs iching \'{}\'\n  node wenbu.mjs tarot \'{"count":3}\'\n  node wenbu.mjs ziwei --file private-input.json\n  cat private-input.json | node wenbu.mjs bazi -\n  node wenbu.mjs agent --file selected-context.json\n\nAgent input requires {"message":"...","consent":true}; sends selected context to DeepSeek.\nAgent stdout is newline-delimited JSON events, including text, artifacts and completion.\nNo history is read or saved automatically. See /agent-protocol.md and /openapi.json.\nUse a file or stdin to keep personal information out of shell history.\nWENBU_ANALYTICS=off disables coarse service-usage measurement; request content is never recorded.\nWENBU_URL may select another HTTPS deployment or a local development server.\nThese tools calculate cultural symbols, not factual predictions.',
   );
   process.exit(0);
 }
-if (!['bazi', 'iching', 'tarot', 'ziwei', 'agent', 'library', 'guide'].includes(command))
+if (!['bazi', 'iching', 'tarot', 'ziwei', 'daily', 'agent', 'library', 'guide'].includes(command))
   throw new Error('Unknown tool. Run --help.');
 try {
   const maxBytes = command === 'agent' ? 98304 : 8192;
@@ -67,6 +67,10 @@ try {
   } else if (extra.length) throw new Error('Unexpected argument.');
   if (Buffer.byteLength(raw) > maxBytes) throw new Error(`Input exceeds ${maxBytes} bytes.`);
   const input = JSON.parse(raw);
+  if (command === 'daily') {
+    input.action ??= 'reveal';
+    input.timezone ??= 'UTC';
+  }
   if (command === 'agent' && input.consent !== true)
     throw new Error('Agent requires explicit consent:true to send this context to DeepSeek.');
   const res = await fetch(new URL('/api/v1/' + command, base), {

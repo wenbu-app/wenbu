@@ -1,9 +1,9 @@
 import { browserAudienceSQL, serviceRequestSQL } from './traffic-contract';
 
 /** Shared by totals, curves, breakdowns and quality checks. No identity or prompt data. */
-export const measurementVersion = '2026-10-03-v2';
+export const measurementVersion = '2026-10-15-daily-v1';
 export const productSuccessSQL =
-  "(origin='server' AND ((event IN ('calculation_succeeded','interpret_succeeded') AND action!='example') OR (event='agent_finished' AND status='complete')))";
+  "(origin='server' AND ((event IN ('calculation_succeeded','interpret_succeeded') AND action!='example') OR event='daily_ready' OR (event='agent_finished' AND status='complete')))";
 export const activeBrowserSQL = `(${browserAudienceSQL} AND ${productSuccessSQL})`;
 export const serviceFailureSQL = `(${serviceRequestSQL} AND status IN ('error','unavailable','timeout'))`;
 export const audiences = ['all', 'browser', 'classified_browser', 'automated', 'unknown', 'legacy'] as const;
@@ -55,7 +55,7 @@ export const metricDefinitions: Record<string, { unit: string; definition: strin
   active_visitors: {
     unit: '个浏览器标识',
     definition:
-      '服务器确认完成非示例计算、解读或问卜 Agent 回合的去重浏览器标识；仅统计可关联标识的浏览器流量。',
+      '服务器确认完成非示例计算、解读、日签响应或问卜 Agent 回合的去重浏览器标识；仅统计可关联标识的浏览器流量。日签响应不等于结果已被看见。',
     additive: false,
   },
   calculations: {

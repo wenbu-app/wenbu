@@ -51,12 +51,14 @@ export function downloadJson(data: unknown, name: string) {
   a.download = name;
   a.click();
   track(
-    name === 'wenbu-conversation.json'
-      ? 'conversation_exported'
-      : name === 'wenbu-journal.json'
-        ? 'journal_exported'
-        : 'context_exported',
-    { action: 'export' },
+    name.startsWith('wenbu-daily-')
+      ? 'daily_exported'
+      : name === 'wenbu-conversation.json'
+        ? 'conversation_exported'
+        : name === 'wenbu-journal.json'
+          ? 'journal_exported'
+          : 'context_exported',
+    name.startsWith('wenbu-daily-') ? { tool: 'daily', action: 'daily-export' } : { action: 'export' },
   );
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

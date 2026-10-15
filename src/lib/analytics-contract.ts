@@ -1,6 +1,11 @@
 /** Deliberately closed vocabulary: no prompts, birth inputs, arbitrary URLs or labels. */
 export const clientEvents = [
   'page_view',
+  'daily_revealed',
+  'daily_revisited',
+  'daily_reflection_saved',
+  'daily_agent_opened',
+  'daily_exported',
   'registration_prompt_viewed',
   'registration_offer_viewed',
   'registration_offer_clicked',
@@ -40,7 +45,17 @@ export const clientEvents = [
   'client_error',
 ] as const;
 export type ClientEvent = (typeof clientEvents)[number];
-export const tools = ['none', 'bazi', 'iching', 'tarot', 'ziwei', 'agent', 'interpret', 'mcp'] as const;
+export const tools = [
+  'none',
+  'bazi',
+  'iching',
+  'tarot',
+  'ziwei',
+  'agent',
+  'interpret',
+  'mcp',
+  'daily',
+] as const;
 export const sources = [
   'direct',
   'google',
@@ -73,6 +88,7 @@ export const campaigns = [
   'open-source-2026',
   'mcp-registry',
   'first-reading',
+  'daily-card',
 ] as const;
 export const actions = [
   'none',
@@ -83,6 +99,13 @@ export const actions = [
   'hero-agent',
   'hero-chart',
   'home-agent',
+  'daily-entry',
+  'daily-reveal',
+  'daily-save',
+  'daily-reflection',
+  'daily-agent',
+  'daily-history',
+  'daily-export',
   'tool-entry',
   'navigation',
   'article-tool',
@@ -111,7 +134,7 @@ export const actions = [
   'agent-report',
   'agent-clarify',
 ] as const;
-export const analyticsRelease = '2026-10-06-onboarding-v3';
+export const analyticsRelease = '2026-10-15-daily-v1';
 export const settings = ['none', 'tarot-count', 'tarot-reversals', 'iching-cast', 'agent-mode'] as const;
 export const variants = [
   'none',
@@ -144,6 +167,7 @@ export const pagePaths = [
   'bazi',
   'iching',
   'tarot',
+  'daily',
   'tarot/deck',
   'ziwei',
   'journal',

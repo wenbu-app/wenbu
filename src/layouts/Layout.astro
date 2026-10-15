@@ -179,6 +179,9 @@ const schema = {
         <span class="brand-zh">问卜</span>
       </a>
       <nav aria-label={t('主导航', 'Main navigation')} class="desktop-nav" data-track="navigation">
+        <a href={href(locale, 'daily')} aria-current={path === 'daily' ? 'page' : undefined}>
+          {t('日签', 'Daily card')}
+        </a>
         <a
           class="agent-nav-link"
           href={href(locale, 'agent')}
@@ -233,16 +236,25 @@ const schema = {
       </div>
     </header>
     <nav id="mobile-nav" class="mobile-nav" aria-label={t('移动导航', 'Mobile navigation')} hidden>
-      {['agent', 'bazi', 'iching', 'tarot', 'ziwei', 'learn', 'journal', 'agents'].map((p, i) => (
+      {['daily', 'agent', 'bazi', 'iching', 'tarot', 'ziwei', 'learn', 'journal', 'agents'].map((p, i) => (
         <a
           href={href(locale, p)}
           aria-current={path === p || (p === 'learn' && path.startsWith('learn/')) ? 'page' : undefined}
         >
           {t(
-            ['命理 Agent', '八字命盘', '易经问卦', '塔罗映照', '紫微星盘', '知识手册', '我的手记', '开发者'][
-              i
-            ],
             [
+              '日签',
+              '命理 Agent',
+              '八字命盘',
+              '易经问卦',
+              '塔罗映照',
+              '紫微星盘',
+              '知识手册',
+              '我的手记',
+              '开发者',
+            ][i],
+            [
+              'Daily card',
               'Wenbu Agent',
               'BaZi chart',
               'I Ching',
@@ -260,7 +272,7 @@ const schema = {
     <main
       id="main"
       data-clarity-mask={
-        ['agent', 'bazi', 'iching', 'tarot', 'ziwei', 'journal'].includes(path) ? 'true' : undefined
+        ['daily', 'agent', 'bazi', 'iching', 'tarot', 'ziwei', 'journal'].includes(path) ? 'true' : undefined
       }
     >
       <slot />
@@ -280,6 +292,7 @@ const schema = {
           <div>
             <span>{t('探索', 'EXPLORE')}</span>
             <a href={href(locale, 'agent')}>{t('命理 Agent 研习室', 'Wenbu Agent studio')}</a>
+            <a href={href(locale, 'daily')}>{t('日签 · 一日一张牌', 'Your daily card')}</a>
             <a href={href(locale, 'bazi')}>{t('八字命盘', 'BaZi calculator')}</a>
             <a href={href(locale, 'iching')}>{t('易经问卦', 'I Ching oracle')}</a>
             <a href={href(locale, 'tarot')}>{t('塔罗映照', 'Free tarot')}</a>

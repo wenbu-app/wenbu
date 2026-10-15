@@ -1,0 +1,129 @@
+---
+import DailyCard from './DailyCard';
+import { choose, href } from '../lib/i18n';
+import type { Locale } from '../lib/schema';
+import '../styles/daily.css';
+const { locale } = Astro.props as { locale: Locale };
+const t = (zh: string, en: string) => choose(locale, zh, en);
+const faqs = [
+  [
+    t('日签和每日运势有什么不同？', 'Is a daily card the same as a daily horoscope?'),
+    t(
+      '日签用一张塔罗牌提供一个观察角度、一个小行动和一个回看问题。它不读取出生资料，不计算个人流日，也不预测吉凶。你可以用真实经历判断提示是否有帮助。',
+      'A daily card offers a perspective, a small action and a question to reflect on. It does not use birth details, calculate personal transits or predict good or bad luck. Your own experience is the way to judge whether a prompt was useful.',
+    ),
+  ],
+  [
+    t('每天可以重抽吗？什么时候更新？', 'Can I redraw? When does the card change?'),
+    t(
+      '同一身份在同一个日期会保留同一张牌，按浏览器所在时区的零点更新。日签采用 78 张牌的正位象征，不提供当天反复重抽。未登录时以游客身份为准；登录后可把这一签保存到账号，跨设备回看。',
+      'The same identity keeps the same card for a calendar date. A new day begins at midnight in your browser’s timezone. All 78 cards use their upright themes, with no same-day redraw. Guests use a browser identity; saving to an account lets you revisit the selected card on another device.',
+    ),
+  ],
+  [
+    t('免费吗？需要注册或填写出生时间吗？', 'Is it free? Do I need an account or birth time?'),
+    t(
+      '免费，不需要填写出生资料，也不消耗 Agent 对话回合。先揭签，觉得值得留下再选择邮箱登录。只有你继续发送 Agent 消息时才使用正常的免费对话额度。',
+      'It is free, needs no birth details and uses no Agent turns. Reveal your card first, then sign in by email if you want to keep it in an account. Normal free Agent allowances apply only when you send a message in a conversation.',
+    ),
+  ],
+  [
+    t('记录存在哪里？', 'Where are my cards and notes stored?'),
+    t(
+      '游客日签和笔记暂存在当前浏览器，清除站点数据后可能丢失。你可以导出备份，或主动选择保存到账号。登录且开启云端历史后使用现有云端保存功能，具体同步状态会显示在日签下方。',
+      'Guest cards and notes are held in this browser and may be lost if site data is cleared. Export a backup or explicitly save an entry to an account. Signed-in users with cloud history enabled use Wenbu’s existing cloud storage, with the entry’s actual sync status shown below the card.',
+    ),
+  ],
+];
+---
+
+<div class="shell daily-page">
+  <header class="daily-page-heading">
+    <div>
+      <span class="eyebrow accent">WENBU · {t('一日一签', 'DAILY CARD')}</span>
+      <h1>
+        {locale === 'zh' ? (
+          <>
+            日签<em>。</em>
+          </>
+        ) : (
+          <>
+            A card for <em>today.</em>
+          </>
+        )}
+      </h1>
+    </div>
+    <p>
+      {t(
+        '一张牌，一件小事，一次回看。把注意力带回今天，也把自己的发现留下。',
+        'One card. One small action. A moment to look back. Bring your attention to today and keep what you notice.',
+      )}
+    </p>
+  </header>
+  <DailyCard locale={locale} client:load />
+  <noscript>
+    <p>
+      {t(
+        '揭签和保存需要启用 JavaScript。你仍可阅读下面的方法说明和塔罗入门手册。',
+        'Revealing and saving a card needs JavaScript. You can still read the method below and our beginner’s tarot guide.',
+      )}
+    </p>
+  </noscript>
+  <section class="daily-method" aria-labelledby="daily-method-title">
+    <div class="daily-method-heading">
+      <h2 id="daily-method-title">{t('这一签，怎样读？', 'A small practice, with room for you.')}</h2>
+      <span class="eyebrow">{t('方法清楚，感受自由', 'A CLEAR METHOD. YOUR OWN MEANING.')}</span>
+    </div>
+    <div class="daily-method-grid">
+      <div>
+        <h3>{t('01 · 先看见，再解释', '01 · Notice before interpreting')}</h3>
+        <p>
+          {t(
+            '先看看牌上的细节，再读关键词。日签采用问卜原创牌面和 78 组中英文练习，全部正位，减少第一次上手时的理解负担。',
+            'Notice a detail in the artwork before reading the themes. Wenbu pairs its original 78-card deck with original English and Chinese practices. Cards are upright to keep the daily entry approachable.',
+          )}
+        </p>
+      </div>
+      <div>
+        <h3>{t('02 · 做一个你能决定的小行动', '02 · Try something within your control')}</h3>
+        <p>
+          {t(
+            '服务器按你的身份和当地日期固定一张牌，不使用出生资料，也不是实时 AI 预测。把提示当成一个可选择的小实验，觉得不适合时可以放下。',
+            'The server selects a stable card using your identity and local calendar date. It uses no birth details or live AI forecast. Treat the prompt as an optional experiment; leave it if it does not fit.',
+          )}
+        </p>
+      </div>
+      <div>
+        <h3>{t('03 · 带着真实经历回来', '03 · Return with what really happened')}</h3>
+        <p>
+          {t(
+            '晚上或有空时留一句记录，分清“牌面让我想到的”和“实际发生的”。不用连续签到，不补签，也不用为了某个分数每天回来。',
+            'Leave a note in the evening or whenever you have time. Separate what the card brought to mind from what actually happened. There is no streak, missed-day penalty or score to maintain.',
+          )}
+        </p>
+      </div>
+    </div>
+    <div class="daily-faq">
+      {faqs.map(([question, answer]) => (
+        <details>
+          <summary>{question}</summary>
+          <p>{answer}</p>
+        </details>
+      ))}
+    </div>
+    <div class="daily-further">
+      <a class="text-link" href={href(locale, 'learn/tarot-beginner')}>
+        {t('第一次读塔罗', 'New to tarot? Start here')} ↗
+      </a>
+      <a class="text-link" href={href(locale, 'tarot/deck')}>
+        {t('看完整 78 张牌', 'Explore all 78 cards')} ↗
+      </a>
+      <a class="text-link" href={href(locale, 'learn/review-a-reading')}>
+        {t('怎样回看一份解读', 'How to review a reading')} ↗
+      </a>
+      <a class="text-link" href={href(locale, 'methodology')}>
+        {t('计算与解读方法', 'Methods and interpretation')} ↗
+      </a>
+    </div>
+  </section>
+</div>
