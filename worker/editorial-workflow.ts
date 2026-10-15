@@ -28,7 +28,7 @@ import type { Env } from './types';
 
 export const EDITORIAL_CRON = '0 1,7,13 * * *';
 export const EDITORIAL_HEALTH_CRON = '30 23 * * *';
-export const EDITORIAL_PLANNING_CRON = '30 2 * * 0';
+export const EDITORIAL_PLANNING_CRON = '30 2 * * SUN';
 type Parameters = { kind: 'content' | 'health' | 'planning'; slot?: string };
 const stepConfig = {
   retries: { limit: 1, delay: '30 seconds' as const, backoff: 'exponential' as const },

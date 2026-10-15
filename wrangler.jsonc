@@ -77,7 +77,7 @@
   "workflows": [
     { "name": "wenbu-editorial", "binding": "EDITORIAL_WORKFLOW", "class_name": "EditorialWorkflow" },
   ],
-  "triggers": { "crons": ["15 * * * *", "*/15 * * * *", "0 1,7,13 * * *", "30 23 * * *", "30 2 * * 0"] },
+  "triggers": { "crons": ["15 * * * *", "*/15 * * * *", "0 1,7,13 * * *", "30 23 * * *", "30 2 * * SUN"] },
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false },
