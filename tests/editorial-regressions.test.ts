@@ -10,7 +10,7 @@ import {
   failEditorial,
   renewEditorialLease,
 } from '../worker/editorial-store';
-import { dispatchEditorial, recoverEditorial } from '../worker/editorial-workflow';
+import { dispatchEditorial, recoverEditorial, reviseEditorial } from '../worker/editorial-workflow';
 import { preserveExtendedMetadata, originalComparisonMarkdown } from '../worker/editorial-render';
 import { editorialModel, researchEditorial } from '../worker/editorial-research';
 import {
@@ -132,6 +132,34 @@ describe('editorial review regressions', () => {
     expect(sql.prepare('SELECT status FROM editorial_runs WHERE id=?').get(id)?.status).toBe('blocked');
     expect(sql.prepare('SELECT COUNT(*) AS n FROM editorial_runs').get()?.n).toBe(2);
   });
+  it('revises only a published expected revision and retains its immutable original', async () => {
+    const { env, sql } = database();
+    env.EDITORIAL_ENABLED = 'true';
+    env.EDITORIAL_AUTOPUBLISH = 'true';
+    env.SITE_URL = 'https://wenbu.app';
+    env.EDITORIAL_WORKFLOW = { createBatch: vi.fn().mockResolvedValue([]) } as unknown as NonNullable<
+      typeof env.EDITORIAL_WORKFLOW
+    >;
+    env.ANALYTICS_ARCHIVE = { put: vi.fn().mockResolvedValue({}) } as unknown as R2Bucket;
+    await seedEditorial(env);
+    await claimEditorial(env, 'original-run', publicationSlot(Date.now()));
+    const d = document();
+    await publishEditorial(env, 'original-run', d);
+    await releaseEditorial(env, 'original-run');
+    const input = {
+      path: 'learn/daily-card-reflection',
+      expectedRevision: '0'.repeat(64),
+      instructions: 'Clarify a documented factual distinction without changing the scope.',
+    };
+    expect((await reviseEditorial(env, input)).status).toBe('stale_revision');
+    const revision = await reviseEditorial(env, { ...input, expectedRevision: d.revision });
+    expect(revision.status).toBe('queued');
+    expect((await reviseEditorial(env, { ...input, expectedRevision: d.revision })).status).toBe('busy');
+    expect(sql.prepare('SELECT COUNT(*) AS n FROM editorial_revisions').get()?.n).toBe(1);
+    expect(sql.prepare('SELECT status FROM editorial_runs WHERE id=?').get('original-run')?.status).toBe(
+      'published',
+    );
+  });
   it('follows bounded same-site official redirects and rejects redirects to an unrelated host', async () => {
     const { env } = database();
     env.SITE_URL = 'https://wenbu.app';
@@ -201,6 +229,29 @@ describe('editorial review regressions', () => {
     expect(draftIssues(d, packet, document().topic)).not.toContain('zh:unsupported_claim');
     d.zh.sections[0].paragraphs[0] += ' 我们保证预测准确。';
     expect(draftIssues(d, packet, document().topic)).toContain('zh:unsupported_claim');
+  });
+  it('applies prose safety checks to CTAs and evidence claims as well as the article body', () => {
+    const d = fixtureDraft();
+    d.en.cta.reason = 'TODO <script>invented</script>';
+    d.zh.evidence[0].claim = '我们保证预测准确。';
+    expect(draftIssues(d, packet, document().topic)).toEqual(
+      expect.arrayContaining(['en:unsafe_or_placeholder_text', 'zh:unsupported_claim']),
+    );
+  });
+  it('reconciles a terminal workflow left in a non-queued stage before retrying the slot', async () => {
+    const { env, sql } = database();
+    env.EDITORIAL_ENABLED = 'true';
+    env.EDITORIAL_WORKFLOW = {
+      createBatch: vi.fn().mockResolvedValue([]),
+      get: vi.fn().mockResolvedValue({ status: async () => ({ status: 'errored' }) }),
+    } as unknown as NonNullable<typeof env.EDITORIAL_WORKFLOW>;
+    const slot = '2026-10-16-09',
+      id = `editorial-${slot}`;
+    sql
+      .prepare('INSERT INTO editorial_runs(id,slot,status,created_at,updated_at) VALUES(?,?,?,?,?)')
+      .run(id, slot, 'reviewing', Date.now() - 31 * 60000, Date.now() - 31 * 60000);
+    expect((await dispatchEditorial(env, Date.parse('2026-10-16T01:00:00Z'))).id).toBe(id + '-retry-1');
+    expect(sql.prepare('SELECT status FROM editorial_runs WHERE id=?').get(id)?.status).toBe('blocked');
   });
   it('reads both canonical language editions before extending a guide', async () => {
     const { env } = database();

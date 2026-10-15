@@ -40,12 +40,15 @@ Use the existing private admin credential through `WENBU_ADMIN_TOKEN_FILE`; neve
 npm run content:status
 npm run content:run
 npm run content:recover -- editorial-YYYY-MM-DD-HH-retry-1
+npm run content:revise -- /absolute/path/to/revision.json
 npm run content:check
 npm run content:observe -- /absolute/path/to/observation.json
 npm run indexnow:status
 ```
 
 `content:run` only queues an unfilled due slot, or one bounded fresh attempt after all existing attempts for that slot failed. It cannot choose an arbitrary date, topic or model prompt. After fixing and checking a concrete source/code defect, `content:recover` can explicitly retry an eligible blocked run from today using the same topic. It retains every failure, allows at most three total attempts for that slot and refuses already published, active, previous-day or quarantined topics. It does not alter any quality gate, and is not called by scheduled publishing. `content:check` is idempotent for the current day. The Insights overview includes an authenticated editorial status panel. All private operations use `no-store`, `noindex`, authentication and origin checks for mutations.
+
+`content:revise` accepts a published `path`, its `expectedRevision` hash, and concrete editorial `instructions`. It fetches fresh sources and runs complete bilingual writing and both quality gates again. It preserves the first publication date and immutable earlier editions. Stale revisions and overlapping operations are refused; explicit corrections are capped at three per day. Durable queued request objects let cron recover an interrupted enqueue without inventing its instructions.
 
 An observation JSON has `kind` (`search_console`, `bing_webmaster`, `geo_citation`, `weekly_review` or `topic_research`), `status` (`observed`, `attention`, `unavailable` or `passed`), optional `period` (`start`, `end`) and an `evidence` object. Keep snapshots outside Git and exclude secrets, cookies, private user text and account identifiers. Record provider, exact prompt, language, market, time, answer/citation URLs and coverage for AI observations. Search-result appearances are not AI answer citations.
 

@@ -135,6 +135,9 @@ export function editionText(e: EditorialEdition) {
     e.example.conclusion,
     ...e.faq.flatMap((f) => [f.question, f.answer]),
     ...e.glossary.flatMap((g) => [g.term, g.definition]),
+    e.cta.label,
+    e.cta.reason,
+    ...e.evidence.map((item) => item.claim),
   ].join('\n\n');
 }
 export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], topic: EditorialTopic) {

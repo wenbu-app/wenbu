@@ -21,6 +21,7 @@ import {
   releaseEditorial,
   seedEditorial,
   renewEditorialLease,
+  publishedDocument,
 } from './editorial-store';
 import { draftShape, editorialModel, editorialSystem, researchEditorial } from './editorial-research';
 import { checkEditorialHealth } from './editorial-health';
@@ -29,7 +30,11 @@ import type { Env } from './types';
 export const EDITORIAL_CRON = '0 1,7,13 * * *';
 export const EDITORIAL_HEALTH_CRON = '30 23 * * *';
 export const EDITORIAL_PLANNING_CRON = '30 2 * * SUN';
-type Parameters = { kind: 'content' | 'health' | 'planning'; slot?: string };
+type Parameters = {
+  kind: 'content' | 'health' | 'planning';
+  slot?: string;
+  revision?: { path: string; expectedRevision: string; instructions: string };
+};
 const stepConfig = {
   retries: { limit: 1, delay: '30 seconds' as const, backoff: 'exponential' as const },
   timeout: '5 minutes' as const,
@@ -62,7 +67,8 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
       return await step.do('weekly-topic-replenishment', stepConfig, () => replenishTopics(this.env));
     const runId = event.instanceId,
       slot = event.payload.slot;
-    if (!slot || !/^\d{4}-\d{2}-\d{2}-(09|15|21)$/.test(slot)) throw new Error('invalid_editorial_slot');
+    if (!slot || !/^(?:\d{4}-\d{2}-\d{2}-(09|15|21)|revision-[a-f0-9-]{36})$/.test(slot))
+      throw new Error('invalid_editorial_slot');
     let published = false;
     try {
       const topic = await step.do('claim-topic', stepConfig, async () => {
@@ -70,6 +76,14 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         return claimEditorial(this.env, runId, slot);
       });
       if (!topic) return { status: 'already_published' };
+      const original = event.payload.revision
+        ? await step.do('load-published-revision', stepConfig, async () => {
+            const doc = await publishedDocument(this.env, event.payload.revision!.path);
+            if (!doc || doc.revision !== event.payload.revision!.expectedRevision)
+              throw new Error('editorial_stale_revision');
+            return doc;
+          })
+        : null;
       const packet = await step.do('read-approved-sources', stepConfig, async () => {
         const sources = await researchEditorial(this.env, topic);
         const key = await archive(this.env, runId, 'research', { topic, sources });
@@ -86,6 +100,12 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
             sources: packet,
             shape: draftShape,
             schema: z.toJSONSchema(editorialDraftSchema),
+            ...(original
+              ? {
+                  publishedEdition: { zh: original.zh, en: original.en },
+                  operatorCorrections: event.payload.revision!.instructions,
+                }
+              : {}),
             ...(feedback ? { revisionInstructions: feedback, previousDraft } : {}),
           }),
           20000,
@@ -187,7 +207,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         return { status: 'quality_blocked', topic: topic.id };
       }
       const document = await step.do('prepare-immutable-publication', stepConfig, async () => {
-        if (!produced.draft) throw new Error('editorial_schema_failed');
+        if (!produced.draft || !pass()) throw new Error('editorial_quality_gate_failed');
         const now = new Date().toISOString(),
           revision = await contentHash(
             JSON.stringify({ draft: produced.draft, topic, sources: packet.map((s) => s.hash) }),
@@ -196,7 +216,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
           ...produced.draft,
           topic,
           sources: packet.map(({ excerpt: _, ...s }) => s),
-          publishedAt: now,
+          publishedAt: original?.publishedAt ?? now,
           updatedAt: now,
           revision,
           review: checked,
@@ -206,6 +226,13 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
       });
       const receipt = await step.do('atomic-bilingual-publication', stepConfig, async () => {
         await renewEditorialLease(this.env, runId);
+        if (!pass() || draftIssues(document, packet, topic).length)
+          throw new Error('editorial_quality_gate_failed');
+        if (
+          original &&
+          (await publishedDocument(this.env, pathForTopic(topic)))?.revision !== original.revision
+        )
+          throw new Error('editorial_stale_revision');
         return publishEditorial(this.env, runId, document);
       });
       published = true;
@@ -231,6 +258,22 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
 export async function dispatchEditorial(env: Env, time = Date.now()) {
   if (env.EDITORIAL_ENABLED !== 'true' || !env.EDITORIAL_WORKFLOW || !env.ANALYTICS)
     return { status: 'disabled' };
+  const lease = await env.ANALYTICS.prepare('SELECT lease_until FROM editorial_state WHERE id=1').first<{
+    lease_until: number;
+  }>();
+  if (lease && lease.lease_until > Date.now()) return { status: 'busy' };
+  const stale = (
+    await env.ANALYTICS.prepare(
+      "SELECT id FROM editorial_runs WHERE status NOT IN ('published','blocked') AND updated_at<? ORDER BY updated_at LIMIT 3",
+    )
+      .bind(Date.now() - 30 * 60_000)
+      .all<{ id: string }>()
+  ).results;
+  for (const run of stale) {
+    const instance = await env.EDITORIAL_WORKFLOW.get(run.id);
+    if (['complete', 'errored', 'terminated'].includes((await instance.status()).status))
+      await failEditorial(env, run.id, 'editorial_orphaned_run');
+  }
   const date = shanghaiDay(time),
     hour = new Date(time + 8 * 3600_000).getUTCHours();
   const slots = [9, 15, 21].filter((h) => h <= hour).map((h) => `${date}-${String(h).padStart(2, '0')}`);
@@ -239,11 +282,20 @@ export async function dispatchEditorial(env: Env, time = Date.now()) {
       .bind(`${date}-%`)
       .all<{ id: string; slot: string; status: string; updated_at: number }>()
   ).results;
-  const queued = existing.find((r) => r.status === 'queued');
+  const queued = await env.ANALYTICS.prepare(
+    "SELECT id,slot,status,updated_at FROM editorial_runs WHERE status='queued' ORDER BY created_at LIMIT 1",
+  ).first<{ id: string; slot: string; status: string; updated_at: number }>();
   if (queued) {
-    await env.EDITORIAL_WORKFLOW.createBatch([
-      { id: queued.id, params: { kind: 'content', slot: queued.slot } },
-    ]);
+    let params: Parameters = { kind: 'content', slot: queued.slot };
+    if (queued.slot.startsWith('revision-')) {
+      const request = await env.ANALYTICS_ARCHIVE?.get(`editorial/${queued.id}/request.json`);
+      if (!request) {
+        await failEditorial(env, queued.id, 'editorial_revision_request_missing');
+        return { status: 'blocked', id: queued.id };
+      }
+      params = await request.json<Parameters>();
+    }
+    await env.EDITORIAL_WORKFLOW.createBatch([{ id: queued.id, params }]);
     if (queued.updated_at > Date.now() - 30 * 60_000)
       return { status: 'queued', id: queued.id, slot: queued.slot };
     const instance = await env.EDITORIAL_WORKFLOW.get(queued.id);
@@ -276,6 +328,39 @@ export async function dispatchEditorial(env: Env, time = Date.now()) {
     .run();
   await env.EDITORIAL_WORKFLOW.createBatch([{ id, params: { kind: 'content', slot: missing } }]);
   return { status: 'queued', id, slot: missing };
+}
+
+export async function reviseEditorial(env: Env, revision: NonNullable<Parameters['revision']>) {
+  if (env.EDITORIAL_ENABLED !== 'true' || !env.EDITORIAL_WORKFLOW || !env.ANALYTICS || !env.ANALYTICS_ARCHIVE)
+    return { status: 'disabled' };
+  const doc = await publishedDocument(env, revision.path);
+  if (!doc || doc.revision !== revision.expectedRevision) return { status: 'stale_revision' };
+  const db = env.ANALYTICS,
+    now = Date.now();
+  const active = await db
+    .prepare("SELECT id FROM editorial_runs WHERE status NOT IN ('blocked','published') AND updated_at>?")
+    .bind(now - 30 * 60_000)
+    .first();
+  if (active) return { status: 'busy' };
+  const since = Date.parse(shanghaiDay(now) + 'T00:00:00+08:00');
+  const attempts = await db
+    .prepare("SELECT COUNT(*) AS n FROM editorial_runs WHERE slot LIKE 'revision-%' AND created_at>=?")
+    .bind(since)
+    .first<{ n: number }>();
+  if ((attempts?.n ?? 0) >= 3) return { status: 'revision_budget' };
+  const slot = `revision-${crypto.randomUUID()}`,
+    id = 'editorial-' + slot;
+  const params: Parameters = { kind: 'content', slot, revision };
+  await archive(env, id, 'request', params);
+  const queued = await db
+    .prepare(
+      "INSERT INTO editorial_runs(id,slot,topic_id,status,created_at,updated_at) SELECT ?,?,?,'queued',?,? WHERE (SELECT COUNT(*) FROM editorial_runs WHERE slot LIKE 'revision-%' AND created_at>=?)<3 AND NOT EXISTS(SELECT 1 FROM editorial_runs WHERE status NOT IN ('blocked','published') AND updated_at>?)",
+    )
+    .bind(id, slot, doc.topic.id, now, now, since, now - 30 * 60_000)
+    .run();
+  if (!queued.meta.changes) return { status: 'busy_or_revision_budget' };
+  await env.EDITORIAL_WORKFLOW.createBatch([{ id, params }]);
+  return { status: 'queued', id, slot };
 }
 
 // An explicit operator recovery after a source/code repair; never a scheduled quality bypass.

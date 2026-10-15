@@ -167,6 +167,44 @@ const topic = (
   mode: EditorialTopic['mode'] = 'new',
   priority = 70,
 ): EditorialTopic => ({ id, slug, tool, zh, en, task, unique, sources, mode, priority, category: 'learn' });
+const comparisonTitles: Record<string, [string, string]> = {
+  chani: [
+    'CHANI 与问卜：每日占星与塔罗日签，怎样选？',
+    'CHANI vs Wenbu: daily astrology or tarot reflection?',
+  ],
+  costar: [
+    'Co–Star 与问卜：星座社交，还是围绕问题展开对话？',
+    'Co–Star vs Wenbu: social astrology or a question-led conversation?',
+  ],
+  'astro-com': [
+    'Astro.com 与问卜：西方星盘，还是东方命盘？',
+    'Astro.com vs Wenbu: Western charts or Chinese astrology?',
+  ],
+  'cafe-astrology': [
+    'Cafe Astrology 与问卜：免费星盘报告与对话研习',
+    'Cafe Astrology vs Wenbu: free reports or a sourced conversation?',
+  ],
+  'biddy-tarot': [
+    'Biddy Tarot 与问卜：系统学塔罗，还是先免费抽牌？',
+    'Biddy Tarot vs Wenbu: tarot lessons or a free reading?',
+  ],
+  'trusted-tarot': [
+    'Trusted Tarot 与问卜：塔罗牌阵、逆位与记录怎么选？',
+    'Trusted Tarot vs Wenbu: spreads, reversals and saved readings',
+  ],
+  'sage-tarot': [
+    'Sage 与问卜：记录实体牌，还是在网页上抽牌？',
+    'Sage vs Wenbu: journal a physical deck or draw online?',
+  ],
+  'tarot-journal': [
+    'Tarot Journal 与问卜：多牌组日志与轻量复盘',
+    'Tarot Journal vs Wenbu: a dedicated journal or a simple review?',
+  ],
+  'learning-the-tarot': [
+    'Learning the Tarot 与问卜：自学课程与网页练习如何搭配？',
+    'Learning the Tarot and Wenbu: a course, a practice tool, or both?',
+  ],
+};
 const compare = (
   slug: string,
   name: string,
@@ -178,8 +216,8 @@ const compare = (
   category: 'compare',
   mode,
   tool: 'agent',
-  zh: `问卜与 ${name}：按实际需求选择`,
-  en: `Wenbu vs ${name}: choose for the task you have`,
+  zh: comparisonTitles[slug]?.[0] ?? `问卜与 ${name}：按实际需求选择`,
+  en: comparisonTitles[slug]?.[1] ?? `Wenbu vs ${name}: choose for the task you have`,
   task: `Help a reader decide between Wenbu and ${name} for a concrete reading, learning or record-keeping task.`,
   unique:
     (

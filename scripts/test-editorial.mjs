@@ -88,6 +88,12 @@ const mf = new Miniflare({
           if (!review) {
             const packet = JSON.parse(input.messages[1].content),
               source = packet.sources[0];
+            if (packet.operatorCorrections) {
+              draft.zh.sections[0].paragraphs[0] +=
+                ' 本次修订进一步区分随机抽取与可复算的命盘，保留原始记录供复盘。';
+              draft.en.sections[0].paragraphs[0] +=
+                ' This revision distinguishes random draws from recalculated charts while preserving the original record for review.';
+            }
             for (const e of [draft.zh, draft.en]) {
               e.answerSourceIds = [source.id];
               for (const s of [...e.sections, e.figure, e.table, e.example, ...e.faq, ...e.glossary])
@@ -260,6 +266,62 @@ try {
   check(
     'schema repair preserves the earlier failed run',
     state.runs.some((r) => r.slot === '2026-10-15-15' && r.status === 'blocked'),
+  );
+  const original = JSON.parse(
+    (
+      await db
+        .prepare("SELECT document_json FROM editorial_publications WHERE path='learn/daily-card-reflection'")
+        .first()
+    ).document_json,
+  );
+  const revisionBody = {
+    path: 'learn/daily-card-reflection',
+    expectedRevision: original.revision,
+    instructions:
+      'Clarify random draws versus deterministic calculation, preserving the original publication date.',
+  };
+  const revise = () =>
+    mf
+      .dispatchFetch('https://wenbu.app/api/admin/editorial/revise', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer local-editorial-test',
+          Origin: 'https://wenbu.app',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(revisionBody),
+      })
+      .then((r) => r.json());
+  const revisionRun = await revise();
+  check('authenticated revision queues an expected published edition', revisionRun.status === 'queued');
+  for (let i = 0; i < 100; i++) {
+    state = await admin();
+    if (state.runs.some((r) => r.id === revisionRun.id && ['published', 'blocked'].includes(r.status))) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const revised = JSON.parse(
+    (
+      await db
+        .prepare("SELECT document_json FROM editorial_publications WHERE path='learn/daily-card-reflection'")
+        .first()
+    ).document_json,
+  );
+  check(
+    'published correction changes the revision and retains the original publication date',
+    revised.revision !== original.revision && revised.publishedAt === original.publishedAt,
+  );
+  check(
+    'the old immutable revision remains available after correction',
+    Boolean(
+      await db
+        .prepare('SELECT revision FROM editorial_revisions WHERE revision=?')
+        .bind(original.revision)
+        .first(),
+    ),
+  );
+  check(
+    'repeating a stale correction cannot overwrite the newer edition',
+    (await revise()).status === 'stale_revision',
   );
   console.log(
     JSON.stringify({

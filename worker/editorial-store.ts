@@ -10,7 +10,7 @@ export async function seedEditorial(env: Env) {
     editorialTopics.map((topic) =>
       env
         .ANALYTICS!.prepare(
-          'INSERT OR IGNORE INTO editorial_topics(id,slug,category,definition_json,priority,created_at) VALUES(?,?,?,?,?,?)',
+          "INSERT INTO editorial_topics(id,slug,category,definition_json,priority,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET definition_json=excluded.definition_json,priority=excluded.priority WHERE editorial_topics.status='ready' AND editorial_topics.last_attempt_at IS NULL AND editorial_topics.slug=excluded.slug AND editorial_topics.category=excluded.category",
         )
         .bind(topic.id, topic.slug, topic.category, JSON.stringify(topic), topic.priority, now),
     ),
