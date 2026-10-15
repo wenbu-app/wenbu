@@ -366,7 +366,7 @@ const ctaLabels: Record<string, [string, string]> = {
           </p>
           <div class="editorial-cards">
             {comparisons.map((c) => (
-              <a class="editorial-card" href={href(locale, `compare/${c.slug}`)}>
+              <a class="editorial-card" data-track="library-article" href={href(locale, `compare/${c.slug}`)}>
                 <div class="editorial-card-art" aria-hidden="true">
                   <Fragment set:html={editorialArt('agent', true)} />
                 </div>

@@ -140,7 +140,7 @@ function citations(doc: EditorialDocument, ids: string[]) {
   return `<p class="editorial-source-links">${ids
     .map((id) => doc.sources.find((s) => s.id === id))
     .filter((s) => s)
-    .map((s) => `<a href="${h(s!.url)}" rel="noreferrer">${h(s!.title)} ↗</a>`)
+    .map((s) => `<a href="${h(s!.url)}" rel="noreferrer" data-track="source">${h(s!.title)} ↗</a>`)
     .join('')}</p>`;
 }
 export function editorialBody(doc: EditorialDocument, locale: 'zh' | 'en') {
@@ -154,8 +154,8 @@ export function editorialBody(doc: EditorialDocument, locale: 'zh' | 'en') {
     <section><h2>${t('常见问题', 'Questions you may have')}</h2>${e.faq.map((f) => `<details><summary>${h(f.question)}</summary><p>${h(f.answer)}</p>${citations(doc, f.sourceIds)}</details>`).join('')}</section>
     <section><h2>${t('术语速查', 'Terms in this guide')}</h2><dl>${e.glossary.map((g) => `<dt><strong>${h(g.term)}</strong></dt><dd>${h(g.definition)}${citations(doc, g.sourceIds)}</dd>`).join('')}</dl></section>
     <details class="editorial-evidence"><summary>${t('查看事实与来源的核对笔记', 'See the claim and source notes')}</summary><ul>${e.evidence.map((item) => `<li><p>${h(item.claim)}</p><q>${h(item.quote)}</q>${citations(doc, [item.sourceId])}</li>`).join('')}</ul></details>
-    <section class="editorial-sources"><h2>${t('来源与核对范围', 'Sources and review scope')}</h2><p>${t('这是问卜的 AI 辅助编辑内容，经过自动结构检查和独立生成的编辑检查；不代表独立专家审稿。公开产品介绍不等于付费体验测试。', 'This AI-assisted Wenbu article passed automated structure checks and a separate editorial model pass. It is not independent expert review or a paid-account product test.')}</p><ol>${doc.sources.map((s) => `<li><a href="${h(s.url)}" rel="noreferrer">${h(s.title)} ↗</a><small>${h(s.role)} · ${s.fetchedAt.slice(0, 10)} · ${s.truncated ? t('已读选段', 'Read excerpt') : t('已取回正文', 'Fetched text')}</small></li>`).join('')}</ol></section>
-    <section class="editorial-cta"><h2>${h(e.cta.label)}</h2><p>${h(e.cta.reason)}</p><a class="button primary" href="${pref(locale)}${doc.topic.tool}/">${h(e.cta.label)} ↗</a><div class="editorial-downloads"><a href="/knowledge/${locale}/${machineSlug(doc)}.md">Markdown ↗</a><a href="/knowledge/${locale}/${machineSlug(doc)}.json">JSON ↗</a><a href="${pref(locale)}${locale === 'en' ? 'compare/' : 'compare/'}">${t('比较不同产品', 'Compare products')} ↗</a></div></section>`;
+    <section class="editorial-sources"><h2>${t('来源与核对范围', 'Sources and review scope')}</h2><p>${t('这是问卜的 AI 辅助编辑内容，经过自动结构检查和独立生成的编辑检查；不代表独立专家审稿。公开产品介绍不等于付费体验测试。', 'This AI-assisted Wenbu article passed automated structure checks and a separate editorial model pass. It is not independent expert review or a paid-account product test.')}</p><ol>${doc.sources.map((s) => `<li><a href="${h(s.url)}" rel="noreferrer" data-track="source">${h(s.title)} ↗</a><small>${h(s.role)} · ${s.fetchedAt.slice(0, 10)} · ${s.truncated ? t('已读选段', 'Read excerpt') : t('已取回正文', 'Fetched text')}</small></li>`).join('')}</ol></section>
+    <section class="editorial-cta"><h2>${h(e.cta.label)}</h2><p>${h(e.cta.reason)}</p><a class="button primary" data-track="article-tool" href="${pref(locale)}${doc.topic.tool}/">${h(e.cta.label)} ↗</a><div class="editorial-downloads"><a data-track="guide-markdown" href="/knowledge/${locale}/${machineSlug(doc)}.md">Markdown ↗</a><a data-track="guide-json" href="/knowledge/${locale}/${machineSlug(doc)}.json">JSON ↗</a><a href="${pref(locale)}${locale === 'en' ? 'compare/' : 'compare/'}">${t('比较不同产品', 'Compare products')} ↗</a></div></section>`;
 }
 export function editorialCards(
   docs: EditorialDocument[],
@@ -164,7 +164,7 @@ export function editorialCards(
 ) {
   const relevant = docs.filter((d) => d.topic.category === category).slice(0, 12);
   if (!relevant.length) return '';
-  return `<section class="editorial-catalogue"><h2>${category === 'compare' ? (locale === 'zh' ? '按需求，找到适合的工具' : 'Choose a tool for your task') : locale === 'zh' ? '最近补充的实践与指南' : 'Recent guides and practical additions'}</h2><div class="editorial-cards">${relevant.map((d) => `<a class="editorial-card" href="${pref(locale)}${pathForTopic(d.topic)}/"><div class="editorial-card-art" aria-hidden="true">${editorialArt(d.topic.tool, d.topic.category === 'compare')}</div><small>${d.updatedAt.slice(0, 10)} · ${d.topic.mode === 'extend' ? (locale === 'zh' ? '新增练习' : 'Updated practice') : category === 'compare' ? (locale === 'zh' ? '产品对比' : 'Product comparison') : locale === 'zh' ? '图解指南' : 'Illustrated guide'}</small><h3>${h(d[locale].title)}</h3><p>${h(d[locale].description)}</p></a>`).join('')}</div></section>`;
+  return `<section class="editorial-catalogue"><h2>${category === 'compare' ? (locale === 'zh' ? '按需求，找到适合的工具' : 'Choose a tool for your task') : locale === 'zh' ? '最近补充的实践与指南' : 'Recent guides and practical additions'}</h2><div class="editorial-cards">${relevant.map((d) => `<a class="editorial-card" data-track="library-article" href="${pref(locale)}${pathForTopic(d.topic)}/"><div class="editorial-card-art" aria-hidden="true">${editorialArt(d.topic.tool, d.topic.category === 'compare')}</div><small>${d.updatedAt.slice(0, 10)} · ${d.topic.mode === 'extend' ? (locale === 'zh' ? '新增练习' : 'Updated practice') : category === 'compare' ? (locale === 'zh' ? '产品对比' : 'Product comparison') : locale === 'zh' ? '图解指南' : 'Illustrated guide'}</small><h3>${h(d[locale].title)}</h3><p>${h(d[locale].description)}</p></a>`).join('')}</div></section>`;
 }
 function rewriteMetadata(response: Response, doc: EditorialDocument, locale: 'zh' | 'en', base: string) {
   const e = doc[locale],
