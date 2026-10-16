@@ -236,7 +236,7 @@ export async function observeEditorial(
 }
 export async function editorialStatus(env: Env) {
   const db = env.ANALYTICS!;
-  const [topics, runs, observations, state] = await Promise.all([
+  const [topics, runs, observations, state, commissioningRuns] = await Promise.all([
     db.prepare('SELECT status,COUNT(*) AS total FROM editorial_topics GROUP BY status').all(),
     db
       .prepare(
@@ -251,6 +251,11 @@ export async function editorialStatus(env: Env) {
     db
       .prepare('SELECT last_content_at,last_health_at,last_planning_at FROM editorial_state WHERE id=1')
       .first(),
+    db
+      .prepare(
+        'SELECT id,policy_version,status,started_at,finished_at,error_code,receipt_json FROM editorial_commissioning_runs ORDER BY started_at DESC LIMIT 10',
+      )
+      .all(),
   ]);
   return {
     enabled: env.EDITORIAL_ENABLED === 'true',
@@ -259,6 +264,7 @@ export async function editorialStatus(env: Env) {
     topics: topics.results,
     runs: runs.results,
     observations: observations.results,
+    commissioningRuns: commissioningRuns.results,
     state,
   };
 }

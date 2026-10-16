@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { articles } from '../src/data/articles';
 import { comparisons } from '../src/data/comparisons';
 import { editorialSources, type EditorialTopic } from '../src/data/editorial-topics';
-import { pathForTopic } from './editorial-schema';
+import { pathForTopic, type EditorialDocument } from './editorial-schema';
+import type { Env } from './types';
 
 export const COMMISSIONING_POLICY = 2;
 export const EDITORIAL_RESERVE_TARGET = 42;
@@ -76,7 +77,10 @@ export const commissioningReviewSchema = z
   .strict();
 export type CommissioningReview = z.infer<typeof commissioningReviewSchema>['reviews'][number];
 
-export function editorialOwners(queued: EditorialTopic[]) {
+export function editorialOwners(
+  queued: (EditorialTopic & { state?: string })[],
+  published: EditorialDocument[] = [],
+) {
   const owners = new Map<
     string,
     {
@@ -85,7 +89,7 @@ export function editorialOwners(queued: EditorialTopic[]) {
       description: string;
       headings: string[];
       coverage: string;
-      plannedTasks: { task: string; unique: string }[];
+      plannedTasks: { task: string; unique: string; state?: string }[];
     }
   >();
   for (const a of articles)
@@ -94,10 +98,7 @@ export function editorialOwners(queued: EditorialTopic[]) {
       title: a.en.title,
       description: `${a.zh.description}\n${a.en.description}`,
       headings: [...a.zh.sections, ...a.en.sections].map((s) => s.heading),
-      coverage: a.en.sections
-        .map((s) => s.paragraphs[0] ?? '')
-        .join('\n')
-        .slice(0, 1800),
+      coverage: JSON.stringify({ zh: a.zh.sections, en: a.en.sections }),
       plannedTasks: [],
     });
   for (const c of comparisons)
@@ -106,7 +107,7 @@ export function editorialOwners(queued: EditorialTopic[]) {
       title: c.en.title,
       description: c.en.intro,
       headings: c.en.rows.map((row) => row[0]),
-      coverage: c.en.conclusion,
+      coverage: JSON.stringify({ zh: c.zh, en: c.en }),
       plannedTasks: [],
     });
   for (const t of queued) {
@@ -119,10 +120,55 @@ export function editorialOwners(queued: EditorialTopic[]) {
         coverage: '',
         plannedTasks: [],
       };
-    owner.plannedTasks.push({ task: t.task, unique: t.unique });
+    owner.plannedTasks.push({ task: t.task, unique: t.unique, state: t.state });
+    owners.set(path, owner);
+  }
+  for (const doc of published) {
+    const path = pathForTopic(doc.topic),
+      owner = owners.get(path) ?? {
+        path,
+        title: doc.en.title,
+        description: doc.zh.description,
+        headings: [],
+        coverage: '',
+        plannedTasks: [],
+      };
+    owner.title = doc.en.title;
+    owner.headings = [
+      ...new Set([
+        ...owner.headings,
+        ...doc.zh.sections.map((s) => s.heading),
+        ...doc.en.sections.map((s) => s.heading),
+      ]),
+    ];
+    owner.coverage += '\n' + JSON.stringify({ revision: doc.revision, zh: doc.zh, en: doc.en });
     owners.set(path, owner);
   }
   return [...owners.values()];
+}
+
+export async function readEditorialOwners(env: Env) {
+  const [topics, publications] = await Promise.all([
+    env
+      .ANALYTICS!.prepare('SELECT definition_json,status FROM editorial_topics')
+      .all<{ definition_json: string; status: string }>(),
+    env
+      .ANALYTICS!.prepare('SELECT document_json FROM editorial_publications')
+      .all<{ document_json: string }>(),
+  ]);
+  return editorialOwners(
+    topics.results.map((r) => ({ ...(JSON.parse(r.definition_json) as EditorialTopic), state: r.status })),
+    publications.results.map((r) => JSON.parse(r.document_json) as EditorialDocument),
+  );
+}
+
+export function storedCommissioningPolicy(serialized?: string) {
+  try {
+    const value = serialized ? JSON.parse(serialized)?.policyVersion : undefined;
+    return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 1;
+  } catch {
+    return 1;
+  }
 }
 
 export function commissionCandidates(

@@ -8,7 +8,8 @@ import {
   candidateSchema,
   commissioningReviewSchema,
   comparisonPartners,
-  editorialOwners,
+  readEditorialOwners,
+  storedCommissioningPolicy,
   commissionCandidates,
 } from './editorial-commissioning';
 import {
@@ -86,16 +87,17 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         return claimEditorial(this.env, runId, slot);
       });
       if (!topic) return { status: 'already_published' };
-      const canonicalOwners = await step.do('read-canonical-coverage', stepConfig, async () => {
-        const rows = await this.env
-          .ANALYTICS!.prepare(
-            "SELECT definition_json FROM editorial_topics WHERE status IN ('ready','published')",
-          )
-          .all<{ definition_json: string }>();
-        return editorialOwners(
-          rows.results.map((r) => JSON.parse(r.definition_json) as EditorialTopic),
-        ).filter((owner) => owner.path !== pathForTopic(topic));
-      });
+      const coverageKey = await step.do('read-canonical-coverage', stepConfig, async () =>
+        archive(
+          this.env,
+          runId,
+          'canonical-coverage',
+          (await readEditorialOwners(this.env)).filter((owner) => owner.path !== pathForTopic(topic)),
+        ),
+      );
+      const coverageObject = await this.env.ANALYTICS_ARCHIVE!.get(coverageKey);
+      if (!coverageObject) throw new Error('editorial_coverage_unavailable');
+      const canonicalOwners = await coverageObject.json();
       const original = event.payload.revision
         ? await step.do('load-published-revision', stepConfig, async () => {
             const doc = await publishedDocument(this.env, event.payload.revision!.path);
@@ -426,6 +428,62 @@ export async function recoverEditorial(env: Env, previousId: string) {
 
 export async function replenishTopics(env: Env, runId: string) {
   await seedEditorial(env);
+  const db = env.ANALYTICS!;
+  const saved = await db
+    .prepare('SELECT receipt_json FROM editorial_commissioning_runs WHERE id=?')
+    .bind(runId)
+    .first<{ receipt_json: string | null }>();
+  if (saved?.receipt_json) return JSON.parse(saved.receipt_json);
+  const leaseOwner = `commissioning:${runId}:${crypto.randomUUID()}`;
+  await renewEditorialLease(env, leaseOwner);
+  try {
+    const previous = await db
+      .prepare('SELECT receipt_json FROM editorial_commissioning_runs WHERE id=?')
+      .bind(runId)
+      .first<{ receipt_json: string | null }>();
+    if (previous?.receipt_json) return JSON.parse(previous.receipt_json);
+    if (previous) throw new Error('editorial_commissioning_interrupted');
+    return await commissionTopics(env, runId, leaseOwner);
+  } catch (cause) {
+    // An uncertain acknowledgement after the atomic commit returns its original
+    // receipt. It never runs a second model admission under the same Workflow ID.
+    const committed = await db
+      .prepare('SELECT receipt_json FROM editorial_commissioning_runs WHERE id=?')
+      .bind(runId)
+      .first<{ receipt_json: string | null }>();
+    if (committed?.receipt_json) return JSON.parse(committed.receipt_json);
+    const code =
+      cause instanceof z.ZodError
+        ? 'editorial_commissioning_schema'
+        : cause instanceof Error && /^[a-z_]{1,100}$/.test(cause.message)
+          ? cause.message
+          : 'editorial_commissioning_execution';
+    const receipt = { status: 'blocked', policyVersion: COMMISSIONING_POLICY, runId, error: code };
+    await db
+      .prepare(
+        `INSERT INTO editorial_commissioning_runs(id,policy_version,status,started_at,finished_at,error_code,receipt_json)
+      VALUES(?,?,'blocked',?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='blocked',finished_at=excluded.finished_at,error_code=excluded.error_code,receipt_json=excluded.receipt_json WHERE editorial_commissioning_runs.status!='completed'`,
+      )
+      .bind(runId, COMMISSIONING_POLICY, Date.now(), Date.now(), code, JSON.stringify(receipt))
+      .run();
+    await observeEditorial(
+      env,
+      'topic_planning',
+      {
+        policyVersion: COMMISSIONING_POLICY,
+        runId,
+        error: code,
+        decision: 'No candidates admitted; retain archived diagnostics and wait for a bounded fresh attempt.',
+      },
+      'attention',
+    );
+    return receipt;
+  } finally {
+    await releaseEditorial(env, leaseOwner);
+  }
+}
+
+async function commissionTopics(env: Env, runId: string, leaseOwner: string) {
   const db = env.ANALYTICS!,
     now = Date.now();
   const state = await db
@@ -436,22 +494,37 @@ export async function replenishTopics(env: Env, runId: string) {
       "SELECT evidence_json FROM editorial_observations WHERE kind='topic_planning' ORDER BY checked_at DESC LIMIT 1",
     )
     .first<{ evidence_json: string }>();
-  const previousPolicy = lastReview ? (JSON.parse(lastReview.evidence_json).policyVersion ?? 1) : 1;
+  const latestAttempt = await db
+    .prepare(
+      'SELECT policy_version,started_at FROM editorial_commissioning_runs ORDER BY started_at DESC LIMIT 1',
+    )
+    .first<{ policy_version: number; started_at: number }>();
+  const previousPolicy =
+    latestAttempt?.policy_version ?? storedCommissioningPolicy(lastReview?.evidence_json);
   const existing = (
     await db
       .prepare('SELECT definition_json,status FROM editorial_topics')
       .all<{ definition_json: string; status: string }>()
   ).results;
   const active = existing.filter((r) => r.status === 'ready').length;
-  if (commissioningCoolingDown(state?.last_planning_at ?? null, previousPolicy, active, now))
+  if (
+    commissioningCoolingDown(
+      latestAttempt?.started_at ?? state?.last_planning_at ?? null,
+      previousPolicy,
+      active,
+      now,
+    )
+  )
     return { status: 'already_planned' };
   if (active >= EDITORIAL_RESERVE_TARGET) return { status: 'backlog_healthy', ready: active };
+  await db
+    .prepare(
+      "INSERT INTO editorial_commissioning_runs(id,policy_version,status,started_at) VALUES(?,?,'started',?)",
+    )
+    .bind(runId, COMMISSIONING_POLICY, now)
+    .run();
   const existingTopics = existing.map((r) => JSON.parse(r.definition_json) as EditorialTopic);
-  const canonicalOwners = editorialOwners(
-    existing
-      .filter((r) => ['ready', 'published'].includes(r.status))
-      .map((r) => JSON.parse(r.definition_json) as EditorialTopic),
-  );
+  const canonicalOwners = await readEditorialOwners(env);
   const observations = (
     await db
       .prepare(
@@ -459,7 +532,17 @@ export async function replenishTopics(env: Env, runId: string) {
       )
       .all<{ kind: string; checked_at: number; evidence_json: string }>()
   ).results.map((row) => {
-    const evidence = JSON.parse(row.evidence_json) as Record<string, unknown>;
+    let evidence: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(row.evidence_json);
+      evidence = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {
+        kind: row.kind,
+        checkedAt: row.checked_at,
+        summary: 'unavailable: retained observation is not valid JSON',
+      };
+    }
     return {
       kind: row.kind,
       checkedAt: row.checked_at,
@@ -520,36 +603,20 @@ export async function replenishTopics(env: Env, runId: string) {
     accepted,
     rejections,
   });
-  if (accepted.length)
-    await db.batch(
-      accepted.map((t) =>
-        db
-          .prepare(
-            'INSERT OR IGNORE INTO editorial_topics(id,slug,category,definition_json,priority,created_at) VALUES(?,?,?,?,?,?)',
-          )
-          .bind(t.id, t.slug, t.category, JSON.stringify(t), t.priority, now),
-      ),
-    );
-  await observeEditorial(
-    env,
-    'topic_planning',
-    {
-      policyVersion: COMMISSIONING_POLICY,
-      runId,
-      readyBefore: active,
-      proposed: candidates.length,
-      accepted: accepted.map((t) => ({ id: t.id, task: t.task, unique: t.unique })),
-      reviews: editorialDecision.reviews,
-      rejections,
-      readyAfter: active + accepted.length,
-      reserveTarget: EDITORIAL_RESERVE_TARGET,
-      searchVolume: 'unknown',
-      note: 'Candidate proposals; each still requires fetched sources and full editorial gates.',
-    },
-    active + accepted.length >= EDITORIAL_RESERVE_TARGET ? 'observed' : 'attention',
-  );
-  await db.prepare('UPDATE editorial_state SET last_planning_at=? WHERE id=1').bind(now).run();
-  return {
+  const evidence = {
+    policyVersion: COMMISSIONING_POLICY,
+    runId,
+    readyBefore: active,
+    proposed: candidates.length,
+    accepted: accepted.map((t) => ({ id: t.id, task: t.task, unique: t.unique })),
+    reviews: editorialDecision.reviews,
+    rejections,
+    readyAfter: active + accepted.length,
+    reserveTarget: EDITORIAL_RESERVE_TARGET,
+    searchVolume: 'unknown',
+    note: 'Candidate proposals; each still requires fetched sources and full editorial gates.',
+  };
+  const receipt = {
     status: 'planned',
     policyVersion: COMMISSIONING_POLICY,
     accepted: accepted.length,
@@ -557,4 +624,38 @@ export async function replenishTopics(env: Env, runId: string) {
     readyAfter: active + accepted.length,
     reserveTarget: EDITORIAL_RESERVE_TARGET,
   };
+  const serialized = JSON.stringify(evidence);
+  if (serialized.length > 150_000) throw new Error('observation_too_large');
+  const renewed = await db
+    .prepare('UPDATE editorial_state SET lease_until=? WHERE id=1 AND lease_owner=? AND lease_until>?')
+    .bind(Date.now() + 25 * 60_000, leaseOwner, Date.now())
+    .run();
+  if (!renewed.meta.changes) throw new Error('editorial_commissioning_lease_lost');
+  await db.batch([
+    ...accepted.map((t) =>
+      db
+        .prepare(
+          'INSERT INTO editorial_topics(id,slug,category,definition_json,priority,created_at) VALUES(?,?,?,?,?,?)',
+        )
+        .bind(t.id, t.slug, t.category, JSON.stringify(t), t.priority, now),
+    ),
+    db
+      .prepare(
+        'INSERT INTO editorial_observations(id,kind,checked_at,status,evidence_json) VALUES(?,?,?,?,?)',
+      )
+      .bind(
+        `topic_planning-${await contentHash(serialized)}`,
+        'topic_planning',
+        Date.now(),
+        active + accepted.length >= EDITORIAL_RESERVE_TARGET ? 'observed' : 'attention',
+        serialized,
+      ),
+    db
+      .prepare(
+        "UPDATE editorial_commissioning_runs SET status='completed',finished_at=?,receipt_json=? WHERE id=? AND status='started'",
+      )
+      .bind(Date.now(), JSON.stringify(receipt), runId),
+    db.prepare('UPDATE editorial_state SET last_planning_at=? WHERE id=1').bind(now),
+  ]);
+  return receipt;
 }

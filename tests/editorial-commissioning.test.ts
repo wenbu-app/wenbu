@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   candidateSchema,
   commissioningCoolingDown,
+  storedCommissioningPolicy,
   commissioningReviewSchema,
   commissionCandidates,
   editorialOwners,
@@ -9,6 +10,7 @@ import {
   type CommissioningReview,
 } from '../worker/editorial-commissioning';
 import { editorialTopics } from '../src/data/editorial-topics';
+import { fixtureDraft } from './helpers/editorial-fixture';
 
 const candidate = (overrides: Partial<CommissioningCandidate> = {}): CommissioningCandidate => ({
   id: 'api-result-integrity',
@@ -41,6 +43,37 @@ const review = (overrides: Partial<CommissioningReview> = {}): CommissioningRevi
 });
 
 describe('editorial canonical commissioning', () => {
+  it('labels a retained reservation without presenting it as a published page', () => {
+    const t = { ...candidate(), state: 'quarantined' };
+    expect(
+      editorialOwners([t]).find((o) => o.path === 'learn/api-result-integrity')!.plannedTasks[0].state,
+    ).toBe('quarantined');
+  });
+  it('does not let a malformed legacy observation brick commissioning', () => {
+    for (const raw of ['null', '{invalid', '[]', '{"policyVersion":"2"}', '{"policyVersion":-1}'])
+      expect(storedCommissioningPolicy(raw)).toBe(1);
+    expect(storedCommissioningPolicy('{"policyVersion":2}')).toBe(2);
+  });
+  it('includes late paragraphs and worked practice from a dynamically published edition', () => {
+    const draft = fixtureDraft();
+    draft.en.sections[3].paragraphs[1] += ' Distinct late-paragraph coverage sentinel.';
+    draft.zh.example.steps.push('动态正文中的独有练习步骤。');
+    const doc = {
+      ...draft,
+      topic: editorialTopics.find((t) => t.id === 'daily-reflection')!,
+      revision: 'coverage-test',
+      publishedAt: '2026-10-01T00:00:00Z',
+      updatedAt: '2026-10-01T00:00:00Z',
+      sources: [],
+      review: { factual: true, bilingual: true, useful: true, original: true, natural: true, issues: [] },
+    };
+    const owner = editorialOwners(editorialTopics, [doc]).find(
+      (o) => o.path === 'learn/daily-card-reflection',
+    )!;
+    expect(owner.coverage).toContain('Distinct late-paragraph coverage sentinel');
+    expect(owner.coverage).toContain('动态正文中的独有练习步骤');
+    expect(owner.headings).toContain(draft.en.sections[3].heading);
+  });
   it('spaces depleted-reserve retries without suppressing the next weekly review', () => {
     const now = Date.parse('2026-10-18T02:30:00Z');
     expect(commissioningCoolingDown(now - 12 * 3600_000, 2, 35, now)).toBe(true);
