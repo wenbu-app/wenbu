@@ -29,6 +29,32 @@ await build({
   logLevel: 'warning',
 });
 const { fixtureDraft } = await import(pathToFileURL(path.join(temp, 'draft.mjs')).href);
+const planningCandidate = {
+  id: 'synthetic-api-integrity',
+  slug: 'synthetic-api-integrity',
+  category: 'learn',
+  mode: 'new',
+  tool: 'agent',
+  zh: '检查接口结果的结构版本与导出完整性',
+  en: 'Check the structural version of an exported API record',
+  task: 'Detect a mismatched serialization version in an exported structured API record.',
+  unique:
+    'A field-by-field API integrity audit with a deliberately mismatched version, rather than checking whether a prose citation supports its interpretation.',
+  sources: ['agents', 'methods'],
+  comparisonSourceId: null,
+  priority: 40,
+};
+const planningCandidates = [
+  planningCandidate,
+  { ...planningCandidate, id: 'synthetic-coin-sheet', slug: 'synthetic-coin-sheet', tool: 'iching' },
+  {
+    ...planningCandidate,
+    id: 'synthetic-library-app',
+    slug: 'synthetic-library-app',
+    category: 'compare',
+    sources: ['wenbu', 'iztro'],
+  },
+];
 let failReview = false,
   malformedNext = false,
   calls = 0,
@@ -68,6 +94,45 @@ const mf = new Miniflare({
           if (calls === 1) return new Response('Synthetic transient provider failure', { status: 503 });
           const input = await request.json(),
             review = input.messages[0].content.startsWith('You are a strict');
+          if (input.messages[0].content.includes('Wenbu managing editor')) {
+            const packet = JSON.parse(input.messages[1].content);
+            assert.ok(
+              packet.canonicalOwners.some((o) => o.path === 'learn/bazi-basics' && o.coverage.length > 100),
+            );
+            return Response.json({
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: { content: JSON.stringify({ topics: planningCandidates }) },
+                },
+              ],
+            });
+          }
+          if (input.messages[0].content.includes('critical canonical-ownership editor')) {
+            return Response.json({
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify({
+                      reviews: planningCandidates.map((t) => ({
+                        id: t.id,
+                        decision: t.id === 'synthetic-coin-sheet' ? 'merge' : 'new',
+                        closestOwner: 'learn/iching-three-coins',
+                        sameReaderOutcome: t.id === 'synthetic-coin-sheet',
+                        formatOnlyDifference: t.id === 'synthetic-coin-sheet',
+                        requiresNewCanonical: t.id !== 'synthetic-coin-sheet',
+                        existingOutcome: 'Check line order and moving lines against a six-row worksheet.',
+                        newOutcome: 'Check the serialized version contract of an exported structured record.',
+                        reason:
+                          'A separate serialization audit has a different input and output contract; the coin worksheet remains on its original canonical owner.',
+                      })),
+                    }),
+                  },
+                },
+              ],
+            });
+          }
           assert.equal(
             input.thinking.type,
             review ? 'enabled' : 'disabled',
@@ -85,6 +150,12 @@ const mf = new Miniflare({
             });
           }
           const draft = fixtureDraft();
+          if (review)
+            assert.ok(
+              JSON.parse(input.messages[1].content).canonicalOwners.some(
+                (o) => o.path === 'compare/fatetell',
+              ),
+            );
           if (!review) {
             const packet = JSON.parse(input.messages[1].content),
               source = packet.sources[0];
@@ -322,6 +393,43 @@ try {
   check(
     'repeating a stale correction cannot overwrite the newer edition',
     (await revise()).status === 'stale_revision',
+  );
+  const planning = await mf.dispatchFetch('https://wenbu.app/__test/planning').then((r) => r.json());
+  check(
+    'native commissioning admits a new outcome and blocks an overlap and library-as-app comparison',
+    planning.status === 'planned' && planning.accepted === 1,
+  );
+  const inserted = await db.prepare("SELECT id FROM editorial_topics WHERE id LIKE 'synthetic-%'").all();
+  check(
+    'rejected commissioning proposals do not enter the publishing queue',
+    inserted.results.length === 1 && inserted.results[0].id === 'synthetic-api-integrity',
+  );
+  const archive = await mf.getR2Bucket('ANALYTICS_ARCHIVE');
+  check(
+    'native commissioning retains proposals and full ownership review in private R2',
+    !!(await archive.get('editorial/synthetic-native-planning/commissioning-proposals.json')) &&
+      !!(await archive.get('editorial/synthetic-native-planning/commissioning-review.json')),
+  );
+  const planningAudit = JSON.parse(
+    (
+      await db
+        .prepare(
+          "SELECT evidence_json FROM editorial_observations WHERE kind='topic_planning' ORDER BY checked_at DESC LIMIT 1",
+        )
+        .first()
+    ).evidence_json,
+  );
+  check(
+    'commissioning records its policy, per-candidate review and actual accepted reserve',
+    planningAudit.policyVersion === 2 &&
+      planningAudit.reviews.length === 3 &&
+      planningAudit.rejections.length === 2,
+  );
+  const callsBeforeRepeat = calls;
+  const repeatedPlanning = await mf.dispatchFetch('https://wenbu.app/__test/planning').then((r) => r.json());
+  check(
+    'a completed policy cannot bypass its commissioning cooldown',
+    repeatedPlanning.status === 'already_planned' && calls === callsBeforeRepeat,
   );
   console.log(
     JSON.stringify({
