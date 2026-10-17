@@ -2,6 +2,7 @@ import { z } from 'zod';
 import config from '../src/data/indexnow.json';
 import type { Env } from './types';
 import { mergePublishedManifest } from './editorial-discovery';
+import { indexNowDelay, indexNowDiagnostics } from './indexnow-diagnostics';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const manifestSchema = z.object({
@@ -13,7 +14,13 @@ const manifestSchema = z.object({
     .min(1)
     .max(10000),
 });
-type State = { lease_owner: string; retry_at: number; failures: number; last_scanned: number | null };
+type State = {
+  lease_owner: string;
+  retry_at: number;
+  failures: number;
+  last_scanned: number | null;
+  throttle_streak: number;
+};
 type Page = { url: string; content_hash: string };
 const BATCH_SIZE = 10;
 const LEASE_MS = 5 * 60_000;
@@ -37,11 +44,11 @@ export async function indexNowStatus(env: Env) {
   if (!env.ANALYTICS) return { available: false };
   const [state, pages, receipts] = await Promise.all([
     env.ANALYTICS.prepare(
-      'SELECT last_checked, last_scanned, last_status, last_error, retry_at, failures FROM indexnow_state WHERE id = 1',
+      'SELECT last_checked, last_scanned, last_status, last_error, retry_at, failures, pending_count,throttle_streak FROM indexnow_state WHERE id = 1',
     ).all(),
     env.ANALYTICS.prepare('SELECT COUNT(*) AS total FROM indexnow_pages').all(),
     env.ANALYTICS.prepare(
-      'SELECT id, submitted_at, revision, http_status, outcome, url_count, retry_after_ms, endpoint_host, response_request_id, failure_streak FROM indexnow_submissions ORDER BY submitted_at DESC LIMIT 20',
+      'SELECT id, submitted_at, revision, http_status, outcome, url_count, retry_after_ms, endpoint_host, response_request_id, failure_streak, diagnostics_json FROM indexnow_submissions ORDER BY submitted_at DESC LIMIT 20',
     ).all(),
   ]);
   return {
@@ -56,6 +63,13 @@ export async function indexNowStatus(env: Env) {
       repeatedFailure: 1,
       receiptCooldownMinutes: 1440,
       fingerprints: 'substantive_content_v2',
+      repeated429PauseHours: [24, 48, 72],
+      selection: 'unattempted first, recent publications, then oldest failed attempt',
+    },
+    delivery: {
+      durableDailyWorkflow: Boolean(env.INDEXNOW_WORKFLOW),
+      needsProviderReview: Number(state.results[0]?.failures ?? 0) >= 3,
+      pendingChanges: state.results[0]?.pending_count ?? null,
     },
     trackedPages: pages.results[0]?.total ?? 0,
     state: state.results[0],
@@ -82,7 +96,9 @@ export async function submitIndexNow(env: Env) {
   try {
     const state = (
       await db
-        .prepare('SELECT lease_owner, retry_at, failures, last_scanned FROM indexnow_state WHERE id = 1')
+        .prepare(
+          'SELECT lease_owner, retry_at, failures, last_scanned,throttle_streak FROM indexnow_state WHERE id = 1',
+        )
         .all<State>()
     ).results[0];
     failures = state.failures;
@@ -130,14 +146,54 @@ export async function submitIndexNow(env: Env) {
         )
         .bind(now, owner)
         .run();
+      await db
+        .prepare('UPDATE indexnow_state SET pending_count=0 WHERE id=1 AND lease_owner=?')
+        .bind(owner)
+        .run();
       return { status: 'unchanged', submitted: 0, revision };
     }
     // The root key must exist in the same deployed asset set before notifying the endpoint.
     const keyLocation = `${config.origin}/${config.key}.txt`;
     const key = await env.ASSETS.fetch(new Request(keyLocation, { signal: AbortSignal.timeout(10_000) }));
     if (key.status !== 200 || (await key.text()).trim() !== config.key) throw new Error('key_unavailable');
-    // New URLs have not been received before. Prioritize them, then changed pages and removals.
-    changes.sort((a, b) => Number(previous.has(a.url)) - Number(previous.has(b.url)));
+    const [attempts, publications] = await Promise.all([
+      db
+        .prepare(
+          `SELECT value AS url,MAX(submitted_at) AS at FROM indexnow_submissions,json_each(urls_json)
+        WHERE (http_status IS NULL OR http_status NOT IN (200,202)) AND submitted_at>? GROUP BY value`,
+        )
+        .bind(now - 30 * INDEXNOW_INTERVAL_MS)
+        .all<{ url: string; at: number }>(),
+      db
+        .prepare('SELECT path,updated_at FROM editorial_publications')
+        .all<{ path: string; updated_at: number }>(),
+    ]);
+    const tried = new Map(attempts.results.map((p) => [p.url, p.at]));
+    const fresh = new Map(
+      publications.results.flatMap(
+        (p) =>
+          [
+            [config.origin + '/' + p.path + '/', p.updated_at],
+            [config.origin + '/en/' + p.path + '/', p.updated_at],
+          ] as [string, number][],
+      ),
+    );
+    // A permanently rejected URL must not monopolize every recovery probe.
+    changes.sort((a, b) => {
+      const ta = tried.get(a.url) ?? 0,
+        tb = tried.get(b.url) ?? 0;
+      return (
+        Number(ta > 0) - Number(tb > 0) ||
+        (ta && tb ? ta - tb : 0) ||
+        (fresh.get(b.url) ?? 0) - (fresh.get(a.url) ?? 0) ||
+        Number(previous.has(a.url)) - Number(previous.has(b.url)) ||
+        a.url.localeCompare(b.url)
+      );
+    });
+    await db
+      .prepare('UPDATE indexnow_state SET pending_count=? WHERE id=1 AND lease_owner=?')
+      .bind(changes.length, owner)
+      .run();
     const batch = changes.slice(0, failures >= 3 ? 1 : BATCH_SIZE),
       urls = batch.map((p) => p.url);
     const ownership = await db
@@ -149,6 +205,7 @@ export async function submitIndexNow(env: Env) {
       retryAfter = 0;
     let transportError: string | null = null;
     let responseRequestId: string | null = null;
+    let diagnostics: Awaited<ReturnType<typeof indexNowDiagnostics>> | null = null;
     try {
       const response = await fetch(config.endpoint, {
         method: 'POST',
@@ -168,14 +225,14 @@ export async function submitIndexNow(env: Env) {
       });
       httpStatus = response.status;
       const header = response.headers.get('Retry-After');
-      if (header) retryAfter = /^\d+$/.test(header) ? Number(header) * 1000 : Date.parse(header) - now;
+      if (header) retryAfter = /^\d+$/.test(header) ? Number(header) * 1000 : Date.parse(header) - Date.now();
       responseRequestId =
         (
           response.headers.get('x-request-id') ??
           response.headers.get('x-msedge-ref') ??
           response.headers.get('cf-ray')
         )?.slice(0, 160) ?? null;
-      await response.body?.cancel();
+      diagnostics = await indexNowDiagnostics(response);
     } catch (cause) {
       // Retain the changed URLs for the next attempt. Do not record remote response bodies.
       // This exception belongs to the fixed public endpoint, not visitor data or credentials.
@@ -189,13 +246,15 @@ export async function submitIndexNow(env: Env) {
       : httpStatus === null
         ? `network_error: ${transportError}`
         : `http_${httpStatus}`;
-    const delay = Math.max(INDEXNOW_INTERVAL_MS, Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : 0);
-    const retryAt = received ? now + INDEXNOW_INTERVAL_MS : now + delay;
+    const throttleStreak =
+      httpStatus === null ? state.throttle_streak : httpStatus === 429 ? state.throttle_streak + 1 : 0;
+    const delay = indexNowDelay(httpStatus, throttleStreak, retryAfter);
+    const retryAt = Date.now() + delay;
     const writes = [
       db
         .prepare(
-          `INSERT INTO indexnow_submissions (id, submitted_at, revision, http_status, outcome, url_count, urls_json, retry_after_ms, endpoint_host, response_request_id, failure_streak)
-        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM indexnow_state WHERE id = 1 AND lease_owner = ?)`,
+          `INSERT INTO indexnow_submissions (id, submitted_at, revision, http_status, outcome, url_count, urls_json, retry_after_ms, endpoint_host, response_request_id, failure_streak,diagnostics_json)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM indexnow_state WHERE id = 1 AND lease_owner = ?)`,
         )
         .bind(
           crypto.randomUUID(),
@@ -209,6 +268,7 @@ export async function submitIndexNow(env: Env) {
           new URL(config.endpoint).hostname,
           responseRequestId,
           received ? 0 : failures + 1,
+          diagnostics ? JSON.stringify(diagnostics) : null,
           owner,
         ),
     ];
@@ -234,9 +294,18 @@ export async function submitIndexNow(env: Env) {
       db
         .prepare(
           `UPDATE indexnow_state SET last_checked = ?, last_status = ?, last_error = ?,
-      retry_at = ?, failures = ? WHERE id = 1 AND lease_owner = ?`,
+      retry_at = ?, failures = ?, pending_count=?,throttle_streak=? WHERE id = 1 AND lease_owner = ?`,
         )
-        .bind(now, outcome, error, retryAt, received ? 0 : failures + 1, owner),
+        .bind(
+          now,
+          outcome,
+          error,
+          retryAt,
+          received ? 0 : failures + 1,
+          changes.length - (received ? urls.length : 0),
+          throttleStreak,
+          owner,
+        ),
     );
     const persisted = await db.batch(writes);
     if (!persisted[0].meta.changes)

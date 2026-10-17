@@ -8,6 +8,8 @@
 - `npm run deploy` 不再额外提交。旧脚本的 `--after-deploy` 参数仅查询状态；关闭本地终端不会取消 Cloudflare 的日检查。文章漏跑检查保留独立的 15 分钟触发，不调用 IndexNow。
 - 比较正文、相关元数据与目标链接的 SHA-256 指纹，仅发送新增、实质更新和删除；共享 CSS 或导航变化不重新推送全站。动态文章也来自同一个已提交版本。
 - 正常每批最多 10 个地址，连续失败后最多 1 个；剩余变化保留到后续日检查。成功和失败均至少等待 24 小时；服务器给出更长的 `Retry-After` 时继续遵守，不重置既有退避或失败记录。
+- 连续 429 的恢复等待依次为至少 24、48、72 小时，之后保持 72 小时；服务方给出的更长等待仍优先。每天仍检查是否到期，不在暂停期内发送请求。未尝试的地址优先，近期发布的中英文版本优先于旧更新；失败地址按最早尝试时间轮转，避免一个旧 URL 占住每次单地址恢复探测。
+- `wenbu-indexnow` Cloudflare Workflow 执行日任务。若因前一天启动较晚而还差几秒或几分钟才满 24 小时，持久等待到期再执行；超过五分钟的等待留给后续日触发，避免为长退避积累多个睡眠实例。通知步骤不自动重试，D1 锁与日间隔仍是最终保护。
 
 The build produces a deterministic manifest from the same indexable pages as the sitemap. The Worker reads it through the deployed asset binding, merges committed bilingual publications, compares substantive fingerprints with D1 and posts only additions, changes and removals. The daily trigger is independent of editorial reconciliation and analytics maintenance. Builds, deployments, tests and pull-request checks do not send an extra notification. A persisted 24-hour scan minimum also protects against duplicate triggers or repeated operator commands.
 
@@ -22,6 +24,8 @@ The build produces a deterministic manifest from the same indexable pages as the
 | `indexnow_pages`       | 最后收到 HTTP 200 / 202 的公开 URL 与 HTML 指纹           |
 | `indexnow_submissions` | 每次尝试的时间、清单版本、地址列表、数量、HTTP 状态与结果 |
 | `indexnow_state`       | 上次检查与实际扫描时间、错误代码、重试时间与并发锁        |
+
+新增的 `pending_count` 只在实际扫描后更新；尚未扫描时是未知，不能当成零。回执的 `diagnostics_json` 记录固定服务端响应的允许列表头、接收时间及最多 800 字符的拒绝摘要，读取上限 4 KiB。所有权 key、邮箱和 Bearer 内容经过脱敏；不保存 cookie。服务方返回的内容始终是诊断数据，不是操作指令。旧回执缺少诊断时保持为空，不能反推具体限流原因。
 
 不读取对话、出生资料、访问者 ID 或反馈文本。D1 的提交记录不进入公开 API。管理员查询继续使用现有认证、限流、`no-store` 与 `noindex` 响应。
 
@@ -59,6 +63,8 @@ npm run indexnow:status
 HTTP 202 已表明接收，不会重复推送同一批未变页面。IndexNow 没有用于查询某批验证结果的回执 API；如需核实后续状态，在 Bing Webmaster Tools 检查，后续内容变更也会留下新的提交回执。
 
 Cloudflare 的 Cron 配置传播可能需要几分钟。`last_scanned` 记录实际扫描的开始时间，提交回执证明是否尝试通知；仅有 Cron 配置不能证明已运行。迁移从最近一次通知尝试保守初始化扫描时间，不删除历史回执或改写 `retry_at`。暂停 IndexNow 时只移除 `30 14 * * *`，保留文章补位、发布与每小时归档任务。
+
+每天的实例 ID 为 `indexnow-YYYY-MM-DD`（北京时间日期），重复派发同一实例不会重复执行通知。状态中的 `needsProviderReview` 表示需要核查持续拒绝，不能解读为所有权文件错误或已修复服务端限流。排查顺序是实际请求时间和地址、验证文件公开可达性、robots/canonical、Bing 接收报告、响应头和拒绝摘要；不要通过换 key、地址、IP 或参与者接口绕过暂停。若服务方仍不提供原因，保存日期和 request ID，明确记录服务端原因尚未确认。
 
 ## 收录与效果的边界
 

@@ -1,11 +1,14 @@
 import { z } from 'zod';
 import type { Env } from './types';
 import { searchQueueStatements } from './search-console-queue';
+import { inspectionSchema, recordSearchInspection, searchInspectionsStatus } from './search-inspections';
 
 const origin = 'https://wenbu.app';
 const day = 86400_000;
 export const searchActionSchema = z.discriminatedUnion('action', [
+  inspectionSchema,
   z.object({ action: z.literal('seed') }).strict(),
+  z.object({ action: z.literal('reconcile') }).strict(),
   z.object({ action: z.literal('claim'), id: z.string().uuid() }).strict(),
   z
     .object({
@@ -20,6 +23,26 @@ export const searchActionSchema = z.discriminatedUnion('action', [
 type Job = { id: string; url: string; revision: string; kind: string; status: string; updated_at: number };
 export async function searchConsoleStatus(env: Env) {
   const db = env.ANALYTICS!;
+  const now = Date.now();
+  const pause = await db
+    .prepare('SELECT retry_at,reason FROM search_console_state WHERE id=1')
+    .first<{ retry_at: number; reason: string | null }>();
+  const unresolved = await db
+    .prepare("SELECT COUNT(*) AS total FROM search_console_queue WHERE status IN ('requesting','uncertain')")
+    .first<{ total: number }>();
+  const next =
+    (unresolved?.total ?? 0) > 0
+      ? null
+      : await db
+          .prepare(
+            `SELECT q.id,q.url,q.revision,q.kind,q.status,q.priority,
+    MAX(q.retry_at,COALESCE((SELECT MAX(prior.requested_at)+? FROM search_console_queue prior WHERE prior.url=q.url),0),?) AS eligible_at
+    FROM search_console_queue q WHERE q.status IN ('pending','deferred')
+    ORDER BY CASE WHEN MAX(q.retry_at,COALESCE((SELECT MAX(prior.requested_at)+? FROM search_console_queue prior WHERE prior.url=q.url),0),?)<=? THEN 0 ELSE 1 END,
+      q.priority DESC,CASE q.status WHEN 'deferred' THEN 0 ELSE 1 END,q.created_at,q.url LIMIT 1`,
+          )
+          .bind(day, pause?.retry_at ?? 0, day, pause?.retry_at ?? 0, now)
+          .first();
   return {
     property: 'sc-domain:wenbu.app',
     execution: 'Authenticated Search Console browser; no general-purpose Google indexing API',
@@ -33,18 +56,40 @@ export async function searchConsoleStatus(env: Env) {
         )
         .all()
     ).results,
-    globalRetryAt:
-      (
-        await db
-          .prepare('SELECT retry_at AS at FROM search_console_state WHERE id=1')
-          .first<{ at: number | null }>()
-      )?.at ?? 0,
+    globalRetryAt: pause?.retry_at ?? 0,
+    pauseReason: pause?.reason ?? null,
+    nextRequest: next,
+    blockedByUnresolvedDispatch: (unresolved?.total ?? 0) > 0,
+    inspections: await searchInspectionsStatus(env),
     note: 'requested means a visibly accepted Search Console request, not indexing. Never automatically replay requesting or uncertain jobs.',
   };
 }
 export async function searchConsoleAction(env: Env, input: z.infer<typeof searchActionSchema>) {
   const db = env.ANALYTICS!,
     now = Date.now();
+  if (input.action === 'inspect') return recordSearchInspection(env, input);
+  if (input.action === 'reconcile') {
+    const publications = (
+      await db
+        .prepare('SELECT path,revision,updated_at FROM editorial_publications')
+        .all<{ path: string; revision: string; updated_at: number }>()
+    ).results;
+    let added = 0;
+    for (const p of publications) {
+      if (!/^(learn|compare)\/[a-z0-9-]+$/.test(p.path)) throw new Error('search_publication_path_invalid');
+      const results = await db.batch(
+        searchQueueStatements(
+          db,
+          [origin + '/' + p.path + '/', origin + '/en/' + p.path + '/'],
+          p.revision,
+          p.updated_at,
+          { path: p.path },
+        ),
+      );
+      added += results.filter((_, i) => i % 3 === 1).reduce((n, r) => n + (r.meta.changes ?? 0), 0);
+    }
+    return { status: 'reconciled', publications: publications.length, added };
+  }
   if (input.action === 'seed') {
     // The deployed manifest already excludes noindex, private and noncanonical routes.
     const response = await env.ASSETS.fetch(new Request(origin + '/indexnow-manifest.json'));
@@ -71,7 +116,7 @@ export async function searchConsoleAction(env: Env, input: z.infer<typeof search
     return {
       status: 'seeded',
       eligible: core.length,
-      added: results.reduce((n, r) => n + (r.meta.changes ?? 0), 0),
+      added: results.filter((_, i) => i % 2 === 0).reduce((n, r) => n + (r.meta.changes ?? 0), 0),
     };
   }
   if (input.action === 'claim') {

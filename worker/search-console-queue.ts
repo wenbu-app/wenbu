@@ -47,6 +47,13 @@ export function searchQueueStatements(
           ...extra,
           ...(publication ? [] : [url]),
         ),
+      db
+        .prepare(
+          `INSERT OR IGNORE INTO search_console_inspections(job_id,provider,next_check_at)
+        SELECT q.id,p.provider,? FROM search_console_queue q CROSS JOIN (SELECT 'google' AS provider UNION ALL SELECT 'bing') p
+        WHERE q.url=? AND q.revision=? AND ${guard}`,
+        )
+        .bind(now + 86400_000, url, revision, ...extra),
     ];
   });
 }

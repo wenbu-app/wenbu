@@ -76,6 +76,7 @@
   "r2_buckets": [{ "binding": "ANALYTICS_ARCHIVE", "bucket_name": "wenbu-analytics-archive" }],
   "workflows": [
     { "name": "wenbu-editorial", "binding": "EDITORIAL_WORKFLOW", "class_name": "EditorialWorkflow" },
+    { "name": "wenbu-indexnow", "binding": "INDEXNOW_WORKFLOW", "class_name": "IndexNowWorkflow" },
   ],
   "triggers": {
     "crons": ["15 * * * *", "*/15 * * * *", "30 14 * * *", "0 1,7,13 * * *", "30 23 * * *", "30 2 * * SUN"],

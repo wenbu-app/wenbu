@@ -1,10 +1,18 @@
 import worker from '../worker/index';
 import { dispatchEditorial, replenishTopics } from '../worker/editorial-workflow';
 export { EditorialWorkflow } from '../worker/editorial-workflow';
+export { IndexNowWorkflow } from '../worker/indexnow-workflow';
+import { checkEditorialHealth } from '../worker/editorial-health';
 export { UsageGate, DeletionLedger } from '../worker/index';
 import type { Env } from '../worker/types';
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    if (new URL(request.url).pathname === '/__test/health')
+      return Response.json(await checkEditorialHealth(env));
+    if (new URL(request.url).pathname === '/__test/indexnow') {
+      await env.INDEXNOW_WORKFLOW!.createBatch([{ id: 'synthetic-native-indexnow', params: {} }]);
+      return Response.json(await (await env.INDEXNOW_WORKFLOW!.get('synthetic-native-indexnow')).status());
+    }
     if (new URL(request.url).pathname === '/__test/planning') {
       const data = (await request.json().catch(() => ({}))) as { id?: string };
       return Response.json(await replenishTopics(env, data.id ?? 'synthetic-native-planning'));

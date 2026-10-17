@@ -42,6 +42,7 @@ import {
 } from './editorial-workflow';
 import { editorialStatus, observeEditorial, seedEditorial } from './editorial-store';
 export { EditorialWorkflow } from './editorial-workflow';
+export { IndexNowWorkflow } from './indexnow-workflow';
 
 const apiHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -461,7 +462,17 @@ export default {
       ctx.waitUntil(archiveAnalytics(env));
       ctx.waitUntil(pruneAccountMetadata(env));
     }
-    if (event.cron === INDEXNOW_CRON) ctx.waitUntil(submitIndexNow(env));
+    if (event.cron === INDEXNOW_CRON)
+      ctx.waitUntil(
+        env.INDEXNOW_WORKFLOW
+          ? env.INDEXNOW_WORKFLOW.createBatch([
+              {
+                id: 'indexnow-' + new Date(event.scheduledTime + 8 * 3600_000).toISOString().slice(0, 10),
+                params: {},
+              },
+            ])
+          : submitIndexNow(env),
+      );
     if ([EDITORIAL_CRON, EDITORIAL_RECONCILE_CRON].includes(event.cron))
       ctx.waitUntil(dispatchEditorial(env, event.scheduledTime));
     if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_HEALTH_CRON)

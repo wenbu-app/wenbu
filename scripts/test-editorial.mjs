@@ -57,6 +57,7 @@ const planningCandidates = [
 ];
 let failReview = false,
   malformedNext = false,
+  indexnowCalls = 0,
   calls = 0,
   checks = 0;
 const mf = new Miniflare({
@@ -72,7 +73,10 @@ const mf = new Miniflare({
         compatibilityFlags: ['nodejs_compat'],
         d1Databases: ['ANALYTICS'],
         r2Buckets: ['ANALYTICS_ARCHIVE'],
-        workflows: { EDITORIAL_WORKFLOW: { name: 'editorial-tests', className: 'EditorialWorkflow' } },
+        workflows: {
+          EDITORIAL_WORKFLOW: { name: 'editorial-tests', className: 'EditorialWorkflow' },
+          INDEXNOW_WORKFLOW: { name: 'indexnow-tests', className: 'IndexNowWorkflow' },
+        },
         assets: {
           directory: path.join(root, 'dist'),
           binding: 'ASSETS',
@@ -89,6 +93,18 @@ const mf = new Miniflare({
           ANALYTICS_ADMIN_TOKEN: 'local-editorial-test',
         },
         outboundService: async (request) => {
+          if (new URL(request.url).hostname === 'wenbu.app')
+            return mf.dispatchFetch(request.url, { headers: request.headers });
+          if (new URL(request.url).hostname === 'api.indexnow.org') {
+            indexnowCalls++;
+            return Response.json(
+              { error: 'Synthetic provider rejection for native runtime verification.' },
+              {
+                status: 429,
+                headers: { 'Retry-After': '172800', 'x-request-id': 'synthetic-native-receipt' },
+              },
+            );
+          }
           if (new URL(request.url).hostname !== 'api.deepseek.com') return new Response('', { status: 503 });
           calls++;
           if (calls === 1) return new Response('Synthetic transient provider failure', { status: 503 });
@@ -146,12 +162,15 @@ const mf = new Miniflare({
             'draft and editorial review use explicit reasoning budgets',
           );
           if (!review && malformedNext) {
+            const syntax = malformedNext === 'syntax';
             malformedNext = false;
             return Response.json({
               choices: [
                 {
                   finish_reason: 'stop',
-                  message: { content: JSON.stringify({ zh: { title: 'Malformed sample' } }) },
+                  message: {
+                    content: syntax ? '{"zh":[' : JSON.stringify({ zh: { title: 'Malformed sample' } }),
+                  },
                 },
               ],
             });
@@ -370,6 +389,7 @@ try {
         body: JSON.stringify(revisionBody),
       })
       .then((r) => r.json());
+  malformedNext = 'syntax';
   const revisionRun = await revise();
   check('authenticated revision queues an expected published edition', revisionRun.status === 'queued');
   for (let i = 0; i < 100; i++) {
@@ -387,6 +407,10 @@ try {
   check(
     'published correction changes the revision and retains the original publication date',
     revised.revision !== original.revision && revised.publishedAt === original.publishedAt,
+  );
+  check(
+    'syntax-invalid completed JSON uses bounded repair rather than a blind transport replay',
+    state.runs.find((r) => r.id === revisionRun.id)?.model_calls === 3,
   );
   check(
     'the old immutable revision remains available after correction',
@@ -500,6 +524,42 @@ try {
         .then((r) => r.json())
     ).status === 'already_planned' && calls === afterFaultCalls,
   );
+  const health = await mf.dispatchFetch('https://wenbu.app/__test/health').then((r) => r.json());
+  check(
+    'native public delivery health verifies bilingual HTML, Markdown, JSON, sitemap, directory and CTA',
+    health.issues.length === 0,
+  );
+  await db
+    .prepare('UPDATE indexnow_state SET last_scanned=?,retry_at=0,failures=20,throttle_streak=20')
+    .bind(Date.now() - 86400_000 + 1200)
+    .run();
+  let notification;
+  for (let i = 0; i < 100; i++) {
+    notification = await mf.dispatchFetch('https://wenbu.app/__test/indexnow').then((r) => r.json());
+    if (['complete', 'errored'].includes(notification.status)) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  check(
+    'native daily Workflow waits out clock drift and completes one bounded notification',
+    notification.status === 'complete' && indexnowCalls === 1,
+  );
+  const remoteReceipt = await db
+    .prepare(
+      'SELECT http_status,diagnostics_json FROM indexnow_submissions ORDER BY submitted_at DESC LIMIT 1',
+    )
+    .first();
+  check(
+    'native provider rejection preserves HTTP status and bounded response diagnostics',
+    remoteReceipt.http_status === 429 &&
+      JSON.parse(remoteReceipt.diagnostics_json).excerpt.includes('Synthetic provider rejection'),
+  );
+  const pause = await db.prepare('SELECT retry_at,failures FROM indexnow_state WHERE id=1').first();
+  check(
+    'native repeated rejection arms an adaptive pause without erasing failure history',
+    pause.failures === 21 && pause.retry_at > Date.now() + 2.9 * 86400_000,
+  );
+  await mf.dispatchFetch('https://wenbu.app/__test/indexnow');
+  check('native completed daily instance cannot replay the outbound request', indexnowCalls === 1);
   console.log(
     JSON.stringify({
       passed: true,
