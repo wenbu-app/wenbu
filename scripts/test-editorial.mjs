@@ -58,6 +58,7 @@ const planningCandidates = [
 let failReview = false,
   malformedNext = false,
   indexnowCalls = 0,
+  diagnosticHeads = 0,
   calls = 0,
   checks = 0;
 const mf = new Miniflare({
@@ -96,6 +97,13 @@ const mf = new Miniflare({
           if (new URL(request.url).hostname === 'wenbu.app')
             return mf.dispatchFetch(request.url, { headers: request.headers });
           if (new URL(request.url).hostname === 'api.indexnow.org') {
+            if (request.method === 'HEAD') {
+              diagnosticHeads++;
+              assert.equal(new URL(request.url).search, '');
+              assert.equal(request.headers.has('Authorization'), false);
+              assert.equal(request.headers.has('Cookie'), false);
+              return new Response(null, { status: 405 });
+            }
             indexnowCalls++;
             return Response.json(
               { error: 'Synthetic provider rejection for native runtime verification.' },
@@ -105,6 +113,9 @@ const mf = new Miniflare({
               },
             );
           }
+          if (request.url === 'https://www.cloudflare.com/cdn-cgi/trace')
+            return new Response('ip=2001:db8::1\ncolo=NRT\n');
+          if (request.url === 'https://checkip.amazonaws.com/') return new Response('192.0.2.100\n');
           if (new URL(request.url).hostname !== 'api.deepseek.com') return new Response('', { status: 503 });
           calls++;
           if (calls === 1) return new Response('Synthetic transient provider failure', { status: 503 });
@@ -560,6 +571,44 @@ try {
   );
   await mf.dispatchFetch('https://wenbu.app/__test/indexnow');
   check('native completed daily instance cannot replay the outbound request', indexnowCalls === 1);
+  const diagnosticHeaders = {
+    Authorization: 'Bearer local-editorial-test',
+    Origin: 'https://wenbu.app',
+  };
+  const diagnosticUrl = 'https://wenbu.app/api/admin/indexnow/diagnostics';
+  const dispatch = await mf
+    .dispatchFetch(diagnosticUrl, { method: 'POST', headers: diagnosticHeaders })
+    .then((r) => r.json());
+  let diagnosticResult;
+  for (let i = 0; i < 100; i++) {
+    diagnosticResult = await mf
+      .dispatchFetch(diagnosticUrl, { headers: diagnosticHeaders })
+      .then((r) => r.json());
+    if (diagnosticResult.runs.length) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  check(
+    'native Workflow transport diagnostic persists one HEAD and never adds a notification',
+    dispatch.id.startsWith('indexnow-diagnostic-') &&
+      diagnosticHeads === 1 &&
+      indexnowCalls === 1 &&
+      diagnosticResult.runs.length === 1,
+  );
+  const probes = JSON.parse(diagnosticResult.runs[0].result_json).probes;
+  check(
+    'native public key is read through HTTP and its Worker metadata is persisted',
+    probes.find((p) => p.kind === 'public_key').exactKey === true &&
+      diagnosticResult.verification[0].requests >= 1,
+  );
+  const afterDiagnosticPause = await db
+    .prepare('SELECT retry_at,failures FROM indexnow_state WHERE id=1')
+    .first();
+  check(
+    'native diagnostic cannot reset notification pause or failure history',
+    JSON.stringify(afterDiagnosticPause) === JSON.stringify(pause),
+  );
+  await mf.dispatchFetch(diagnosticUrl, { method: 'POST', headers: diagnosticHeaders });
+  check('native diagnostic has a deduplicated daily instance', diagnosticHeads === 1 && indexnowCalls === 1);
   console.log(
     JSON.stringify({
       passed: true,

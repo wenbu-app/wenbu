@@ -1,5 +1,17 @@
 import { readFile } from 'node:fs/promises';
+const args = process.argv.slice(2);
+if (
+  args.length > 1 ||
+  args.some((a) => !['--status', '--after-deploy', '--diagnose', '--diagnostic-status'].includes(a))
+) {
+  console.error(
+    'IndexNow: unsupported arguments. Use --status, --diagnose, --diagnostic-status, --after-deploy, or no argument for a guarded notification.',
+  );
+  process.exit(1);
+}
 const config = JSON.parse(await readFile(new URL('../src/data/indexnow.json', import.meta.url), 'utf8'));
+const diagnostic = args.includes('--diagnose') || args.includes('--diagnostic-status');
+const diagnosticRead = args.includes('--diagnostic-status');
 const afterDeploy = process.argv.includes('--after-deploy');
 // Compatibility for older release scripts: deployment must never add an extra scan.
 const statusOnly = process.argv.includes('--status') || afterDeploy;
@@ -18,7 +30,7 @@ try {
     ).trim();
   if (!token)
     throw new Error('Admin credential unavailable; set WENBU_ADMIN_TOKEN or WENBU_ADMIN_TOKEN_FILE.');
-  if (!statusOnly) {
+  if (!statusOnly && !diagnostic) {
     const local = JSON.parse(
       await readFile(new URL('../dist/indexnow-manifest.json', import.meta.url), 'utf8'),
     );
@@ -40,16 +52,19 @@ try {
     if (key.status !== 200 || (await key.text()).trim() !== config.key)
       throw new Error('The public verification file is unavailable. No manual submission was made.');
   }
-  const response = await fetch(config.origin + '/api/admin/indexnow' + (statusOnly ? '' : '/run'), {
-    method: statusOnly ? 'GET' : 'POST',
-    redirect: 'error',
-    signal: AbortSignal.timeout(60_000),
-    headers: { Authorization: `Bearer ${token}`, Origin: config.origin },
-  });
+  const response = await fetch(
+    config.origin + '/api/admin/indexnow' + (diagnostic ? '/diagnostics' : statusOnly ? '' : '/run'),
+    {
+      method: statusOnly || diagnosticRead ? 'GET' : 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(60_000),
+      headers: { Authorization: `Bearer ${token}`, Origin: config.origin },
+    },
+  );
   if (!response.ok) throw new Error(`Admin endpoint returned HTTP ${response.status}.`);
   const result = await response.json();
   console.log(JSON.stringify(result, null, 2));
-  if (!statusOnly && ['retrying', 'disabled', 'lease_lost'].includes(result.status))
+  if (!statusOnly && !diagnostic && ['retrying', 'disabled', 'lease_lost'].includes(result.status))
     throw new Error('Submission was not received; inspect the status and retry schedule.');
 } catch (error) {
   console.error('IndexNow: ' + error.message);

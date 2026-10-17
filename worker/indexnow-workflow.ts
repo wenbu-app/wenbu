@@ -1,9 +1,20 @@
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workers';
 import { INDEXNOW_INTERVAL_MS, submitIndexNow } from './indexnow';
 import type { Env } from './types';
+import { runIndexNowDiagnostic } from './indexnow-observability';
 
-export class IndexNowWorkflow extends WorkflowEntrypoint<Env, Record<string, never>> {
-  async run(_event: Readonly<WorkflowEvent<Record<string, never>>>, step: WorkflowStep) {
+export class IndexNowWorkflow extends WorkflowEntrypoint<Env, { mode?: 'diagnostic' }> {
+  async run(event: Readonly<WorkflowEvent<{ mode?: 'diagnostic' }>>, step: WorkflowStep) {
+    const payload = event.payload === undefined ? {} : event.payload;
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload))
+      throw new Error('invalid_indexnow_workflow_mode');
+    if (payload.mode === 'diagnostic' && Object.keys(payload).length === 1)
+      return await step.do(
+        'read-only-transport-diagnostic-once',
+        { retries: { limit: 0, delay: '1 second' }, timeout: '1 minute' },
+        () => runIndexNowDiagnostic(this.env, event.instanceId),
+      );
+    if (Object.keys(payload).length) throw new Error('invalid_indexnow_workflow_mode');
     const due = await step.do('read-delivery-window', async () => {
       if (!this.env.ANALYTICS) return { status: 'disabled', at: 0, wait: false };
       const state = await this.env.ANALYTICS.prepare(

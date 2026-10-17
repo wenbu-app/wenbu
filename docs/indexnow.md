@@ -50,6 +50,16 @@ npm run indexnow:status
 - `POST /api/admin/indexnow/run`：立即检查当前部署。需要管理员认证、主域名及匹配的 `Origin`；请求方不能指定提交地址。
 - `npm run audit:indexnow`：检查 sitemap 一致性、HTML 指纹、私有路由排除及验证文件；已加入 `npm run verify` 和 GitHub CI。
 
+### 区分出口、验证抓取与 URL 通知
+
+`node scripts/indexnow.mjs --diagnose` 仅派发一次受管理员认证和主域名 Origin 保护的生产 Workflow 诊断。每个 UTC 日期使用同一实例 ID，不新增定时器、不重试诊断步骤。它以通知器相同的 User-Agent 执行四个固定读取：无参数、无 key、无请求体的 IndexNow **HEAD**、公开验证文件 **GET**、Cloudflare trace **GET**、AWS checkip **GET**。不发送 URL 通知，也不改变原有 `retry_at`、失败计数、扫描时间或提交回执。
+
+`node scripts/indexnow.mjs --diagnostic-status` 只读取持久结果和验证文件访问计数。两个 IP 回显服务所见的 IP 仅属于各自目的站的观察，不能当成 IndexNow 所见出口；Cloudflare 站点可能展示跨 zone 的 Worker 身份，而非外网出口。HEAD 返回 405 只能说明这种方法未被统一拒绝，不能证明 POST 配额恢复。Worker 与本机对照必须使用相同方法和 User-Agent，并注明时间。未知、重复或位置参数直接报错，不再因误写 `status` 而进入通知路径。
+
+验证文件的 GET/HEAD 保持原始响应，异步记录独立的运维数据，不计入访客/PV。每小时保留请求总数、200 数量和前 32 条有限元数据，保留 30 天。样本仅含时间、方法、状态、UA 声称的来源分类及可用的 Cloudflare ASN/colo/verifiedBot；不存 key、原始 UA、IP、查询参数、cookie 或访客身份。超出 32 条后计数仍累加，不能把样本当成完整来源明细。缺失的 verifiedBot 是 unknown，不能当作 false；UA 声称 Bing 也不能自行证明来自 Bing。
+
+这份日志仅覆盖已经到达 Worker 的请求，WAF 提前阻断或 Worker 日志之前的历史需要另查 Cloudflare Analytics，并记录时间窗、数据保留范围、采样和查询上限。数据表由 `0010_indexnow_observability.sql` 创建；诊断结果限管理员读取，原始运营证据不得提交公开仓库。
+
 | 状态                            | 含义 / Meaning                                                     |
 | ------------------------------- | ------------------------------------------------------------------ |
 | `submitted` / HTTP 200          | 接口成功收到这批 URL；不代表已经收录                               |

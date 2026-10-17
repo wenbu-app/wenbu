@@ -111,6 +111,8 @@ Normal batches contain at most ten URLs. After repeated failures, the next eligi
 
 Read back `retry_after_ms`, endpoint host, response request ID and failure streak. Confirm the public key remains accessible. A receipt is not indexing. Google Search Console, Bing Webmaster Tools, search performance and observed AI citations are separate evidence layers.
 
+`node scripts/indexnow.mjs --diagnostic-status` reads the private production transport and ownership-file observations. If a new, discriminating transport check is needed, `--diagnose` dispatches a deduplicated production Workflow with fixed credential-free HEAD/GET requests, never a URL notification or a pause reset. See [the diagnostic scope and coverage limits](indexnow.md#区分出口验证抓取与-url-通知). Read historical Cloudflare data with explicit retention, sampling and row limits before concluding that a verifier never fetched the file. UA claims are not verified identity; another project's publisher is not evidence of duplicate Wenbu submissions or a shared provider quota. Record the operator's no-contact decision and continue diagnosis without opening support tickets.
+
 ## Failure response and rollback
 
 Stop new publications by setting `EDITORIAL_AUTOPUBLISH=false`, preserving rendering and existing publications. `EDITORIAL_ENABLED=false` disables the dynamic feature and falls back to the static site; it does not delete D1 or R2 history. Never change static noindex templates into public guides directly.
