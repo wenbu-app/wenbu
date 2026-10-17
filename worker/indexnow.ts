@@ -14,7 +14,13 @@ const manifestSchema = z.object({
     .min(1)
     .max(10000),
 });
-type State = { lease_owner: string; retry_at: number; failures: number; last_scanned: number | null };
+type State = {
+  lease_owner: string;
+  retry_at: number;
+  failures: number;
+  last_scanned: number | null;
+  throttle_streak: number;
+};
 type Page = { url: string; content_hash: string };
 const BATCH_SIZE = 10;
 const LEASE_MS = 5 * 60_000;
@@ -38,7 +44,7 @@ export async function indexNowStatus(env: Env) {
   if (!env.ANALYTICS) return { available: false };
   const [state, pages, receipts] = await Promise.all([
     env.ANALYTICS.prepare(
-      'SELECT last_checked, last_scanned, last_status, last_error, retry_at, failures, pending_count FROM indexnow_state WHERE id = 1',
+      'SELECT last_checked, last_scanned, last_status, last_error, retry_at, failures, pending_count,throttle_streak FROM indexnow_state WHERE id = 1',
     ).all(),
     env.ANALYTICS.prepare('SELECT COUNT(*) AS total FROM indexnow_pages').all(),
     env.ANALYTICS.prepare(
@@ -90,7 +96,9 @@ export async function submitIndexNow(env: Env) {
   try {
     const state = (
       await db
-        .prepare('SELECT lease_owner, retry_at, failures, last_scanned FROM indexnow_state WHERE id = 1')
+        .prepare(
+          'SELECT lease_owner, retry_at, failures, last_scanned,throttle_streak FROM indexnow_state WHERE id = 1',
+        )
         .all<State>()
     ).results[0];
     failures = state.failures;
@@ -152,7 +160,7 @@ export async function submitIndexNow(env: Env) {
       db
         .prepare(
           `SELECT value AS url,MAX(submitted_at) AS at FROM indexnow_submissions,json_each(urls_json)
-        WHERE http_status NOT IN (200,202) AND submitted_at>? GROUP BY value`,
+        WHERE (http_status IS NULL OR http_status NOT IN (200,202)) AND submitted_at>? GROUP BY value`,
         )
         .bind(now - 30 * INDEXNOW_INTERVAL_MS)
         .all<{ url: string; at: number }>(),
@@ -238,7 +246,9 @@ export async function submitIndexNow(env: Env) {
       : httpStatus === null
         ? `network_error: ${transportError}`
         : `http_${httpStatus}`;
-    const delay = indexNowDelay(httpStatus, received ? 0 : failures + 1, retryAfter);
+    const throttleStreak =
+      httpStatus === null ? state.throttle_streak : httpStatus === 429 ? state.throttle_streak + 1 : 0;
+    const delay = indexNowDelay(httpStatus, throttleStreak, retryAfter);
     const retryAt = Date.now() + delay;
     const writes = [
       db
@@ -284,7 +294,7 @@ export async function submitIndexNow(env: Env) {
       db
         .prepare(
           `UPDATE indexnow_state SET last_checked = ?, last_status = ?, last_error = ?,
-      retry_at = ?, failures = ?, pending_count=? WHERE id = 1 AND lease_owner = ?`,
+      retry_at = ?, failures = ?, pending_count=?,throttle_streak=? WHERE id = 1 AND lease_owner = ?`,
         )
         .bind(
           now,
@@ -293,6 +303,7 @@ export async function submitIndexNow(env: Env) {
           retryAt,
           received ? 0 : failures + 1,
           changes.length - (received ? urls.length : 0),
+          throttleStreak,
           owner,
         ),
     );

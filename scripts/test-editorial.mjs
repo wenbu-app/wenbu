@@ -530,7 +530,7 @@ try {
     health.issues.length === 0,
   );
   await db
-    .prepare('UPDATE indexnow_state SET last_scanned=?,retry_at=0,failures=20')
+    .prepare('UPDATE indexnow_state SET last_scanned=?,retry_at=0,failures=20,throttle_streak=20')
     .bind(Date.now() - 86400_000 + 1200)
     .run();
   let notification;

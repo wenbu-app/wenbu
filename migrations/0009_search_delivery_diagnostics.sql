@@ -1,6 +1,8 @@
 -- Public delivery diagnostics and provider observations only; no visitor context or credentials.
 ALTER TABLE indexnow_submissions ADD COLUMN diagnostics_json TEXT;
 ALTER TABLE indexnow_state ADD COLUMN pending_count INTEGER;
+ALTER TABLE indexnow_state ADD COLUMN throttle_streak INTEGER NOT NULL DEFAULT 0;
+UPDATE indexnow_state SET throttle_streak=CASE WHEN last_error='http_429' THEN failures ELSE 0 END;
 
 CREATE TABLE search_console_inspections (
   job_id TEXT NOT NULL, provider TEXT NOT NULL CHECK(provider IN ('google','bing')),

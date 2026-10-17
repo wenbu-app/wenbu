@@ -328,6 +328,17 @@ describe('deployed IndexNow submissions', () => {
     expect(indexNowDelay(429, 20, 9 * INDEXNOW_INTERVAL_MS)).toBe(9 * INDEXNOW_INTERVAL_MS);
     expect(indexNowDelay(500, 20, 0)).toBe(INDEXNOW_INTERVAL_MS);
   });
+  it('does not confuse network/server failures with consecutive HTTP 429 rejections', async () => {
+    const f = fixture();
+    f.sql.prepare('UPDATE indexnow_state SET failures=20,throttle_streak=0').run();
+    f.send.mockResolvedValueOnce(new Response(null, { status: 429 }));
+    expect(await submitIndexNow(f.env)).toMatchObject({ retryAt: Date.now() + INDEXNOW_INTERVAL_MS });
+    expect((await indexNowStatus(f.env)).state).toMatchObject({ failures: 21, throttle_streak: 1 });
+    nextDay();
+    f.send.mockResolvedValueOnce(new Response(null, { status: 500 }));
+    await submitIndexNow(f.env);
+    expect((await indexNowStatus(f.env)).state).toMatchObject({ failures: 22, throttle_streak: 0 });
+  });
   it('does not let an old failed URL monopolize fresh publication probes', async () => {
     const f = fixture();
     const old = origin + '/blog/old/',
@@ -336,7 +347,7 @@ describe('deployed IndexNow submissions', () => {
       { url: old, hash: digest('old') },
       { url: recent, hash: digest('new') },
     ]);
-    f.sql.prepare('UPDATE indexnow_state SET failures=20').run();
+    f.sql.prepare('UPDATE indexnow_state SET failures=20,throttle_streak=20').run();
     f.sql
       .prepare(
         "INSERT INTO indexnow_submissions(id,submitted_at,revision,http_status,outcome,url_count,urls_json) VALUES(?,?,?,429,'retrying',1,?)",
