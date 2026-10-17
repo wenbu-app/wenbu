@@ -24,6 +24,7 @@ type State = {
 type Page = { url: string; content_hash: string };
 const BATCH_SIZE = 10;
 const LEASE_MS = 5 * 60_000;
+export const INDEXNOW_USER_AGENT = 'WenbuIndexNow/2.0 (+https://wenbu.app/about/)';
 export const INDEXNOW_CRON = '30 14 * * *'; // 22:30 Asia/Shanghai, after the three publishing slots.
 export const INDEXNOW_INTERVAL_MS = 86400_000;
 
@@ -214,7 +215,7 @@ export async function submitIndexNow(env: Env) {
         signal: AbortSignal.timeout(30_000),
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'User-Agent': 'WenbuIndexNow/2.0 (+https://wenbu.app/about/)',
+          'User-Agent': INDEXNOW_USER_AGENT,
         },
         body: JSON.stringify({
           host: new URL(config.origin).host,

@@ -19,6 +19,12 @@ import {
 import { submitFeedback, updateFeedback } from './feedback';
 import { historyReport, feedbackDetail, storageStatus, archiveAnalytics, archiveDownload } from './history';
 import { INDEXNOW_CRON, indexNowStatus, submitIndexNow } from './indexnow';
+import {
+  isIndexNowVerification,
+  recordIndexNowVerification,
+  dispatchIndexNowDiagnostic,
+  indexNowDiagnosticStatus,
+} from './indexnow-observability';
 import { searchActionSchema, searchConsoleAction, searchConsoleStatus } from './search-console';
 export { UsageGate } from './quota';
 export { DeletionLedger } from './deletion-ledger';
@@ -116,9 +122,11 @@ export default {
         (await editorialDiscovery(request, env)) ??
         (await editorialResponse(request, env)) ??
         (await env.ASSETS.fetch(request));
-      const task = recordContent(request, response, env, Date.now() - started).catch(() =>
-        console.error('WENBU_ANALYTICS_WRITE_FAILED'),
-      );
+      const task = (
+        isIndexNowVerification(request)
+          ? recordIndexNowVerification(request, response, env)
+          : recordContent(request, response, env, Date.now() - started)
+      ).catch(() => console.error('WENBU_ANALYTICS_WRITE_FAILED'));
       if (ctx) ctx.waitUntil(task);
       else await task;
       return response;
@@ -187,6 +195,7 @@ export default {
         if (request.method === 'GET') {
           if (path === '/api/admin/editorial') return json(await editorialStatus(env));
           if (path === '/api/admin/indexnow') return json(await indexNowStatus(env));
+          if (path === '/api/admin/indexnow/diagnostics') return json(await indexNowDiagnosticStatus(env));
           if (path === '/api/admin/search-console') return json(await searchConsoleStatus(env));
           if (path === '/api/admin/analytics') return json(await analyticsReport(url, env));
           if (path === '/api/admin/events') return json(await historyReport(url, env, 'events'));
@@ -279,10 +288,15 @@ export default {
             await searchConsoleAction(env, searchActionSchema.parse(await boundedBody(request, 3000))),
           );
         }
-        if (request.method === 'POST' && path === '/api/admin/indexnow/run') {
+        if (
+          request.method === 'POST' &&
+          ['/api/admin/indexnow/run', '/api/admin/indexnow/diagnostics'].includes(path)
+        ) {
           if (url.origin !== env.SITE_URL || request.headers.get('Origin') !== url.origin)
             return json({ error: { code: 'origin_denied' } }, 403);
-          return json(await submitIndexNow(env));
+          return json(
+            path.endsWith('/diagnostics') ? await dispatchIndexNowDiagnostic(env) : await submitIndexNow(env),
+          );
         }
         return json({ error: { code: 'not_found' } }, 404);
       }

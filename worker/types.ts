@@ -32,5 +32,5 @@ export interface Env {
   EDITORIAL_ENABLED?: string;
   EDITORIAL_AUTOPUBLISH?: string;
   EDITORIAL_WORKFLOW?: Workflow<{ kind: 'content' | 'health' | 'planning'; slot?: string }>;
-  INDEXNOW_WORKFLOW?: Workflow<Record<string, never>>;
+  INDEXNOW_WORKFLOW?: Workflow<{ mode?: 'diagnostic' }>;
 }
