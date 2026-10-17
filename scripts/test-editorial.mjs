@@ -401,6 +401,16 @@ try {
     'repeating a stale correction cannot overwrite the newer edition',
     (await revise()).status === 'stale_revision',
   );
+  const searchJobs = await db
+    .prepare('SELECT url,revision,status FROM search_console_queue ORDER BY url,created_at')
+    .all();
+  check(
+    'native publication atomically queues both languages and supersedes the old pending revision',
+    searchJobs.results.filter((j) => j.revision === revised.revision && j.status === 'pending').length ===
+      2 &&
+      searchJobs.results.filter((j) => j.revision === original.revision && j.status === 'superseded')
+        .length === 2,
+  );
   const planning = await mf.dispatchFetch('https://wenbu.app/__test/planning').then((r) => r.json());
   check(
     'native commissioning admits a new outcome and blocks an overlap and library-as-app comparison',

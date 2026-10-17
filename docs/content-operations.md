@@ -4,15 +4,33 @@ Current operating target: **three reader tasks per day, each published in comple
 
 ## What runs where
 
-| Process                                         | Trigger                                        | Execution and evidence                                                                                                                   |
-| ----------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Research, writing, separate review, publication | Three daily slots; 15-minute missed-slot check | Cloudflare `wenbu-editorial` Workflow; D1 run and immutable revision; private R2 research/draft/review objects                           |
-| Technical search checks                         | Daily 07:30 Shanghai                           | Workflow checks public HTML, language alternates, canonical, sitemap and machine formats; records an observation                         |
-| Candidate replenishment                         | Sunday 10:30 Shanghai                          | Distinct reader-task proposals, separate commissioning review, canonical-owner check, allowlisted sources; no invented traffic estimates |
-| Google/Bing reports and AI answer observations  | Daily Codex review; deeper Sunday review       | Authenticated browser sessions and available research tools; results written to D1 through the authenticated observation API             |
-| IndexNow                                        | After deployment and every 15 minutes          | Only changed public URLs; persisted 200/202/429 evidence, concurrency lease and retry schedule                                           |
+| Process                                         | Trigger                                        | Execution and evidence                                                                                                                      |
+| ----------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Research, writing, separate review, publication | Three daily slots; 15-minute missed-slot check | Cloudflare `wenbu-editorial` Workflow; D1 run and immutable revision; private R2 research/draft/review objects                              |
+| Technical search checks                         | Daily 07:30 Shanghai                           | Workflow checks public HTML, language alternates, canonical, sitemap and machine formats; records an observation                            |
+| Candidate replenishment                         | Sunday 10:30 Shanghai                          | Distinct reader-task proposals, separate commissioning review, canonical-owner check, allowlisted sources; no invented traffic estimates    |
+| Google/Bing reports and AI answer observations  | Daily Codex review; deeper Sunday review       | Authenticated browser sessions and available research tools; results written to D1 through the authenticated observation API                |
+| IndexNow                                        | Daily 22:30 Shanghai, at least 24 hours apart  | Only changed public URLs; persisted 200/202/429 evidence, concurrency lease and retry schedule; deployments do not send extra notifications |
+| Google priority indexing requests               | Daily Codex review, within available quota     | Private D1 queue; one-time core-page bootstrap, then each published bilingual revision; visible Search Console acceptance is required       |
 
 The Cloudflare publishing pipeline works without an open laptop. The supplemental Codex browser review requires its execution host and authenticated browser sessions. Expired access is recorded as unavailable and reported; it is not replaced by a fabricated zero or inferred indexing result.
+
+## Google priority request queue
+
+The user authorized one pass over all indexable non-article pages on 2026-10-17, followed by requests for newly published or materially updated articles. Home pages and tools have the highest priority, followed by library/comparison directories and public explanations. The bootstrap uses the deployed public manifest, excluding individual `/learn/` and `/compare/` articles, private/noindex routes, APIs and duplicate machine formats. It is idempotent per core URL. It is not a claim that all queued URLs have already been submitted.
+
+```sh
+npm run search:console -- status
+npm run search:console -- seed
+npm run search:console -- claim <job-id>
+npm run search:console -- record /absolute/private/path/to/receipt.json
+```
+
+Publication adds both language requests in the same D1 transaction as the new immutable revision. Pending older revisions are superseded, without deleting receipts. The daily heartbeat processes this queue through the authenticated `sc-domain:wenbu.app` browser property. It does not call Google's restricted Indexing API, and no duplicate local article timer is needed. A daily browser run depends on the host and its login session; Cloudflare cannot click Search Console by itself.
+
+Claim a job before clicking Request indexing. Record `requested` with reason `accepted` only after the visible success confirmation. A provider quota, permission problem or CAPTCHA pauses the queue for at least 24 hours; leave pending jobs intact and report the coverage gap. Never solve a CAPTCHA without the required user handoff. A dispatched request without a clear outcome remains `requesting` or `uncertain`; do not automatically resend it. Resolve it only from independent visible evidence, using the receipt command. A later article revision does not clear a global provider pause. Replays of an accepted receipt are idempotent, and the same URL cannot be requested again within 24 hours. Inspect actual crawl/index status separately; `requested` is never relabelled as `indexed`.
+
+Receipt input: `{"id":"<job-id>","outcome":"requested|deferred|uncertain","reason":"accepted|quota|captcha|permission|temporary_error|unknown_outcome","note":"short visible evidence without account identifiers or credentials"}`. Keep raw screenshots and queue exports in the private dated operations directory, and write sanitized summaries via `content:observe`.
 
 ## Topic selection and iteration
 

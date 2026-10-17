@@ -19,6 +19,7 @@ import {
 import { submitFeedback, updateFeedback } from './feedback';
 import { historyReport, feedbackDetail, storageStatus, archiveAnalytics, archiveDownload } from './history';
 import { INDEXNOW_CRON, indexNowStatus, submitIndexNow } from './indexnow';
+import { searchActionSchema, searchConsoleAction, searchConsoleStatus } from './search-console';
 export { UsageGate } from './quota';
 export { DeletionLedger } from './deletion-ledger';
 import { handleAuth } from './account-auth';
@@ -35,6 +36,7 @@ import {
   recoverEditorial,
   reviseEditorial,
   EDITORIAL_CRON,
+  EDITORIAL_RECONCILE_CRON,
   EDITORIAL_HEALTH_CRON,
   EDITORIAL_PLANNING_CRON,
 } from './editorial-workflow';
@@ -184,6 +186,7 @@ export default {
         if (request.method === 'GET') {
           if (path === '/api/admin/editorial') return json(await editorialStatus(env));
           if (path === '/api/admin/indexnow') return json(await indexNowStatus(env));
+          if (path === '/api/admin/search-console') return json(await searchConsoleStatus(env));
           if (path === '/api/admin/analytics') return json(await analyticsReport(url, env));
           if (path === '/api/admin/events') return json(await historyReport(url, env, 'events'));
           if (path === '/api/admin/feedback') return json(await historyReport(url, env, 'feedback'));
@@ -267,6 +270,13 @@ export default {
               ),
             );
           }
+        }
+        if (request.method === 'POST' && path === '/api/admin/search-console') {
+          if (url.origin !== env.SITE_URL || request.headers.get('Origin') !== env.SITE_URL)
+            return json({ error: { code: 'origin_denied' } }, 403);
+          return json(
+            await searchConsoleAction(env, searchActionSchema.parse(await boundedBody(request, 3000))),
+          );
         }
         if (request.method === 'POST' && path === '/api/admin/indexnow/run') {
           if (url.origin !== env.SITE_URL || request.headers.get('Origin') !== url.origin)
@@ -451,11 +461,9 @@ export default {
       ctx.waitUntil(archiveAnalytics(env));
       ctx.waitUntil(pruneAccountMetadata(env));
     }
-    if (event.cron === INDEXNOW_CRON) {
-      ctx.waitUntil(submitIndexNow(env));
+    if (event.cron === INDEXNOW_CRON) ctx.waitUntil(submitIndexNow(env));
+    if ([EDITORIAL_CRON, EDITORIAL_RECONCILE_CRON].includes(event.cron))
       ctx.waitUntil(dispatchEditorial(env, event.scheduledTime));
-    }
-    if (event.cron === EDITORIAL_CRON) ctx.waitUntil(dispatchEditorial(env, event.scheduledTime));
     if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_HEALTH_CRON)
       ctx.waitUntil(
         env.EDITORIAL_WORKFLOW.createBatch([

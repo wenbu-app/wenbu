@@ -13,11 +13,12 @@ const manifestSchema = z.object({
     .min(1)
     .max(10000),
 });
-type State = { lease_owner: string; retry_at: number; failures: number };
+type State = { lease_owner: string; retry_at: number; failures: number; last_scanned: number | null };
 type Page = { url: string; content_hash: string };
 const BATCH_SIZE = 10;
 const LEASE_MS = 5 * 60_000;
-export const INDEXNOW_CRON = '*/15 * * * *';
+export const INDEXNOW_CRON = '30 14 * * *'; // 22:30 Asia/Shanghai, after the three publishing slots.
+export const INDEXNOW_INTERVAL_MS = 86400_000;
 
 function canonicalUrl(value: string) {
   const url = new URL(value);
@@ -36,7 +37,7 @@ export async function indexNowStatus(env: Env) {
   if (!env.ANALYTICS) return { available: false };
   const [state, pages, receipts] = await Promise.all([
     env.ANALYTICS.prepare(
-      'SELECT last_checked, last_status, last_error, retry_at, failures FROM indexnow_state WHERE id = 1',
+      'SELECT last_checked, last_scanned, last_status, last_error, retry_at, failures FROM indexnow_state WHERE id = 1',
     ).all(),
     env.ANALYTICS.prepare('SELECT COUNT(*) AS total FROM indexnow_pages').all(),
     env.ANALYTICS.prepare(
@@ -47,10 +48,13 @@ export async function indexNowStatus(env: Env) {
     available: true,
     origin: config.origin,
     schedule: INDEXNOW_CRON,
+    timezone: 'Asia/Shanghai',
+    localTime: '22:30',
+    minimumCheckIntervalHours: 24,
     batchPolicy: {
       normal: BATCH_SIZE,
       repeatedFailure: 1,
-      receiptCooldownMinutes: 60,
+      receiptCooldownMinutes: 1440,
       fingerprints: 'substantive_content_v2',
     },
     trackedPages: pages.results[0]?.total ?? 0,
@@ -77,19 +81,20 @@ export async function submitIndexNow(env: Env) {
   let failures = 0;
   try {
     const state = (
-      await db.prepare('SELECT lease_owner, retry_at, failures FROM indexnow_state WHERE id = 1').all<State>()
+      await db
+        .prepare('SELECT lease_owner, retry_at, failures, last_scanned FROM indexnow_state WHERE id = 1')
+        .all<State>()
     ).results[0];
     failures = state.failures;
     if (state.retry_at > now) {
-      await db
-        .prepare(
-          `UPDATE indexnow_state SET last_checked = ?, last_status = 'backoff'
-        WHERE id = 1 AND lease_owner = ?`,
-        )
-        .bind(now, owner)
-        .run();
       return { status: 'backoff', submitted: 0, retryAt: state.retry_at };
     }
+    if (state.last_scanned !== null && state.last_scanned + INDEXNOW_INTERVAL_MS > now)
+      return { status: 'daily_wait', submitted: 0, nextCheckAt: state.last_scanned + INDEXNOW_INTERVAL_MS };
+    await db
+      .prepare('UPDATE indexnow_state SET last_scanned=?,last_checked=? WHERE id=1 AND lease_owner=?')
+      .bind(now, now, owner)
+      .run();
     const asset = await env.ASSETS.fetch(
       new Request(config.origin + config.manifestPath, { signal: AbortSignal.timeout(10_000) }),
     );
@@ -184,11 +189,8 @@ export async function submitIndexNow(env: Env) {
       : httpStatus === null
         ? `network_error: ${transportError}`
         : `http_${httpStatus}`;
-    const delay = Math.max(
-      Math.min(86400_000, 15 * 60_000 * 2 ** Math.min(failures, 7)),
-      Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : 0,
-    );
-    const retryAt = received ? (env.EDITORIAL_ENABLED === 'true' ? now + 3600_000 : 0) : now + delay;
+    const delay = Math.max(INDEXNOW_INTERVAL_MS, Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : 0);
+    const retryAt = received ? now + INDEXNOW_INTERVAL_MS : now + delay;
     const writes = [
       db
         .prepare(
@@ -261,7 +263,7 @@ export async function submitIndexNow(env: Env) {
     ]);
     const error =
       cause instanceof Error && diagnosticCodes.has(cause.message) ? cause.message : 'asset_or_storage_error';
-    const retryAt = now + Math.min(86400_000, 15 * 60_000 * 2 ** Math.min(failures, 7));
+    const retryAt = now + INDEXNOW_INTERVAL_MS;
     await db
       .prepare(
         `UPDATE indexnow_state SET last_checked = ?, last_status = 'retrying', last_error = ?,

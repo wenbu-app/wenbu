@@ -37,6 +37,7 @@ import { checkEditorialHealth } from './editorial-health';
 import type { Env } from './types';
 
 export const EDITORIAL_CRON = '0 1,7,13 * * *';
+export const EDITORIAL_RECONCILE_CRON = '*/15 * * * *';
 export const EDITORIAL_HEALTH_CRON = '30 23 * * *';
 export const EDITORIAL_PLANNING_CRON = '30 2 * * SUN';
 type Parameters = {

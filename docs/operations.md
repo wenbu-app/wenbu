@@ -103,7 +103,7 @@ Worker rollback does not roll back D1 schema or data. Migrations are additive; o
 
 ## IndexNow
 
-Apply additive migration `0003_indexnow.sql` before deploying the IndexNow Worker. `npm run deploy` attempts an immediate notification after checking the live build; an independent Cloudflare Cron checks deployed assets every 15 minutes. The existing hourly archive task remains separate. Only changed public canonical pages are submitted, with receipt history and retry state in D1. See [IndexNow operations](indexnow.md) for credentials, status commands, error handling and the distinction between notification receipt and indexing.
+Apply additive migrations before deploying (including `0008_search_submission_queue.sql` for daily cadence and the Google request ledger). IndexNow checks deployed assets once daily at 22:30 Asia/Shanghai, with a minimum 24-hour interval and any longer provider backoff retained. Deployments do not send an extra notification. The editorial 15-minute missed-slot check and hourly archive task remain separate. Only changed public canonical pages are submitted, with receipt history and retry state in D1. See [IndexNow operations](indexnow.md) and [Google request operations](content-operations.md#google-priority-request-queue).
 
 ## Keep documentation in sync
 

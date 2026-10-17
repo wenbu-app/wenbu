@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { indexNowManifest } from '../scripts/lib/indexnow.mjs';
 import config from '../src/data/indexnow.json';
 import { database } from './helpers/analytics-db';
-import { indexNowStatus, submitIndexNow } from '../worker/indexnow';
+import { INDEXNOW_CRON, INDEXNOW_INTERVAL_MS, indexNowStatus, submitIndexNow } from '../worker/indexnow';
 import worker from '../worker/index';
 
 const origin = config.origin;
@@ -46,6 +46,11 @@ function fixture() {
     },
   };
 }
+const nextDay = () => vi.advanceTimersByTime(INDEXNOW_INTERVAL_MS + 1);
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-17T02:00:00Z'));
+});
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -86,6 +91,7 @@ describe('deployed IndexNow submissions', () => {
       urlList: f.entries.map((p) => p.url),
     });
     expect(f.send.mock.calls[0][1].redirect).toBe('manual');
+    nextDay();
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'unchanged', submitted: 0 });
     expect(f.send).toHaveBeenCalledTimes(1);
     expect(await indexNowStatus(f.env)).toMatchObject({
@@ -100,12 +106,14 @@ describe('deployed IndexNow submissions', () => {
       { url: origin + '/', hash: digest('edited') },
       { url: origin + '/learn/', hash: digest('new') },
     ]);
+    nextDay();
     expect(await submitIndexNow(f.env)).toMatchObject({ submitted: 3 });
     expect(JSON.parse(f.send.mock.calls[1][1].body).urlList).toEqual([
       origin + '/learn/',
       origin + '/',
       origin + '/en/',
     ]);
+    nextDay();
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'unchanged' });
     expect(f.sql.prepare('SELECT COUNT(*) AS n FROM indexnow_pages').get()?.n).toBe(2);
   });
@@ -113,6 +121,7 @@ describe('deployed IndexNow submissions', () => {
     const f = fixture();
     f.send.mockResolvedValue(new Response(null, { status: 202 }));
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'pending_validation', httpStatus: 202 });
+    nextDay();
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'unchanged' });
     expect((await indexNowStatus(f.env)).receipts).toMatchObject([{ outcome: 'pending_validation' }]);
     expect(f.send).toHaveBeenCalledTimes(1);
@@ -120,19 +129,19 @@ describe('deployed IndexNow submissions', () => {
   it('honors Retry-After, retains failed URLs, and retries after the backoff window', async () => {
     vi.useFakeTimers();
     const f = fixture();
-    f.send.mockResolvedValueOnce(new Response(null, { status: 429, headers: { 'Retry-After': '3600' } }));
+    f.send.mockResolvedValueOnce(new Response(null, { status: 429, headers: { 'Retry-After': '172800' } }));
     expect(await submitIndexNow(f.env)).toMatchObject({
       status: 'retrying',
       submitted: 0,
-      retryAt: Date.now() + 3600_000,
+      retryAt: Date.now() + 172800_000,
     });
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'backoff' });
     expect((await indexNowStatus(f.env)).state).toMatchObject({
-      last_status: 'backoff',
+      last_status: 'retrying',
       last_error: 'http_429',
     });
     expect(f.sql.prepare('SELECT COUNT(*) AS n FROM indexnow_pages').get()?.n).toBe(0);
-    vi.advanceTimersByTime(3600_001);
+    vi.advanceTimersByTime(172800_001);
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'submitted', submitted: 2 });
     expect(f.send).toHaveBeenCalledTimes(2);
   });
@@ -154,6 +163,7 @@ describe('deployed IndexNow submissions', () => {
       });
       expect((await indexNowStatus(f.env)).trackedPages).toBe(0);
       f.sql.prepare('UPDATE indexnow_state SET retry_at = 0').run();
+      nextDay();
       expect(await submitIndexNow(f.env)).toMatchObject({ status: 'submitted', submitted: 2 });
     },
   );
@@ -180,6 +190,7 @@ describe('deployed IndexNow submissions', () => {
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'retrying', submitted: 0 });
     expect((await indexNowStatus(f.env)).trackedPages).toBe(0);
     f.sql.prepare('UPDATE indexnow_state SET retry_at = 0').run();
+    nextDay();
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'submitted', submitted: 2 });
     expect(f.send).toHaveBeenCalledTimes(2);
   });
@@ -215,6 +226,7 @@ describe('deployed IndexNow submissions', () => {
       })),
     );
     expect(await submitIndexNow(f.env)).toMatchObject({ submitted: 10, remaining: 1 });
+    nextDay();
     expect(await submitIndexNow(f.env)).toMatchObject({ submitted: 1, remaining: 0 });
   });
   it('runs IndexNow only on its own cron, leaving the archive schedule independent', async () => {
@@ -224,13 +236,37 @@ describe('deployed IndexNow submissions', () => {
     const context = {
       waitUntil: (task: Promise<unknown>) => tasks.push(task),
     } as unknown as ExecutionContext;
-    await worker.scheduled({ cron: '*/15 * * * *' } as ScheduledController, f.env, context);
+    await worker.scheduled({ cron: INDEXNOW_CRON } as ScheduledController, f.env, context);
     await Promise.all(tasks);
     expect(f.send).toHaveBeenCalledTimes(1);
     tasks.length = 0;
     await worker.scheduled({ cron: '15 * * * *' } as ScheduledController, f.env, context);
     await Promise.all(tasks);
     expect(f.send).toHaveBeenCalledTimes(1);
+    tasks.length = 0;
+    await worker.scheduled(
+      { cron: '*/15 * * * *', scheduledTime: Date.now() } as ScheduledController,
+      f.env,
+      context,
+    );
+    await Promise.all(tasks);
+    expect(f.send).toHaveBeenCalledTimes(1);
+  });
+  it('does not scan assets again within 24 hours, even with no changes or a short remote retry delay', async () => {
+    const f = fixture();
+    f.send.mockResolvedValueOnce(new Response(null, { status: 429, headers: { 'Retry-After': '60' } }));
+    expect(await submitIndexNow(f.env)).toMatchObject({ retryAt: Date.now() + INDEXNOW_INTERVAL_MS });
+    const calls = vi.mocked(f.env.ASSETS.fetch).mock.calls.length;
+    vi.advanceTimersByTime(INDEXNOW_INTERVAL_MS - 1);
+    await submitIndexNow(f.env);
+    expect(vi.mocked(f.env.ASSETS.fetch).mock.calls).toHaveLength(calls);
+    vi.advanceTimersByTime(2);
+    await submitIndexNow(f.env);
+    nextDay();
+    expect(await submitIndexNow(f.env)).toMatchObject({ status: 'unchanged' });
+    const afterUnchanged = vi.mocked(f.env.ASSETS.fetch).mock.calls.length;
+    expect(await submitIndexNow(f.env)).toMatchObject({ status: 'daily_wait' });
+    expect(vi.mocked(f.env.ASSETS.fetch).mock.calls).toHaveLength(afterUnchanged);
   });
   it('keeps manual submission and status behind admin authentication and same-origin checks', async () => {
     const f = fixture();

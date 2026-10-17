@@ -1,6 +1,7 @@
 import { editorialTopics, type EditorialTopic } from '../src/data/editorial-topics';
 import { contentHash, pathForTopic, type EditorialDocument } from './editorial-schema';
 import type { Env } from './types';
+import { searchQueueStatements } from './search-console-queue';
 import { registerEditorialPaths } from '../src/lib/analytics-contract';
 
 export async function seedEditorial(env: Env) {
@@ -193,6 +194,7 @@ export async function publishEditorial(
       )
       .bind(now, doc.topic.id, path, doc.revision),
     db.prepare('UPDATE editorial_state SET last_content_at=? WHERE id=1 AND lease_owner=?').bind(now, runId),
+    ...searchQueueStatements(db, urls, doc.revision, now, { path }),
   ]);
   if (!committed[1].meta.changes) throw new Error('editorial_lease_lost');
   return { urls, revision: doc.revision };

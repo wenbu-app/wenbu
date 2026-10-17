@@ -1,7 +1,12 @@
 import { readFile } from 'node:fs/promises';
 const config = JSON.parse(await readFile(new URL('../src/data/indexnow.json', import.meta.url), 'utf8'));
 const afterDeploy = process.argv.includes('--after-deploy');
-const statusOnly = process.argv.includes('--status');
+// Compatibility for older release scripts: deployment must never add an extra scan.
+const statusOnly = process.argv.includes('--status') || afterDeploy;
+if (afterDeploy)
+  console.error(
+    'IndexNow: deployment hook is read-only; the daily 22:30 Asia/Shanghai job handles notifications.',
+  );
 try {
   const token =
     process.env.WENBU_ADMIN_TOKEN ||
@@ -50,7 +55,7 @@ try {
   console.error('IndexNow: ' + error.message);
   if (afterDeploy)
     console.error(
-      'Deployment is complete. The Cloudflare cron will independently check the live assets every 15 minutes.',
+      'Deployment is complete. The Cloudflare cron checks live assets daily at 22:30 Asia/Shanghai.',
     );
   else process.exitCode = 1;
 }

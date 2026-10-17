@@ -4,12 +4,12 @@
 
 ## 何时自动运行
 
-- `npm run deploy` 成功部署后，脚本核对线上清单与本次构建，并尝试立即提交。脚本使用已有的管理员凭证；缺少凭证或网络失败不会撤销已完成的部署，会明确提示定时任务接手。
-- Cloudflare Cron 每 15 分钟独立检查当前已部署的静态资源。因此，直接运行 `wrangler deploy`、本地终端关闭或发布脚本短暂失败，都不会取消后续自动检查。
-- 第一次运行提交当前公开页面。之后比较 HTML 的 SHA-256 指纹，仅发送变化；未变页面不会周期性重复推送。删除过的公开地址会再通知一次，然后从已接收清单中移除。
-- 每批最多 1,000 个地址。剩余变化在下一轮继续处理。失败采用指数退避（15 分钟起，最长日常间隔 24 小时），同时遵守服务器给出的 `Retry-After`，上限七天。
+- Cloudflare Cron 每天北京时间 22:30（UTC 14:30）检查当前部署的公开页面，覆盖当天 09:00、15:00、21:00 的文章。服务端用 D1 的 `last_scanned` 限制两次实际扫描至少相隔 24 小时，包括没有内容变化的检查。
+- `npm run deploy` 不再额外提交。旧脚本的 `--after-deploy` 参数仅查询状态；关闭本地终端不会取消 Cloudflare 的日检查。文章漏跑检查保留独立的 15 分钟触发，不调用 IndexNow。
+- 比较正文、相关元数据与目标链接的 SHA-256 指纹，仅发送新增、实质更新和删除；共享 CSS 或导航变化不重新推送全站。动态文章也来自同一个已提交版本。
+- 正常每批最多 10 个地址，连续失败后最多 1 个；剩余变化保留到后续日检查。成功和失败均至少等待 24 小时；服务器给出更长的 `Retry-After` 时继续遵守，不重置既有退避或失败记录。
 
-The build produces a deterministic manifest from the same indexable pages as the sitemap. The Worker reads that manifest through its deployed asset binding, compares it with the last received fingerprints in D1, and posts only additions, changes and removals. No network submission happens during a build, test or pull-request check. HTML fingerprints also change when shared rendered navigation, metadata or asset references change.
+The build produces a deterministic manifest from the same indexable pages as the sitemap. The Worker reads it through the deployed asset binding, merges committed bilingual publications, compares substantive fingerprints with D1 and posts only additions, changes and removals. The daily trigger is independent of editorial reconciliation and analytics maintenance. Builds, deployments, tests and pull-request checks do not send an extra notification. A persisted 24-hour scan minimum also protects against duplicate triggers or repeated operator commands.
 
 ## 数据与凭证
 
@@ -21,7 +21,7 @@ The build produces a deterministic manifest from the same indexable pages as the
 | ---------------------- | --------------------------------------------------------- |
 | `indexnow_pages`       | 最后收到 HTTP 200 / 202 的公开 URL 与 HTML 指纹           |
 | `indexnow_submissions` | 每次尝试的时间、清单版本、地址列表、数量、HTTP 状态与结果 |
-| `indexnow_state`       | 上次检查、错误代码、重试时间与并发锁                      |
+| `indexnow_state`       | 上次检查与实际扫描时间、错误代码、重试时间与并发锁        |
 
 不读取对话、出生资料、访问者 ID 或反馈文本。D1 的提交记录不进入公开 API。管理员查询继续使用现有认证、限流、`no-store` 与 `noindex` 响应。
 
@@ -38,7 +38,7 @@ npm run deploy
 npm run indexnow:status
 ```
 
-手动补跑：`npm run indexnow:submit`。它仍遵守并发锁、去重和退避，不提供跳过核对、强制重提全站或任意 URL 参数。
+需要明确补跑时使用 `npm run indexnow:submit`。它仍遵守 24 小时扫描间隔、并发锁、去重和退避，不提供跳过核对、强制重提全站或任意 URL 参数。日常巡检只用 `indexnow:status` 读取状态，不触发页面扫描或通知。
 
 维护脚本从 `WENBU_ADMIN_TOKEN`、`WENBU_ADMIN_TOKEN_FILE`，或已有的忽略文件 `.analytics-admin-token` 读取凭证。不要把凭证放进命令参数、文档或 Git。定时任务在 Worker 内直接运行，不需要这些本地环境变量。
 
@@ -53,11 +53,12 @@ npm run indexnow:status
 | `unchanged`                     | 当前页面与上次收到的内容相同，没有再次请求 IndexNow                |
 | `retrying`                      | 网络、协议、静态资源或存储失败；查看 `last_error`、`retry_at`      |
 | `backoff`                       | 尚未到重试时间，没有向 IndexNow 发请求                             |
+| `daily_wait`                    | 距上次实际扫描不足 24 小时，未读取资源清单或向外提交               |
 | `busy` / `lease_lost`           | 已有任务运行，或本轮失去锁；后续任务会继续核对                     |
 
-HTTP 202 已表明接收，因此不会每 15 分钟重复推送同一批页面。IndexNow 没有用于查询某批验证结果的回执 API；如需核实后续状态，在 Bing Webmaster Tools 检查，后续内容变更也会留下新的提交回执。
+HTTP 202 已表明接收，不会重复推送同一批未变页面。IndexNow 没有用于查询某批验证结果的回执 API；如需核实后续状态，在 Bing Webmaster Tools 检查，后续内容变更也会留下新的提交回执。
 
-Cloudflare 的 Cron 配置传播可能需要几分钟。状态接口里的 `last_checked` 可以证明任务实际运行，配置本身只说明已安排。回滚应用代码不删除 D1 状态；若要暂停自动提交，移除对应的 15 分钟 Cron，并保留现有每小时归档任务。
+Cloudflare 的 Cron 配置传播可能需要几分钟。`last_scanned` 记录实际扫描的开始时间，提交回执证明是否尝试通知；仅有 Cron 配置不能证明已运行。迁移从最近一次通知尝试保守初始化扫描时间，不删除历史回执或改写 `retry_at`。暂停 IndexNow 时只移除 `30 14 * * *`，保留文章补位、发布与每小时归档任务。
 
 ## 收录与效果的边界
 
