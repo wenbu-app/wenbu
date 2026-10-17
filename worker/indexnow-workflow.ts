@@ -13,9 +13,13 @@ export class IndexNowWorkflow extends WorkflowEntrypoint<Env, Record<string, nev
         state?.retry_at ?? 0,
         state?.last_scanned ? state.last_scanned + INDEXNOW_INTERVAL_MS : 0,
       );
-      return { status: at > Date.now() + 5 * 60_000 ? 'backoff' : 'due', at, wait: at > Date.now() };
+      return {
+        status: at > Date.now() + INDEXNOW_INTERVAL_MS ? 'backoff' : 'due',
+        at,
+        wait: at > Date.now(),
+      };
     });
-    // A long provider pause is checked again by the next daily trigger. Do not fan out sleepers.
+    // Keep at most one daily window waiting. Longer provider pauses return for the next trigger.
     if (due.status !== 'due') return { status: due.status, retryAt: due.at, submitted: 0 };
     if (due.wait) await step.sleepUntil('wait-for-full-daily-interval', new Date(due.at));
     return await step.do(
