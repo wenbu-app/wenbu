@@ -9,7 +9,7 @@
 - 比较正文、相关元数据与目标链接的 SHA-256 指纹，仅发送新增、实质更新和删除；共享 CSS 或导航变化不重新推送全站。动态文章也来自同一个已提交版本。
 - 正常每批最多 10 个地址，连续失败后最多 1 个；剩余变化保留到后续日检查。成功和失败均至少等待 24 小时；服务器给出更长的 `Retry-After` 时继续遵守，不重置既有退避或失败记录。
 - 连续 429 的恢复等待依次为至少 24、48、72 小时，之后保持 72 小时；服务方给出的更长等待仍优先。每天仍检查是否到期，不在暂停期内发送请求。未尝试的地址优先，近期发布的中英文版本优先于旧更新；失败地址按最早尝试时间轮转，避免一个旧 URL 占住每次单地址恢复探测。
-- `wenbu-indexnow` Cloudflare Workflow 执行日任务。若因前一天启动较晚而还差几秒或几分钟才满 24 小时，持久等待到期再执行；超过五分钟的等待留给后续日触发，避免为长退避积累多个睡眠实例。通知步骤不自动重试，D1 锁与日间隔仍是最终保护。
+- `wenbu-indexnow` Cloudflare Workflow 执行日任务。若前一天启动或补跑较晚，到期点在未来 24 小时以内时持久等待再执行，避免因几秒或十几分钟的偏移而跳过整天；更长的服务方暂停留给后续日触发，避免积累多个长睡眠实例。通知步骤不自动重试，D1 锁与日间隔仍是最终保护。
 
 The build produces a deterministic manifest from the same indexable pages as the sitemap. The Worker reads it through the deployed asset binding, merges committed bilingual publications, compares substantive fingerprints with D1 and posts only additions, changes and removals. The daily trigger is independent of editorial reconciliation and analytics maintenance. Builds, deployments, tests and pull-request checks do not send an extra notification. A persisted 24-hour scan minimum also protects against duplicate triggers or repeated operator commands.
 

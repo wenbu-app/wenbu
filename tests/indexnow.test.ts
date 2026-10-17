@@ -6,6 +6,7 @@ import { database } from './helpers/analytics-db';
 import { INDEXNOW_CRON, INDEXNOW_INTERVAL_MS, indexNowStatus, submitIndexNow } from '../worker/indexnow';
 import worker from '../worker/index';
 import { indexNowDelay } from '../worker/indexnow-diagnostics';
+import { IndexNowWorkflow } from '../worker/indexnow-workflow';
 
 const origin = config.origin;
 const digest = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -82,6 +83,41 @@ describe('IndexNow build manifest', () => {
 });
 
 describe('deployed IndexNow submissions', () => {
+  it('waits out a late recovery run instead of skipping the next daily delivery', async () => {
+    const f = fixture();
+    const due = Date.now() + 15 * 60_000;
+    f.sql.prepare('UPDATE indexnow_state SET last_scanned=?,retry_at=?').run(due - INDEXNOW_INTERVAL_MS, due);
+    const sleepUntil = vi.fn(async (_name: string, until: Date) => {
+      vi.setSystemTime(until);
+    });
+    const step = {
+      do: async (_name: string, configOrFn: unknown, fn?: () => Promise<unknown>) =>
+        typeof configOrFn === 'function' ? configOrFn() : fn!(),
+      sleepUntil,
+    };
+    const workflow = new IndexNowWorkflow({} as never, f.env);
+    expect(await workflow.run({} as never, step as never)).toMatchObject({
+      status: 'submitted',
+      submitted: 2,
+    });
+    expect(sleepUntil).toHaveBeenCalledWith('wait-for-full-daily-interval', new Date(due));
+    expect(f.send).toHaveBeenCalledTimes(1);
+  });
+  it('does not leave daily sleepers queued through a multi-day provider pause', async () => {
+    const f = fixture();
+    const due = Date.now() + 3 * INDEXNOW_INTERVAL_MS;
+    f.sql.prepare('UPDATE indexnow_state SET retry_at=?').run(due);
+    const sleepUntil = vi.fn();
+    const step = { do: async (_name: string, fn: () => Promise<unknown>) => fn(), sleepUntil };
+    const workflow = new IndexNowWorkflow({} as never, f.env);
+    expect(await workflow.run({} as never, step as never)).toMatchObject({
+      status: 'backoff',
+      retryAt: due,
+      submitted: 0,
+    });
+    expect(sleepUntil).not.toHaveBeenCalled();
+    expect(f.send).not.toHaveBeenCalled();
+  });
   it('sends the live set once, persists a receipt, and avoids submitting unchanged pages', async () => {
     const f = fixture();
     expect(await submitIndexNow(f.env)).toMatchObject({ status: 'submitted', httpStatus: 200, submitted: 2 });
