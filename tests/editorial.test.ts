@@ -23,6 +23,7 @@ import { dispatchEditorial } from '../worker/editorial-workflow';
 import { database } from './helpers/analytics-db';
 import { safePage, registerEditorialPaths } from '../src/lib/analytics-contract';
 import { contentTarget } from '../worker/traffic';
+import { editorialModel } from '../worker/editorial-research';
 import { substantiveContent, indexNowManifest } from '../scripts/lib/indexnow.mjs';
 import { readCompleteLibrary, searchCompleteLibrary } from '../worker/editorial-library';
 
@@ -46,7 +47,10 @@ function doc(topic = editorialTopics.find((t) => t.id === 'daily-reflection')!):
     review: { factual: true, bilingual: true, useful: true, original: true, natural: true, issues: [] },
   };
 }
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 describe('editorial gates', () => {
   it('uses three stable Shanghai slots across day boundaries', () => {
     expect(shanghaiDay(Date.parse('2026-10-15T16:00:00Z'))).toBe('2026-10-16');
@@ -213,5 +217,31 @@ describe('discovery and telemetry boundaries', () => {
     expect(text).toContain('From observation to review');
     expect(text).toContain('A bounded practice');
     expect(text).toContain('excerpt');
+  });
+});
+describe('editorial model serialization failures', () => {
+  it('archives a malformed completed response and hands a validation defect to the bounded repair path', async () => {
+    const capture = vi.fn();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({ choices: [{ finish_reason: 'stop', message: { content: '{"zh":[' } }] }),
+      ),
+    );
+    const f = database();
+    f.env.DEEPSEEK_API_KEY = 'synthetic-only';
+    f.env.DEEPSEEK_MODEL = 'synthetic-model';
+    const out = await editorialModel(
+      f.env,
+      'synthetic validation test',
+      'public synthetic input',
+      100,
+      capture,
+    );
+    expect(out).toEqual({ invalidJson: '{"zh":[', parseError: 'invalid_json_syntax' });
+    expect(editorialDraftSchema.safeParse(out).success).toBe(false);
+    expect(capture).toHaveBeenCalledWith(
+      expect.objectContaining({ content: '{"zh":[', finishReason: 'stop' }),
+    );
   });
 });

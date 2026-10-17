@@ -4,14 +4,14 @@ Current operating target: **three reader tasks per day, each published in comple
 
 ## What runs where
 
-| Process                                         | Trigger                                        | Execution and evidence                                                                                                                      |
-| ----------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Research, writing, separate review, publication | Three daily slots; 15-minute missed-slot check | Cloudflare `wenbu-editorial` Workflow; D1 run and immutable revision; private R2 research/draft/review objects                              |
-| Technical search checks                         | Daily 07:30 Shanghai                           | Workflow checks public HTML, language alternates, canonical, sitemap and machine formats; records an observation                            |
-| Candidate replenishment                         | Sunday 10:30 Shanghai                          | Distinct reader-task proposals, separate commissioning review, canonical-owner check, allowlisted sources; no invented traffic estimates    |
-| Google/Bing reports and AI answer observations  | Daily Codex review; deeper Sunday review       | Authenticated browser sessions and available research tools; results written to D1 through the authenticated observation API                |
-| IndexNow                                        | Daily 22:30 Shanghai, at least 24 hours apart  | Only changed public URLs; persisted 200/202/429 evidence, concurrency lease and retry schedule; deployments do not send extra notifications |
-| Google priority indexing requests               | Daily Codex review, within available quota     | Private D1 queue; one-time core-page bootstrap, then each published bilingual revision; visible Search Console acceptance is required       |
+| Process                                           | Trigger                                        | Execution and evidence                                                                                                                         |
+| ------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Research, writing, separate review, publication   | Three daily slots; 15-minute missed-slot check | Cloudflare `wenbu-editorial` Workflow; D1 run and immutable revision; private R2 research/draft/review objects                                 |
+| Technical search checks                           | After publication and daily 07:30 Shanghai     | Workflow checks bilingual HTML/Markdown/JSON revisions, canonical, alternates, sitemap membership, directory links and actual CTA destinations |
+| Candidate replenishment                           | Sunday 10:30 Shanghai                          | Distinct reader-task proposals, separate commissioning review, canonical-owner check, allowlisted sources; no invented traffic estimates       |
+| Google/Bing reports and AI answer observations    | Daily Codex review; deeper Sunday review       | Authenticated browser sessions and available research tools; results written to D1 through the authenticated observation API                   |
+| IndexNow                                          | Daily 22:30 Shanghai, at least 24 hours apart  | Only changed public URLs; persisted 200/202/429 evidence, concurrency lease and retry schedule; deployments do not send extra notifications    |
+| Google priority indexing requests and inspections | Daily 22:45 Shanghai browser delivery review   | Private D1 queue; one-time core-page bootstrap, committed bilingual revisions, visible acceptance and separate provider inspections            |
 
 The Cloudflare publishing pipeline works without an open laptop. The supplemental Codex browser review requires its execution host and authenticated browser sessions. Expired access is recorded as unavailable and reported; it is not replaced by a fabricated zero or inferred indexing result.
 
@@ -21,16 +21,42 @@ The user authorized one pass over all indexable non-article pages on 2026-10-17,
 
 ```sh
 npm run search:console -- status
+npm run search:console -- next
 npm run search:console -- seed
+npm run search:console -- reconcile
 npm run search:console -- claim <job-id>
 npm run search:console -- record /absolute/private/path/to/receipt.json
+npm run search:console -- inspect /absolute/private/path/to/inspection.json
 ```
 
 Publication adds both language requests in the same D1 transaction as the new immutable revision. Pending older revisions are superseded, without deleting receipts. The daily heartbeat processes this queue through the authenticated `sc-domain:wenbu.app` browser property. It does not call Google's restricted Indexing API, and no duplicate local article timer is needed. A daily browser run depends on the host and its login session; Cloudflare cannot click Search Console by itself.
 
+The technical health pass also reconciles exact committed publication revisions. This recovers a publication created before the queue was installed or a missed follow-up, with no new draft, model request or publication. Reconciliation is idempotent and cannot clear the provider pause. `next` reports the next pending or deferred job with its actual `eligible_at`; do not select pending jobs alone or overlook the previously quota-deferred page. An unresolved dispatched job blocks further dispatches until its outcome has been independently resolved.
+
+The evening delivery heartbeat owns requests; the morning `seo-geo` heartbeat reads provider reports, indexing observations and search/GEO results. They do not each send the same queue. The evening run checks the actual terminal result of the day's 22:30 IndexNow Workflow, both editions of the latest publication, Google eligibility and due Google/Bing URL inspections. Only a concrete missing eligible daily run may be repaired once; never reset a pause or repeat an ambiguous request.
+
 Claim a job before clicking Request indexing. Record `requested` with reason `accepted` only after the visible success confirmation. A provider quota, permission problem or CAPTCHA pauses the queue for at least 24 hours; leave pending jobs intact and report the coverage gap. Never solve a CAPTCHA without the required user handoff. A dispatched request without a clear outcome remains `requesting` or `uncertain`; do not automatically resend it. Resolve it only from independent visible evidence, using the receipt command. A later article revision does not clear a global provider pause. Replays of an accepted receipt are idempotent, and the same URL cannot be requested again within 24 hours. Inspect actual crawl/index status separately; `requested` is never relabelled as `indexed`.
 
 Receipt input: `{"id":"<job-id>","outcome":"requested|deferred|uncertain","reason":"accepted|quota|captcha|permission|temporary_error|unknown_outcome","note":"short visible evidence without account identifiers or credentials"}`. Keep raw screenshots and queue exports in the private dated operations directory, and write sanitized summaries via `content:observe`.
+
+### Actual indexing follow-up
+
+Every current queue revision gets independent Google and Bing inspection rows, initially `unknown`, due after 24 hours. The provider's visible URL Inspection result is recorded with `inspect`, without clicking Request indexing again. Keep the exact observation time, explicit crawl time when available, declared canonical and indexed canonical. An inaccessible console is `unavailable`, not `not_indexed`; an unknown field stays null. The append-only inspection event history is independent of the submission ledger.
+
+```json
+{
+  "id": "<job-id>",
+  "provider": "google",
+  "status": "indexed",
+  "checkedAt": "<actual ISO UTC observation time>",
+  "lastCrawlAt": null,
+  "declaredCanonical": "https://wenbu.app/",
+  "indexedCanonical": null,
+  "note": "Visible URL Inspection result; crawl time or selected canonical was not available."
+}
+```
+
+An indexed URL with a crawl predating the revision does not prove the update was crawled. The receipt labels revision crawl timing `before_update`, `after_update` or `unknown`. Unavailable observations retry after one day; unindexed URLs progress through bounded daily/3/7/14-day follow-up; indexed URLs are checked after seven days, or 28 days when a post-update crawl was explicitly observed. The queue exposes exact due counts and bounded lists. Check current revisions only; old request and inspection history remains available. Record source screenshots privately and never infer ranking, visits or AI citations from indexing.
 
 ## Topic selection and iteration
 
@@ -54,6 +80,7 @@ At 7 days, inspect discovery, sources and obvious usability errors. At 14 and 28
 2. Complete Chinese and English editions with equivalent sections, useful text, explanatory figure, table, worked practice, FAQs and terminology. Reject unsafe markup, unknown citations, repeated paragraphs, thin text and unsupported certainty.
 3. A separate model pass with an explicit low reasoning budget checks support, bilingual parity, usefulness, originality and natural expression. This is AI-assisted review, not independent expert review.
 4. One bounded repair is allowed. A run has four logical model stages (write, review, optional repair and re-review); each permits at most one transport retry, with an eight-request physical cap. Invalid schemas enter that same bounded repair path with exact field diagnostics. Raw visible output and finish reason are archived before validation, including truncation. Each failed attempt remains immutable; at most one fresh attempt may refill a failed slot, with its own eight-request cap. A partial unique index permits only one live or published attempt per slot.
+   A completed response with invalid JSON syntax is retained as a validation defect for that same repair path. It is not automatically replayed as a network failure and cannot satisfy a draft or review schema. Invalid output after the bounded repair still blocks publication.
 5. Both editions become visible in one D1 transaction. Public HTML, Markdown, JSON, internal discovery, RSS and sitemap reflect the same committed revision. Existing base guides remain intact, with reviewed additions on their original canonical URL.
 
 ## Operations

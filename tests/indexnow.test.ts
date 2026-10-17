@@ -5,6 +5,7 @@ import config from '../src/data/indexnow.json';
 import { database } from './helpers/analytics-db';
 import { INDEXNOW_CRON, INDEXNOW_INTERVAL_MS, indexNowStatus, submitIndexNow } from '../worker/indexnow';
 import worker from '../worker/index';
+import { indexNowDelay } from '../worker/indexnow-diagnostics';
 
 const origin = config.origin;
 const digest = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -290,5 +291,86 @@ describe('deployed IndexNow submissions', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Robots-Tag')).toContain('noindex');
     expect(await response.json()).toMatchObject({ status: 'submitted' });
+  });
+  it('retains bounded provider diagnostics without ownership keys, cookies or auth values', async () => {
+    const f = fixture();
+    f.send.mockResolvedValueOnce(
+      new Response(
+        '<p>Throttled ' +
+          config.key +
+          ' Bearer private-test-value somebody@example.com ' +
+          'x'.repeat(9000) +
+          '</p>',
+        {
+          status: 429,
+          headers: {
+            'content-type': 'text/html',
+            server: 'provider-edge',
+            'Set-Cookie': 'private-test-cookie',
+          },
+        },
+      ),
+    );
+    await submitIndexNow(f.env);
+    const receipt = (await indexNowStatus(f.env)).receipts[0];
+    const diagnostic = JSON.parse(receipt.diagnostics_json as string);
+    expect(diagnostic.headers.server).toBe('provider-edge');
+    expect(diagnostic.excerpt).toContain('Throttled [ownership-key] Bearer [redacted] [email]');
+    expect(diagnostic.bodyTruncated).toBe(true);
+    expect(diagnostic.excerpt.length).toBeLessThanOrEqual(800);
+    expect(JSON.stringify(diagnostic)).not.toMatch(/private-test-value|private-test-cookie|somebody@example/);
+    expect((await indexNowStatus(f.env)).delivery).toMatchObject({ pendingChanges: 2 });
+  });
+  it('gives repeated throttling more recovery time without shortening a provider wait', () => {
+    expect(indexNowDelay(429, 1, 0)).toBe(INDEXNOW_INTERVAL_MS);
+    expect(indexNowDelay(429, 2, 0)).toBe(2 * INDEXNOW_INTERVAL_MS);
+    expect(indexNowDelay(429, 20, 0)).toBe(3 * INDEXNOW_INTERVAL_MS);
+    expect(indexNowDelay(429, 20, 9 * INDEXNOW_INTERVAL_MS)).toBe(9 * INDEXNOW_INTERVAL_MS);
+    expect(indexNowDelay(500, 20, 0)).toBe(INDEXNOW_INTERVAL_MS);
+  });
+  it('does not let an old failed URL monopolize fresh publication probes', async () => {
+    const f = fixture();
+    const old = origin + '/blog/old/',
+      recent = origin + '/learn/recent/';
+    f.setEntries([
+      { url: old, hash: digest('old') },
+      { url: recent, hash: digest('new') },
+    ]);
+    f.sql.prepare('UPDATE indexnow_state SET failures=20').run();
+    f.sql
+      .prepare(
+        "INSERT INTO indexnow_submissions(id,submitted_at,revision,http_status,outcome,url_count,urls_json) VALUES(?,?,?,429,'retrying',1,?)",
+      )
+      .run(crypto.randomUUID(), Date.now() - INDEXNOW_INTERVAL_MS, digest('prior'), JSON.stringify([old]));
+    f.sql
+      .prepare(
+        'INSERT INTO editorial_publications(path,topic_id,revision,document_json,published_at,updated_at,run_id) VALUES(?,?,?,?,?,?,?)',
+      )
+      .run('learn/recent', 'recent', digest('doc'), '{}', Date.now(), Date.now(), 'recent-run');
+    f.send.mockResolvedValueOnce(new Response(null, { status: 429 }));
+    expect(await submitIndexNow(f.env)).toMatchObject({
+      attempted: 1,
+      submitted: 0,
+      retryAt: Date.now() + 3 * INDEXNOW_INTERVAL_MS,
+    });
+    expect(JSON.parse(f.send.mock.calls[0][1].body).urlList).toEqual([recent]);
+    vi.advanceTimersByTime(3 * INDEXNOW_INTERVAL_MS + 1);
+    await submitIndexNow(f.env);
+    expect(JSON.parse(f.send.mock.calls[1][1].body).urlList).toEqual([old]);
+  });
+  it('dispatches the durable workflow on the daily cron without sending inline or on editorial ticks', async () => {
+    const f = fixture(),
+      tasks: Promise<unknown>[] = [];
+    const createBatch = vi.fn(async () => []);
+    f.env.INDEXNOW_WORKFLOW = { createBatch } as unknown as NonNullable<typeof f.env.INDEXNOW_WORKFLOW>;
+    const ctx = { waitUntil: (p: Promise<unknown>) => tasks.push(p) } as unknown as ExecutionContext;
+    await worker.scheduled(
+      { cron: INDEXNOW_CRON, scheduledTime: Date.now() } as ScheduledController,
+      f.env,
+      ctx,
+    );
+    await Promise.all(tasks);
+    expect(createBatch).toHaveBeenCalledWith([{ id: 'indexnow-2026-10-17', params: {} }]);
+    expect(f.send).not.toHaveBeenCalled();
   });
 });

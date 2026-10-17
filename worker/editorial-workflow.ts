@@ -253,7 +253,18 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         return publishEditorial(this.env, runId, document, original?.revision ?? null);
       });
       published = true;
-      return { status: 'published', ...receipt };
+      const deliveryCheck = await step.do('queue-post-publication-check', async () => {
+        const id = 'editorial-published-check-' + document.revision;
+        try {
+          if (!this.env.EDITORIAL_WORKFLOW) throw new Error('workflow_unavailable');
+          await this.env.EDITORIAL_WORKFLOW.createBatch([{ id, params: { kind: 'health' } }]);
+          return { status: 'queued', id };
+        } catch {
+          // Publication is committed; the independent daily health pass retries coverage.
+          return { status: 'deferred_to_daily_health', id };
+        }
+      });
+      return { status: 'published', ...receipt, deliveryCheck };
     } catch (cause) {
       const code =
         cause instanceof z.ZodError
