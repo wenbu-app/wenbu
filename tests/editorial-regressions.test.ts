@@ -12,7 +12,12 @@ import {
 } from '../worker/editorial-store';
 import { dispatchEditorial, recoverEditorial, reviseEditorial } from '../worker/editorial-workflow';
 import { preserveExtendedMetadata, originalComparisonMarkdown } from '../worker/editorial-render';
-import { editorialModel, researchEditorial } from '../worker/editorial-research';
+import {
+  editorialJsonIssue,
+  editorialModel,
+  editorialSystem,
+  researchEditorial,
+} from '../worker/editorial-research';
 import {
   draftIssues,
   publicationSlot,
@@ -41,6 +46,36 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('editorial review regressions', () => {
+  it('keeps the Waite source attached to the actual Waite text, not the De Laurence edition', () => {
+    expect(editorialSources.waite.url).toBe(
+      'https://en.wikisource.org/wiki/The_Pictorial_Key_to_the_Tarot/Part_3',
+    );
+    expect(editorialSources.waite.title).toContain('A. E. Waite');
+    expect(editorialSources.waite.title).toContain('Part III');
+    expect(editorialSystem).toContain('may coincidentally repeat a card or spread');
+  });
+  it('retains malformed output and supplies syntax repair feedback without accepting or modifying it', async () => {
+    const { env } = database();
+    env.DEEPSEEK_API_KEY = 'synthetic';
+    // Missing closing sections array: the same delimiter defect seen before figure.
+    const content = '{"zh":{"sections":[{"heading":"Example"},"figure":{}}}';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          choices: [{ finish_reason: 'stop', message: { content } }],
+        }),
+      ),
+    );
+    const capture = vi.fn();
+    const raw = await editorialModel(env, 'JSON', '{}', 20000, capture);
+    expect(raw.invalidJson).toBe(content);
+    expect(raw.parseError).toBe('invalid_json_syntax');
+    expect(raw.parsePosition).toEqual(expect.any(Number));
+    expect(editorialJsonIssue(raw)).toContain('closing each sections array before figure');
+    expect(capture.mock.calls[0][0].content).toBe(content);
+    expect(editorialJsonIssue(fixtureDraft())).toBeNull();
+  });
   it('reacquires an expired lease and preserves the first immutable document on replay', async () => {
     const { env, sql } = database();
     env.EDITORIAL_AUTOPUBLISH = 'true';

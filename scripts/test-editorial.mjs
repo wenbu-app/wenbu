@@ -57,6 +57,7 @@ const planningCandidates = [
 ];
 let failReview = false,
   malformedNext = false,
+  syntaxRepairSeen = false,
   indexnowCalls = 0,
   diagnosticHeads = 0,
   calls = 0,
@@ -172,6 +173,19 @@ const mf = new Miniflare({
             review ? 'enabled' : 'disabled',
             'draft and editorial review use explicit reasoning budgets',
           );
+          if (!review) {
+            const packet = JSON.parse(input.messages[1].content);
+            if (packet.previousDraft?.parseError === 'invalid_json_syntax') {
+              assert.ok(
+                packet.revisionInstructions.deterministic.some(
+                  (issue) =>
+                    issue.includes('Invalid JSON syntax') &&
+                    issue.includes('closing each sections array before figure'),
+                ),
+              );
+              syntaxRepairSeen = true;
+            }
+          }
           if (!review && malformedNext) {
             const syntax = malformedNext === 'syntax';
             malformedNext = false;
@@ -421,7 +435,7 @@ try {
   );
   check(
     'syntax-invalid completed JSON uses bounded repair rather than a blind transport replay',
-    state.runs.find((r) => r.id === revisionRun.id)?.model_calls === 3,
+    state.runs.find((r) => r.id === revisionRun.id)?.model_calls === 3 && syntaxRepairSeen,
   );
   check(
     'the old immutable revision remains available after correction',
