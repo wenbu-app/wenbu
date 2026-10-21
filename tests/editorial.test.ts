@@ -238,7 +238,7 @@ describe('editorial model serialization failures', () => {
       100,
       capture,
     );
-    expect(out).toEqual({ invalidJson: '{"zh":[', parseError: 'invalid_json_syntax' });
+    expect(out).toEqual({ invalidJson: '{"zh":[', parseError: 'invalid_json_syntax', parsePosition: null });
     expect(editorialDraftSchema.safeParse(out).success).toBe(false);
     expect(capture).toHaveBeenCalledWith(
       expect.objectContaining({ content: '{"zh":[', finishReason: 'stop' }),

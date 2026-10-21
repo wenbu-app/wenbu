@@ -69,9 +69,9 @@ export const editorialSources: Record<string, { title: string; url: string; role
     role: 'Official calendar reference; not evidence of fortune-telling',
   },
   waite: {
-    title: 'A. E. Waite · The Pictorial Key to the Tarot',
-    url: 'https://www.gutenberg.org/files/43548/43548-h/43548-h.htm',
-    role: 'Historical primary text; symbolic interpretations',
+    title: 'A. E. Waite · The Pictorial Key to the Tarot, Part III',
+    url: 'https://en.wikisource.org/wiki/The_Pictorial_Key_to_the_Tarot/Part_3',
+    role: 'Waite primary text on card entries and reversals; historical symbolic interpretations, not evidence of predictive accuracy',
   },
   lunar: {
     title: 'lunar-typescript · official source',

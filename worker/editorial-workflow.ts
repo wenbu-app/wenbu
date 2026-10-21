@@ -32,7 +32,13 @@ import {
   renewEditorialLease,
   publishedDocument,
 } from './editorial-store';
-import { draftShape, editorialModel, editorialSystem, researchEditorial } from './editorial-research';
+import {
+  draftShape,
+  editorialJsonIssue,
+  editorialModel,
+  editorialSystem,
+  researchEditorial,
+} from './editorial-research';
 import { checkEditorialHealth } from './editorial-health';
 import type { Env } from './types';
 
@@ -143,9 +149,12 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         );
         const parsed = editorialDraftSchema.safeParse(raw);
         const draft = parsed.success ? parsed.data : null;
-        const issues = parsed.success
-          ? draftIssues(parsed.data, packet, topic)
-          : parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+        const syntaxIssue = editorialJsonIssue(raw);
+        const issues = syntaxIssue
+          ? [syntaxIssue]
+          : parsed.success
+            ? draftIssues(parsed.data, packet, topic)
+            : parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
         const key = await archive(this.env, runId, feedback ? 'revised-draft' : 'draft', {
           raw,
           draft,
