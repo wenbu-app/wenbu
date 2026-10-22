@@ -46,6 +46,31 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('editorial review regressions', () => {
+  it('allows a missing-input status label without treating the finished instruction as a placeholder', () => {
+    const draft = fixtureDraft();
+    draft.zh.sections[0].paragraphs[0] +=
+      ' 缺失任何一环，就把它标为“待补”，不要用想象填满。答不上来的字段先记为待补。';
+    expect(draftIssues(draft, packet, document().topic)).not.toContain('zh:unsafe_or_placeholder_text');
+  });
+  it.each(['待补', '待补充正文', '待核实来源', 'TODO', 'TBD', 'https://example.com', '<script>'])(
+    'still rejects unfinished or unsafe article content: %s',
+    (text) => {
+      const draft = fixtureDraft();
+      draft.zh.sections[0].paragraphs[0] += ` 缺失项标为“待补”。${text}`;
+      expect(draftIssues(draft, packet, document().topic)).toContain('zh:unsafe_or_placeholder_text');
+    },
+  );
+  it('does not exempt an unfinished continuation just because it starts with a status-label phrase', () => {
+    const draft = fixtureDraft();
+    draft.zh.sections[0].paragraphs[0] += ' 此处标为待补充正文。';
+    expect(draftIssues(draft, packet, document().topic)).toContain('zh:unsafe_or_placeholder_text');
+  });
+  it('does not join a label instruction and a placeholder in separate article fields', () => {
+    const draft = fixtureDraft();
+    draft.zh.sections[0].heading = '缺失项标为';
+    draft.zh.sections[0].paragraphs[0] = '待补';
+    expect(draftIssues(draft, packet, document().topic)).toContain('zh:unsafe_or_placeholder_text');
+  });
   it('keeps the Waite source attached to the actual Waite text, not the De Laurence edition', () => {
     expect(editorialSources.waite.url).toBe(
       'https://en.wikisource.org/wiki/The_Pictorial_Key_to_the_Tarot/Part_3',

@@ -170,7 +170,14 @@ export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], to
     }
     if (new Set(e.sections.map((s) => s.heading.toLowerCase())).size !== e.sections.length)
       issues.push(`${locale}:repeated_heading`);
-    if (/https?:\/\/|<\/?[a-z]|\bTODO\b|\bTBD\b|待补|待核实来源/i.test(full))
+    // A completed instruction may name the status readers should assign to
+    // missing inputs. Exempt only that complete label, not unfinished copy
+    // such as "待补充正文" or another unresolved marker later in the field.
+    const withoutInputStatusLabels = full.replace(
+      /(?:标(?:记)?为|记为)[ \t“"'「『]*待补(?=[\s”"'」』，。；;：:、！？!?）)]|$)/g,
+      (label) => label.replace('待补', ''),
+    );
+    if (/https?:\/\/|<\/?[a-z]|\bTODO\b|\bTBD\b|待补|待核实来源/i.test(withoutInputStatusLabels))
       issues.push(`${locale}:unsafe_or_placeholder_text`);
     if (
       /(?<!不|无法|不能|不会)保证[^，。！？;\n]{0,8}(准确|预测|转运)|百分之百|100% accura|(?<!not |no )guaranteed.{0,15}(prediction|ranking)|(?<!not )scientifically proven.{0,30}(tarot|astrology)/i.test(
