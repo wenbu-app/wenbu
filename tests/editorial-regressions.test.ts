@@ -52,6 +52,26 @@ describe('editorial review regressions', () => {
       ' 缺失任何一环，就把它标为“待补”，不要用想象填满。答不上来的字段先记为待补。';
     expect(draftIssues(draft, packet, document().topic)).not.toContain('zh:unsafe_or_placeholder_text');
   });
+  it('allows complete teaching examples and glossary terms about missing-input status', () => {
+    const draft = fixtureDraft();
+    draft.zh.answer += ' 缺哪项就标“待补”，不急着补一个含义。';
+    draft.zh.sections[0].paragraphs[0] += ' 每次追问都会多一个可以核对或标为待补的格子。';
+    draft.zh.sections[0].paragraphs[1] += ' 练习的产出可以是一张待补清单。';
+    draft.zh.sections[1].paragraphs[0] += ' 把不清楚的内容标为待补；信息仍待补充时保留原话。';
+    draft.zh.table.rows[0][1] = '解释来源待补';
+    draft.zh.glossary[0].term = '待补标注';
+    const original = JSON.stringify(draft);
+    expect(draftIssues(draft, packet, document().topic)).not.toContain('zh:unsafe_or_placeholder_text');
+    expect(JSON.stringify(draft)).toBe(original);
+  });
+  it.each(['（待补）', '【待补：示例】', '此处待补', '正文：待补', '本节待补充', '待补后续结论'])(
+    'rejects a scaffold marker in an otherwise complete guide: %s',
+    (text) => {
+      const draft = fixtureDraft();
+      draft.zh.sections[0].paragraphs[0] = text;
+      expect(draftIssues(draft, packet, document().topic)).toContain('zh:unsafe_or_placeholder_text');
+    },
+  );
   it.each(['待补', '待补充正文', '待核实来源', 'TODO', 'TBD', 'https://example.com', '<script>'])(
     'still rejects unfinished or unsafe article content: %s',
     (text) => {

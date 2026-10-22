@@ -116,7 +116,7 @@ export const editorialReviewSchema = z
   })
   .strict();
 
-export function editionText(e: EditorialEdition) {
+function editionTextParts(e: EditorialEdition) {
   return [
     e.title,
     e.description,
@@ -138,14 +138,35 @@ export function editionText(e: EditorialEdition) {
     e.cta.label,
     e.cta.reason,
     ...e.evidence.map((item) => item.claim),
-  ].join('\n\n');
+  ];
+}
+export function editionText(e: EditorialEdition) {
+  return editionTextParts(e).join('\n\n');
+}
+function unfinishedArticleCopy(value: string) {
+  const unwrap = (part: string) =>
+    part
+      .normalize('NFKC')
+      .trim()
+      .replace(/^[\s([{【「『“"']+|[\s)\]}】」』”"'。.!！?？…]+$/g, '');
+  const field = unwrap(value);
+  return (
+    /^(?:(?:此处|正文|内容|段落|结论|示例|案例|图表|来源|引用|链接)[：:\s]*)?待补(?:充)?(?:[：:\s]*(?:正文|内容|段落|结论|示例|案例|图表|来源|引用|链接))?$/.test(
+      field,
+    ) ||
+    value.split(/[。！？!?；;\n]/).some((sentence) => /^待补(?:充)?$/.test(unwrap(sentence))) ||
+    /(?:此处|本段|本节|正文|段落|章节)(?:暂)?(?:标为|写为)?[：:\s]*待补(?:充)?|待补(?:充)?(?:后续|余下|剩余)?(?:正文|内容|段落|章节|结论|示例|案例|图表|来源|引用|链接)/.test(
+      value,
+    )
+  );
 }
 export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], topic: EditorialTopic) {
   const issues: string[] = [];
   const allowed = new Set(sources.map((s) => s.id));
   for (const locale of ['zh', 'en'] as const) {
     const e = draft[locale],
-      full = editionText(e);
+      parts = editionTextParts(e),
+      full = parts.join('\n\n');
     if (
       locale === 'zh' ? (full.match(/[\u3400-\u9fff]/g) ?? []).length < 1500 : full.split(/\s+/).length < 850
     )
@@ -170,14 +191,10 @@ export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], to
     }
     if (new Set(e.sections.map((s) => s.heading.toLowerCase())).size !== e.sections.length)
       issues.push(`${locale}:repeated_heading`);
-    // A completed instruction may name the status readers should assign to
-    // missing inputs. Exempt only that complete label, not unfinished copy
-    // such as "待补充正文" or another unresolved marker later in the field.
-    const withoutInputStatusLabels = full.replace(
-      /(?:标(?:记)?为|记为)[ \t“"'「『]*待补(?=[\s”"'」』，。；;：:、！？!?）)]|$)/g,
-      (label) => label.replace('待补', ''),
-    );
-    if (/https?:\/\/|<\/?[a-z]|\bTODO\b|\bTBD\b|待补|待核实来源/i.test(withoutInputStatusLabels))
+    // A reader's missing-input status is not unfinished article copy. Check
+    // each rendered field for actual scaffolding; never join field boundaries
+    // or alter the text sent to the independent factual/originality review.
+    if (/https?:\/\/|<\/?[a-z]|\bTODO\b|\bTBD\b|待核实来源/i.test(full) || parts.some(unfinishedArticleCopy))
       issues.push(`${locale}:unsafe_or_placeholder_text`);
     if (
       /(?<!不|无法|不能|不会)保证[^，。！？;\n]{0,8}(准确|预测|转运)|百分之百|100% accura|(?<!not |no )guaranteed.{0,15}(prediction|ranking)|(?<!not )scientifically proven.{0,30}(tarot|astrology)/i.test(
