@@ -76,6 +76,12 @@ Cloudflare 的 Cron 配置传播可能需要几分钟。`last_scanned` 记录实
 
 每天的实例 ID 为 `indexnow-YYYY-MM-DD`（北京时间日期），重复派发同一实例不会重复执行通知。状态中的 `needsProviderReview` 表示需要核查持续拒绝，不能解读为所有权文件错误或已修复服务端限流。排查顺序是实际请求时间和地址、验证文件公开可达性、robots/canonical、Bing 接收报告、响应头和拒绝摘要；不要通过换 key、地址、IP 或参与者接口绕过暂停。若服务方仍不提供原因，保存日期和 request ID，明确记录服务端原因尚未确认。
 
+### Cron 派发证据
+
+Worker 使用固定元数据日志记录 `wenbu_cron_received`，并分别记录 IndexNow 的 `indexnow_cron_enqueued`、`indexnow_cron_direct_result` 或 `indexnow_cron_dispatch_failed`。记录只包含 Cron、计划时间、固定实例 ID、结果状态或错误类型与数字代码；不序列化请求、环境或异常正文。自动请求调用日志可以保持关闭。
+
+`enqueued` 只证明创建 Workflow 的调用返回成功，实际启动、通知回执和收录仍分别核对。派发失败保留原始异常的失败语义，不自动重试或改走其他发送路径。这些日志不补写部署前的历史，也不能解释服务方 429 的具体原因。
+
 ## 收录与效果的边界
 
 IndexNow 是更新通知协议。提交回执、搜索引擎抓取、实际收录、排名及流量是不同状态，不能互相替代。一次提交会在采用该协议的搜索引擎间共享，无需给每个参与者重复提交同一批地址。

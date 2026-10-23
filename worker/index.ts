@@ -26,6 +26,7 @@ import {
   indexNowDiagnosticStatus,
 } from './indexnow-observability';
 import { searchActionSchema, searchConsoleAction, searchConsoleStatus } from './search-console';
+import { dispatchScheduledIndexNow, recordCronReceived } from './scheduled-observability';
 export { UsageGate } from './quota';
 export { DeletionLedger } from './deletion-ledger';
 import { handleAuth } from './account-auth';
@@ -472,21 +473,12 @@ export default {
     }
   },
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    recordCronReceived(event);
     if (event.cron === '15 * * * *') {
       ctx.waitUntil(archiveAnalytics(env));
       ctx.waitUntil(pruneAccountMetadata(env));
     }
-    if (event.cron === INDEXNOW_CRON)
-      ctx.waitUntil(
-        env.INDEXNOW_WORKFLOW
-          ? env.INDEXNOW_WORKFLOW.createBatch([
-              {
-                id: 'indexnow-' + new Date(event.scheduledTime + 8 * 3600_000).toISOString().slice(0, 10),
-                params: {},
-              },
-            ])
-          : submitIndexNow(env),
-      );
+    if (event.cron === INDEXNOW_CRON) ctx.waitUntil(dispatchScheduledIndexNow(event, env));
     if ([EDITORIAL_CRON, EDITORIAL_RECONCILE_CRON].includes(event.cron))
       ctx.waitUntil(dispatchEditorial(env, event.scheduledTime));
     if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_HEALTH_CRON)
