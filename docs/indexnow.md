@@ -56,6 +56,8 @@ npm run indexnow:status
 
 `node scripts/indexnow.mjs --diagnostic-status` 只读取持久结果和验证文件访问计数。两个 IP 回显服务所见的 IP 仅属于各自目的站的观察，不能当成 IndexNow 所见出口；Cloudflare 站点可能展示跨 zone 的 Worker 身份，而非外网出口。HEAD 返回 405 只能说明这种方法未被统一拒绝，不能证明 POST 配额恢复。Worker 与本机对照必须使用相同方法和 User-Agent，并注明时间。未知、重复或位置参数直接报错，不再因误写 `status` 而进入通知路径。
 
+读取 Cloudflare Flags 时，`cache.crawlhints_enabled` 是 Crawler Hints 的启用值，`cache.crawlhints_card` 是入口显示标记；字段未返回时记为 unknown。分别核对主域和旧别名所在 Zone。旧 Zone 开启该功能不能单独证明它向主域重复提交了 URL；修改 Zone 级开关还会影响其中其他主机，需按实际提交来源与站点范围判断。
+
 验证文件的 GET/HEAD 保持原始响应，异步记录独立的运维数据，不计入访客/PV。每小时保留请求总数、200 数量和前 32 条有限元数据，保留 30 天。样本仅含时间、方法、状态、UA 声称的来源分类及可用的 Cloudflare ASN/colo/verifiedBot；不存 key、原始 UA、IP、查询参数、cookie 或访客身份。超出 32 条后计数仍累加，不能把样本当成完整来源明细。缺失的 verifiedBot 是 unknown，不能当作 false；UA 声称 Bing 也不能自行证明来自 Bing。
 
 这份日志仅覆盖已经到达 Worker 的请求，WAF 提前阻断或 Worker 日志之前的历史需要另查 Cloudflare Analytics，并记录时间窗、数据保留范围、采样和查询上限。数据表由 `0010_indexnow_observability.sql` 创建；诊断结果限管理员读取，原始运营证据不得提交公开仓库。
