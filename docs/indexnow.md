@@ -56,6 +56,8 @@ npm run indexnow:status
 
 `node scripts/indexnow.mjs --diagnostic-status` 只读取持久结果和验证文件访问计数。两个 IP 回显服务所见的 IP 仅属于各自目的站的观察，不能当成 IndexNow 所见出口；Cloudflare 站点可能展示跨 zone 的 Worker 身份，而非外网出口。HEAD 返回 405 只能说明这种方法未被统一拒绝，不能证明 POST 配额恢复。Worker 与本机对照必须使用相同方法和 User-Agent，并注明时间。未知、重复或位置参数直接报错，不再因误写 `status` 而进入通知路径。
 
+读取 Cloudflare Flags 时，`cache.crawlhints_enabled` 是 Crawler Hints 的启用值，`cache.crawlhints_card` 是入口显示标记；字段未返回时记为 unknown。分别核对主域和旧别名所在 Zone。旧 Zone 开启该功能不能单独证明它向主域重复提交了 URL；修改 Zone 级开关还会影响其中其他主机，需按实际提交来源与站点范围判断。
+
 验证文件的 GET/HEAD 保持原始响应，异步记录独立的运维数据，不计入访客/PV。每小时保留请求总数、200 数量和前 32 条有限元数据，保留 30 天。样本仅含时间、方法、状态、UA 声称的来源分类及可用的 Cloudflare ASN/colo/verifiedBot；不存 key、原始 UA、IP、查询参数、cookie 或访客身份。超出 32 条后计数仍累加，不能把样本当成完整来源明细。缺失的 verifiedBot 是 unknown，不能当作 false；UA 声称 Bing 也不能自行证明来自 Bing。
 
 这份日志仅覆盖已经到达 Worker 的请求，WAF 提前阻断或 Worker 日志之前的历史需要另查 Cloudflare Analytics，并记录时间窗、数据保留范围、采样和查询上限。数据表由 `0010_indexnow_observability.sql` 创建；诊断结果限管理员读取，原始运营证据不得提交公开仓库。
@@ -75,6 +77,12 @@ HTTP 202 已表明接收，不会重复推送同一批未变页面。IndexNow �
 Cloudflare 的 Cron 配置传播可能需要几分钟。`last_scanned` 记录实际扫描的开始时间，提交回执证明是否尝试通知；仅有 Cron 配置不能证明已运行。迁移从最近一次通知尝试保守初始化扫描时间，不删除历史回执或改写 `retry_at`。暂停 IndexNow 时只移除 `30 14 * * *`，保留文章补位、发布与每小时归档任务。
 
 每天的实例 ID 为 `indexnow-YYYY-MM-DD`（北京时间日期），重复派发同一实例不会重复执行通知。状态中的 `needsProviderReview` 表示需要核查持续拒绝，不能解读为所有权文件错误或已修复服务端限流。排查顺序是实际请求时间和地址、验证文件公开可达性、robots/canonical、Bing 接收报告、响应头和拒绝摘要；不要通过换 key、地址、IP 或参与者接口绕过暂停。若服务方仍不提供原因，保存日期和 request ID，明确记录服务端原因尚未确认。
+
+### Cron 派发证据
+
+Worker 使用固定元数据日志记录 `wenbu_cron_received`，并分别记录 IndexNow 的 `indexnow_cron_enqueued`、`indexnow_cron_direct_result` 或 `indexnow_cron_dispatch_failed`。记录只包含 Cron、计划时间、固定实例 ID、结果状态或错误类型与数字代码；不序列化请求、环境或异常正文。自动请求调用日志可以保持关闭。
+
+`enqueued` 只证明创建 Workflow 的调用返回成功，实际启动、通知回执和收录仍分别核对。派发失败保留原始异常的失败语义，不自动重试或改走其他发送路径。这些日志不补写部署前的历史，也不能解释服务方 429 的具体原因。
 
 ## 收录与效果的边界
 
