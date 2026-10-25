@@ -73,6 +73,7 @@ import '../styles/agent-visuals.css';
 import '../styles/agent-guidance.css';
 import '../styles/agent-entry.css';
 import AgentExample from './AgentExample';
+import AgentGuideEntry from './AgentGuideEntry';
 import AgentBirthFields from './AgentBirthFields';
 import AgentAnswerText from './AgentAnswerText';
 import { isCompletedAnswer, sessionDeliverables, sessionSavePreview } from '../lib/agent-deliverables';
@@ -267,7 +268,7 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
   useEffect(() => {
     if (previousPane.current === mobilePane) return;
     previousPane.current = mobilePane;
-    if (!window.matchMedia('(max-width: 700px)').matches) return;
+    if (window.matchMedia('(min-width: 1181px)').matches) return;
     (mobilePane === 'results' ? backToConversation : showResults).current?.focus();
   }, [mobilePane]);
   useEffect(() => {
@@ -285,6 +286,9 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     textarea.current.style.height = Math.min(170, Math.max(58, textarea.current.scrollHeight)) + 'px';
   }, [draft]);
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('example') === 'tarot') setExampleOpen(true);
+  }, []);
+  useEffect(() => {
     if (exampleOpen) exampleDialog.current?.showModal();
     else exampleDialog.current?.close();
   }, [exampleOpen]);
@@ -292,6 +296,11 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
     // Close the top-layer dialog before handing off to another dialog or the composer.
     exampleDialog.current?.close();
     setExampleOpen(false);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('example')) {
+      url.searchParams.delete('example');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
   }
   function startFromExample(kind: 'tarot' | 'research') {
     closeExample();
@@ -563,7 +572,12 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                 questions,
                 visual: readReportVisual(visual),
               })),
-            sourceIds: [...new Set(session.messages.flatMap((m) => m.sources.map((s) => s.id)))].slice(-12),
+            sourceIds: [
+              ...new Set([
+                ...session.messages.flatMap((m) => m.sources.map((s) => s.id)),
+                ...(choice?.sourceIds ?? []),
+              ]),
+            ].slice(-12),
           },
         }),
       });
@@ -598,6 +612,8 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
           if (event.type === 'artifact') {
             setSelectedArtifact(event.artifact.id);
             setPanel('results');
+            // Keep compact screens in the conversation until the user opens the result.
+            if (window.matchMedia('(min-width: 1181px)').matches) setMobilePane('results');
             if (!reducedMotionRef.current)
               setArrivingArtifacts((ids) => [...ids, event.artifact.id].slice(-12));
           }
@@ -837,13 +853,18 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
             </button>
             <button
               ref={showResults}
-              className="agent-icon-button mobile-only"
-              aria-label={t('查看探索结果', 'Show results')}
+              className="agent-icon-button agent-results-toggle"
+              aria-label={
+                mobilePane === 'results'
+                  ? t('收起探索结果', 'Hide results')
+                  : t('查看探索结果', 'Show results')
+              }
               aria-controls="agent-results-pane"
               aria-expanded={mobilePane === 'results'}
-              onClick={() => setMobilePane('results')}
+              onClick={() => setMobilePane((pane) => (pane === 'results' ? 'chat' : 'results'))}
             >
               <PanelRight size={18} />
+              <span className="agent-results-label">{t('结果', 'Results')}</span>
               {deliverables.length > 0 && <span className="agent-count">{deliverables.length}</span>}
             </button>
           </div>
@@ -927,18 +948,25 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
                 </section>
               )}
               {!active?.context.journalIds.length && (
-                <AgentOnboarding
-                  key={activeId}
+                <AgentGuideEntry
                   locale={locale}
                   disabled={!loaded || busy}
-                  exampleReady={interactive}
-                  hasDraft={!!draft.trim()}
                   onStart={(choice) => void send(choice)}
-                  onBirth={() => openContext(true, 'bazi')}
-                  onExample={() => {
-                    setExampleOpen(true);
-                    track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'explore' });
-                  }}
+                  fallback={
+                    <AgentOnboarding
+                      key={activeId}
+                      locale={locale}
+                      disabled={!loaded || busy}
+                      exampleReady={interactive}
+                      hasDraft={!!draft.trim()}
+                      onStart={(choice) => void send(choice)}
+                      onBirth={() => openContext(true, 'bazi')}
+                      onExample={() => {
+                        setExampleOpen(true);
+                        track('agent_example_opened', { tool: 'agent', action: 'example', mode: 'explore' });
+                      }}
+                    />
+                  }
                 />
               )}
             </>
@@ -1392,14 +1420,24 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
       <aside
         id="agent-results-pane"
         className="agent-result-pane"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation();
+            setMobilePane('chat');
+            showResults.current?.focus();
+          }
+        }}
         aria-label={t('探索结果与资料', 'Results and sources')}
       >
         <div className="agent-panel-toolbar">
           <button
             ref={backToConversation}
-            className="agent-icon-button mobile-only"
+            className="agent-icon-button"
             aria-label={t('返回对话', 'Back to conversation')}
-            onClick={() => setMobilePane('chat')}
+            onClick={() => {
+              setMobilePane('chat');
+              showResults.current?.focus();
+            }}
           >
             <ChevronRight className="rotate-180" size={19} />
           </button>
@@ -1638,8 +1676,11 @@ export default function AgentWorkspace({ locale }: { locale: Locale }) {
         ref={exampleDialog}
         className="agent-example-dialog"
         aria-labelledby="agent-example-title"
-        onCancel={() => setExampleOpen(false)}
-        onClose={() => setExampleOpen(false)}
+        onCancel={(event) => {
+          event.preventDefault();
+          closeExample();
+        }}
+        onClose={closeExample}
         onClick={(event) => {
           if (event.target === exampleDialog.current) closeExample();
         }}

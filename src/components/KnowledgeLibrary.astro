@@ -2,6 +2,7 @@
 import { ArrowUpRight, ArrowRight, BookOpen, Search, X, Compass, LayoutGrid, Rows3 } from 'lucide-react';
 import { guideMinutes } from '../lib/knowledge';
 import ArticleCover from './ArticleCover.astro';
+import TitleText from './TitleText.astro';
 import { articles } from '../data/articles';
 import { learningTopics } from '../data/learning-paths';
 import { choose, href } from '../lib/i18n';
@@ -54,7 +55,7 @@ const startingPoints = [
         {t('跟着做一次', 'Your first reading')}
         <ArrowRight size={16} aria-hidden="true" />
       </a>
-      <p class="library-edition">
+      <p class="library-edition" data-library-edition>
         {t(
           `${guides.length} 篇双语图解指南 · 案例与来源 · 免费阅读`,
           `${guides.length} illustrated guides · Examples and sources · Free to read`,
@@ -154,7 +155,7 @@ const startingPoints = [
               {String(index + 1).padStart(2, '0')}
             </span>
           </div>
-          <div class="library-guide-grid">
+          <div class="library-guide-grid" data-topic-guides={topic.id}>
             {topic.slugs
               .map((slug) => guides.find((a) => a.slug === slug))
               .filter((a) => a !== undefined)
@@ -164,6 +165,7 @@ const startingPoints = [
                   href={href(locale, `learn/${a.slug}`)}
                   data-track="library-article"
                   data-guide
+                  data-guide-slug={a.slug}
                   data-search={[
                     a.slug.replaceAll('-', ' '),
                     a.zh.title,
@@ -186,7 +188,9 @@ const startingPoints = [
                         {guideMinutes(a, locale)} {t('分钟', 'min')}
                       </span>
                     </div>
-                    <h4>{a[locale].title}</h4>
+                    <h4>
+                      <TitleText text={a[locale].title} />
+                    </h4>
                     <p>{a[locale].description}</p>
                     <span class="library-guide-read">
                       {t('继续阅读', 'Read the guide')}

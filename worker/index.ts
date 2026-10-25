@@ -6,6 +6,7 @@ import { calculate } from '../src/lib/tools';
 import { InputError, type ToolKind } from '../src/lib/schema';
 import { ApiError, interpret } from './ai';
 import { handleMcp } from './mcp';
+import { productCapabilities } from '../src/lib/product-capabilities';
 import type { Env } from './types';
 import { AGENT_BODY_LIMIT } from '../src/lib/agent-protocol';
 import {
@@ -336,9 +337,10 @@ export default {
           return json({ error: { code: 'rate_limited', message: 'Please slow down. / 请稍后再试。' } }, 429);
         }
       }
+      if (path === '/api/v1/capabilities' && request.method === 'GET') return json(productCapabilities());
       if (path === '/mcp' || path === '/mcp/') {
         if (request.method === 'POST') {
-          const body = await boundedBody(request);
+          const body = await boundedBody(request, 65536);
           request = new Request(request.url, {
             method: 'POST',
             headers: request.headers,
@@ -349,7 +351,14 @@ export default {
           request,
           (tool, success, duration, status) =>
             record({
-              event: tool === 'mcp' ? 'mcp_finished' : success ? 'calculation_succeeded' : 'api_failed',
+              event:
+                tool === 'mcp'
+                  ? 'mcp_finished'
+                  : !success
+                    ? 'api_failed'
+                    : tool === 'daily'
+                      ? 'daily_ready'
+                      : 'calculation_succeeded',
               tool,
               status: status ?? (success ? 'complete' : 'invalid_input'),
               duration,

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import worker, { boundedBody, originAllowed } from '../worker/index';
 import { identityHash, interpret } from '../worker/ai';
 import type { Env } from '../worker/types';
+import { productCapabilities } from '../src/lib/product-capabilities';
 const env = { SITE_URL: 'https://wenbu.app', DEEPSEEK_MODEL: 'deepseek-v4-flash' } as Env;
 const req = (body: unknown, origin?: string, path = 'bazi') =>
   new Request('https://wenbu.app/api/v1/' + path, {
@@ -11,6 +12,30 @@ const req = (body: unknown, origin?: string, path = 'bazi') =>
   });
 afterEach(() => vi.restoreAllMocks());
 describe('public edge API', () => {
+  it('serves a public capability manifest without account or model access', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch');
+    const response = await worker.fetch(new Request('https://wenbu.app/api/v1/capabilities'), env);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(productCapabilities());
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('accepts bounded MCP prompt context larger than a calculation request, and rejects oversized bodies', async () => {
+    const request = (size: number) =>
+      new Request('https://wenbu.app/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'prompts/get',
+          params: { name: 'reflect_on_reading', arguments: { reading: '测'.repeat(size), locale: 'zh' } },
+        }),
+      });
+    const response = await worker.fetch(request(5000), env);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ result: { messages: expect.any(Array) } });
+    expect((await worker.fetch(request(22000), env)).status).toBe(413);
+  });
   it('never silently recasts an I Ching interpretation', async () => {
     await expect(
       interpret({ kind: 'iching', input: {}, question: 'Question', consent: true }, req({}), env),

@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { mcpToolNames } from '../src/lib/product-capabilities';
 const execute = promisify(execFile);
 it('ships the same Skill to website users and repository installers', async () => {
   expect(await readFile('skills/wenbu/SKILL.md', 'utf8')).toBe(await readFile('public/SKILL.md', 'utf8'));
@@ -69,4 +70,124 @@ it('builds usable integration archives with verified checksums and no credential
   await execute('tar', ['-xzf', join(out, receipt.artifacts[0]), '-C', base]);
   const cli = await execute(process.execPath, [join(base, 'package/wenbu.mjs'), '--help']);
   expect(cli.stdout).toContain('Wenbu CLI');
+});
+
+it('refuses redirects before forwarding selected input to another host', async () => {
+  let forwarded = 0,
+    received = 0;
+  const target = createServer((_req, res) => {
+    forwarded++;
+    res.end('{}');
+  });
+  await new Promise<void>((resolve) => target.listen(0, '127.0.0.1', resolve));
+  const server = createServer((_req, res) => {
+    received++;
+    res.writeHead(307, {
+      Location: `http://127.0.0.1:${(target.address() as { port: number }).port}/receive`,
+    });
+    res.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    await expect(
+      execute(process.execPath, ['public/wenbu.mjs', 'bazi', '{"date":"2000-08-16"}'], {
+        env: { ...process.env, WENBU_URL: `http://127.0.0.1:${(server.address() as { port: number }).port}` },
+      }),
+    ).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('redirected') });
+    expect(received).toBe(1);
+    expect(forwarded).toBe(0);
+  } finally {
+    await Promise.all([
+      new Promise<void>((resolve) => server.close(() => resolve())),
+      new Promise<void>((resolve) => target.close(() => resolve())),
+    ]);
+  }
+});
+it('bounds streamed events by UTF-8 bytes and does not print an oversized event', async () => {
+  const server = createServer((_req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.end(`data: ${JSON.stringify({ type: 'text', delta: '测'.repeat(90000) })}\n\n`);
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    await expect(
+      execute(process.execPath, ['public/wenbu.mjs', 'agent', '{"message":"synthetic","consent":true}'], {
+        env: { ...process.env, WENBU_URL: `http://127.0.0.1:${(server.address() as { port: number }).port}` },
+      }),
+    ).rejects.toMatchObject({ code: 1, stdout: '', stderr: expect.stringContaining('262144 bytes') });
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+it('discovers MCP capabilities and reads a focused section through the CLI', async () => {
+  const calls: { method: string; params: { name?: string; arguments?: Record<string, string> } }[] = [];
+  const version = JSON.parse(await readFile('package.json', 'utf8')).version;
+  const server = createServer(async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    if (req.url === '/api/v1/capabilities')
+      return res.end(JSON.stringify({ version, mcp: { tools: ['read_library', 'search_library'] } }));
+    let raw = '';
+    for await (const chunk of req) raw += String(chunk);
+    const body = JSON.parse(raw);
+    calls.push(body);
+    const result =
+      body.method === 'initialize'
+        ? { serverInfo: { version } }
+        : body.method === 'tools/list'
+          ? { tools: [{ name: 'read_library' }, { name: 'search_library' }] }
+          : body.method === 'resources/list'
+            ? { resources: [{ uri: 'wenbu://capabilities' }] }
+            : body.method === 'prompts/list'
+              ? { prompts: [{ name: 'research_with_sources' }] }
+              : {
+                  structuredContent: {
+                    scope: 'section',
+                    section: body.params.arguments.section,
+                    content: 'Selected public text',
+                  },
+                };
+    res.end(JSON.stringify({ jsonrpc: '2.0', id: body.id, result }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const env = {
+      ...process.env,
+      WENBU_URL: `http://127.0.0.1:${(server.address() as { port: number }).port}`,
+      WENBU_ANALYTICS: 'off',
+    };
+    const doctor = await execute(process.execPath, ['public/wenbu.mjs', 'doctor'], { env });
+    expect(JSON.parse(doctor.stdout)).toMatchObject({ status: 'ok', version });
+    expect(calls.some((call) => call.method === 'tools/call')).toBe(false);
+    const read = await execute(
+      process.execPath,
+      ['public/wenbu.mjs', 'read', 'guide-bazi-basics', 'en', '--section', 'section-0'],
+      { env },
+    );
+    expect(JSON.parse(read.stdout)).toMatchObject({ scope: 'section', section: 'section-0' });
+    expect(calls.at(-1)?.params).toMatchObject({
+      name: 'read_library',
+      arguments: { id: 'guide-bazi-basics', locale: 'en', section: 'section-0' },
+    });
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+it('shows an actionable error without an uncaught stack for an unknown command', async () => {
+  await expect(execute(process.execPath, ['public/wenbu.mjs', 'not-a-command'])).rejects.toMatchObject({
+    code: 1,
+    stderr: 'Wenbu: Unknown command. Run --help.\n',
+  });
+});
+
+it('documents every exposed MCP tool in the public Skill and connection page', async () => {
+  const skill = await readFile('public/SKILL.md', 'utf8');
+  const page = await readFile('src/components/Agents.astro', 'utf8');
+  for (const name of mcpToolNames) {
+    expect(skill).toContain(name);
+    expect(page).toContain(name);
+  }
+  const schema = JSON.parse(await readFile('public/openapi.json', 'utf8'));
+  expect(schema.info.version).toBe(JSON.parse(await readFile('package.json', 'utf8')).version);
+  expect(schema.paths['/api/v1/daily']).toBeDefined();
+  expect(schema.paths['/api/v1/capabilities']).toBeDefined();
 });

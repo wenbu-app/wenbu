@@ -128,6 +128,23 @@ describe('durable publication', () => {
     expect((await readCompleteLibrary('editorial-daily-reflection', 'zh', undefined, env)).content).toContain(
       '日签',
     );
+    const full = await readCompleteLibrary('editorial-daily-reflection', 'en', undefined, env);
+    expect(full.outline?.length).toBeGreaterThan(0);
+    const section = await readCompleteLibrary('editorial-daily-reflection', 'en', 'editorial-section-0', env);
+    expect(section.scope).toBe('section');
+    expect(section.source.id).toBe('editorial-daily-reflection#editorial-section-0');
+    expect(section.source.url).toContain('#editorial-section-0');
+    expect(section.content.length).toBeLessThan(full.content.length);
+    expect(
+      (await readCompleteLibrary('editorial-daily-reflection#editorial-section-0', 'en', undefined, env))
+        .content,
+    ).toBe(section.content);
+    await expect(readCompleteLibrary('editorial-daily-reflection', 'en', 'invented', env)).rejects.toThrow(
+      'Unknown document section',
+    );
+    await expect(
+      readCompleteLibrary('editorial-daily-reflection#editorial-section-0', 'en', 'editorial-section-1', env),
+    ).rejects.toThrow('Conflicting');
     expect(
       await mergePublishedManifest(env, {
         version: 1,

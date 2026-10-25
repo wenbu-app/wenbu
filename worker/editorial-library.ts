@@ -1,4 +1,4 @@
-import { libraryDocuments, readLibrary, libraryContextSnapshot } from './agent-library';
+import { libraryDocuments, readLibrary } from './agent-library';
 import { editorialLibraryDocuments } from './editorial-discovery';
 import type { Env } from './types';
 export async function completeLibraryDocuments(locale: 'zh' | 'en', env?: Env) {
@@ -40,30 +40,53 @@ export async function searchCompleteLibrary(query: string, locale: 'zh' | 'en', 
     }));
 }
 export async function readCompleteLibrary(id: string, locale: 'zh' | 'en', section?: string, env?: Env) {
-  if (section || id.includes('#')) return readLibrary(id, locale, section);
+  const [documentId, savedSection, ...extra] = id.split('#');
+  if (
+    extra.length ||
+    (id.includes('#') && !savedSection) ||
+    (savedSection && section && savedSection !== section)
+  )
+    throw new Error('Conflicting or invalid section citation ID.');
+  section ??= savedSection;
   const docs = env ? await editorialLibraryDocuments(env, locale) : [];
-  const doc = docs.find((d) => d.id === id || d.alias === id);
+  const doc = docs.find((d) => d.id === documentId || d.alias === documentId);
   if (!doc) return readLibrary(id, locale, section);
+  const part = section ? doc.sections.find((part) => part.id === section) : null;
+  if (section && !part) throw new Error('Unknown document section. Use a section ID from the outline.');
+  const content = part?.content ?? doc.content;
   return {
     source: {
-      id: doc.id,
-      title: doc.title,
-      url: doc.url,
+      id: section ? `${doc.id}#${section}` : doc.id,
+      title: doc.title + (part ? ` · ${part.title}` : ''),
+      url: doc.url + (section ? `#${section}` : ''),
       kind: 'guide' as const,
       level: 'editorial',
-      excerpt: doc.content.slice(0, 280),
+      excerpt: content.slice(0, 280),
       readAt: new Date().toISOString(),
     },
     documentId: doc.id,
-    content: doc.content,
+    content,
     format: 'text/markdown',
-    scope: 'full',
-    section: null,
+    scope: section ? 'section' : 'full',
+    section: section ?? null,
+    outline: doc.sections.map(({ id, title }) => ({ id, title })),
+    links: {
+      html: doc.url,
+      markdown: doc.url.replace(
+        /\/(en\/)?(learn|compare)\/([^/]+)\/$/,
+        (_, _en, category, slug) =>
+          `/knowledge/${locale}/${category === 'compare' ? 'compare-' : ''}${slug}.md`,
+      ),
+      json: doc.url.replace(
+        /\/(en\/)?(learn|compare)\/([^/]+)\/$/,
+        (_, _en, category, slug) =>
+          `/knowledge/${locale}/${category === 'compare' ? 'compare-' : ''}${slug}.json`,
+      ),
+    },
     truncated: false,
   };
 }
 export async function completeLibrarySnapshot(id: string, locale: 'zh' | 'en', env?: Env) {
-  if (sectionIdentifier(id)) return libraryContextSnapshot(id, locale);
   const doc = await readCompleteLibrary(id, locale, undefined, env);
   return doc.scope === 'full' && doc.content.length > 1800
     ? {
@@ -75,7 +98,4 @@ export async function completeLibrarySnapshot(id: string, locale: 'zh' | 'en', e
         requiresReadBeforeCitation: true,
       }
     : { ...doc, requiresReadBeforeCitation: false };
-}
-function sectionIdentifier(id: string) {
-  return id.includes('#');
 }

@@ -1,3 +1,5 @@
+import { guideOutline, guideMarkdown } from '../src/lib/knowledge';
+import { articles } from '../src/data/articles';
 import { contentHash, pathForTopic } from './editorial-schema';
 import {
   editorialMarkdown,
@@ -160,5 +162,28 @@ export async function editorialLibraryDocuments(env: Env, locale: 'zh' | 'en') {
             : originalComparisonMarkdown(doc.topic.slug, locale)) + '\n\n---\n\n'
         : '') + editorialMarkdown(doc, locale),
     keywords: `${doc.topic.tool} ${doc.topic.zh} ${doc.topic.en}`,
+    sections: [
+      ...(doc.topic.mode === 'extend' && doc.topic.category === 'learn'
+        ? (() => {
+            const original = articles.find((article) => article.slug === doc.topic.slug)!;
+            return guideOutline(original, locale).map((part) => ({
+              ...part,
+              content: guideMarkdown(original, locale, part.id),
+            }));
+          })()
+        : []),
+      ...doc[locale].sections.map((section, index) => ({
+        id: `editorial-section-${index}`,
+        title: section.heading,
+        content: [
+          `## ${section.heading}`,
+          ...section.paragraphs,
+          ...section.sourceIds
+            .map((id) => doc.sources.find((source) => source.id === id))
+            .filter((source) => source !== undefined)
+            .map((source) => `[${source.title}](${source.url})`),
+        ].join('\n\n'),
+      })),
+    ],
   }));
 }

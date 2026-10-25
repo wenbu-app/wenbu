@@ -1,6 +1,6 @@
 # Wenbu CLI
 
-Node.js 22.12+ · MIT · no dependencies. Run calculations, read complete bilingual guides, or explicitly send a turn to Wenbu's DeepSeek Agent.
+Node.js 22.12+ · MIT · no dependencies. Run calculations, read complete bilingual guides, or explicitly send a turn to Wenbu Agent.
 
 ## Download and inspect
 
@@ -8,6 +8,11 @@ Node.js 22.12+ · MIT · no dependencies. Run calculations, read complete biling
 curl -fsS https://wenbu.app/wenbu.mjs -o wenbu.mjs
 # Inspect wenbu.mjs before running it.
 node wenbu.mjs --help
+node wenbu.mjs doctor
+node wenbu.mjs capabilities
+node wenbu.mjs search "birth time" en
+node wenbu.mjs read guide-birth-time-timezone en
+node wenbu.mjs prompts
 node wenbu.mjs iching '{"lines":[7,7,7,7,7,7],"locale":"en"}'
 node wenbu.mjs daily '{"timezone":"Asia/Shanghai","locale":"en"}'
 node wenbu.mjs library
@@ -18,7 +23,7 @@ The daily command returns a stable upright card, a small action and a reflection
 
 The fixed-lines example returns hexagram 1 with no changing lines. Calculations and guide reads do not call a model or require an account/key.
 
-Release tarballs also install locally: `npm install --global ./wenbu-cli-1.3.1.tgz`, then `wenbu --help`. Verify the release SHA256SUMS first. The downloadable archive is independent of npm registry publication.
+Release tarballs also install locally: `npm install --global ./wenbu-cli-1.5.0.tgz`, then `wenbu --help`. Verify the release SHA256SUMS first. The downloadable archive is independent of npm registry publication.
 
 ## Personal inputs
 
@@ -31,7 +36,7 @@ cat birth.json | node wenbu.mjs bazi -
 
 The CLI reads only that input. It does not discover files or attach old conversations. [Synthetic input and complete protocol](https://wenbu.app/en/agents/?utm_source=github&utm_medium=referral&utm_campaign=open-source-2026).
 
-`WENBU_ANALYTICS=off` opts out of coarse service and guide-request analytics. `WENBU_TEST=true` marks validation requests as tests. `WENBU_URL=http://127.0.0.1:8787` selects local development; other endpoints must use HTTPS. Requests can be limited per network; inspect errors before retrying.
+`WENBU_ANALYTICS=off` opts out of coarse service and guide-request analytics. `WENBU_TEST=true` marks validation requests as tests. `WENBU_URL=http://127.0.0.1:8787` selects local development; other endpoints must use HTTPS. Requests can be limited per network; inspect errors before retrying. The CLI refuses redirects, bounds UTF-8 response/event bytes and never automatically retries. `doctor` checks the advertised tools, resources, prompts and version without personal input or a model call. `prompt <name> --file selected.json` returns a template for your host model, not a generated answer.
 
 The `agent --file request.json` command sends the selected message/history/context to DeepSeek through Wenbu and requires `consent:true`. It returns NDJSON events. Check the final `done` event: `complete`, `waiting`, `limited` and error are different outcomes. No terminal event means an incomplete stream. AI has [published daily allowances](https://wenbu.app/en/free/).
 

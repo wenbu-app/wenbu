@@ -13,6 +13,11 @@ export type EditorialTopic = {
 };
 
 export const editorialSources: Record<string, { title: string; url: string; role: string }> = {
+  capabilities: {
+    title: 'Wenbu · versioned public capabilities',
+    url: 'https://wenbu.app/capabilities.json',
+    role: 'First-party current tool, convention and privacy contract; not external endorsement or predictive validation',
+  },
   methods: {
     title: 'Wenbu · calculation conventions',
     url: 'https://wenbu.app/methodology/',

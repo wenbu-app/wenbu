@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Wenbu · 问卜",
-    "version": "1.1.0",
+    "version": "1.5.0",
     "description": "Free, transparent cultural calculation tools. No predictive validity claims.",
     "license": {
       "name": "MIT",
@@ -15,138 +15,6 @@
     }
   ],
   "paths": {
-    "/api/v1/daily": {
-      "post": {
-        "operationId": "get_daily_card",
-        "summary": "Stable upright daily card and original reflective practice; no model or birth data",
-        "description": "The server chooses today in the requested IANA timezone. Native clients may supply a stable random UUID seed, never personal data; clients without a seed share a public card. First-party guest/account identities take precedence. Status requests do not reveal a card. No personal forecast or same-day redraw. Private account saves use the first-party account protocol.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "action",
-                  "timezone"
-                ],
-                "properties": {
-                  "action": {
-                    "type": "string",
-                    "enum": [
-                      "status",
-                      "reveal"
-                    ]
-                  },
-                  "timezone": {
-                    "type": "string",
-                    "maxLength": 80,
-                    "example": "Asia/Shanghai"
-                  },
-                  "locale": {
-                    "enum": [
-                      "zh",
-                      "en"
-                    ]
-                  },
-                  "seed": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "previous": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": [
-                      "result",
-                      "receipt"
-                    ],
-                    "properties": {
-                      "result": {
-                        "type": "object"
-                      },
-                      "receipt": {
-                        "type": "string",
-                        "maxLength": 3000
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Private/no-store server clock and, for reveal, an upright card. First-party callers may receive an X-Wenbu-Receipt header.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "clock"
-                  ],
-                  "properties": {
-                    "clock": {
-                      "type": "object",
-                      "required": [
-                        "date",
-                        "timezone",
-                        "serverNow",
-                        "nextAt"
-                      ],
-                      "properties": {
-                        "date": {
-                          "type": "string",
-                          "format": "date"
-                        },
-                        "timezone": {
-                          "type": "string"
-                        },
-                        "serverNow": {
-                          "type": "integer",
-                          "description": "Server epoch milliseconds"
-                        },
-                        "nextAt": {
-                          "type": "integer",
-                          "description": "Next local midnight epoch milliseconds; DST-aware"
-                        }
-                      }
-                    },
-                    "result": {
-                      "type": "object",
-                      "description": "Tarot result with one upright card and daily version/date/timezone. Not a prediction."
-                    },
-                    "practice": {
-                      "type": "object",
-                      "required": [
-                        "action",
-                        "question"
-                      ],
-                      "properties": {
-                        "action": {
-                          "type": "string"
-                        },
-                        "question": {
-                          "type": "string"
-                        }
-                      },
-                      "description": "Original editorial daily practice in the requested locale; no generated prediction."
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid IANA timezone, seed, fields or operation"
-          },
-          "429": {
-            "description": "Request rate limit"
-          }
-        }
-      }
-    },
     "/api/v1/bazi": {
       "post": {
         "operationId": "calculate_bazi",
@@ -614,8 +482,8 @@
     "/api/v1/agent": {
       "post": {
         "operationId": "run_agent_turn",
-        "summary": "Run one bounded DeepSeek Agent turn with real tools and streamed artifacts",
-        "description": "Explicit consent to send selected context to DeepSeek. No server-side conversation history. Body <=98304 bytes. Twelve turns/network/Shanghai day; at most five model calls and 12 tool executions per turn, 120-second deadline. Shared site model budget 1000, Agent sub-budget 600. Each attempted model call counts, including failures. Research covers a curated catalogue, not unrestricted web search. Stream errors can occur after HTTP 200: only a done event confirms terminal status; waiting and limited are not complete.",
+        "summary": "Run one bounded Wenbu Agent turn with real tools and streamed artifacts",
+        "description": "Explicit consent to send selected context to DeepSeek. Unauthenticated external calls have no saved application history; first-party verified email accounts can opt into cloud records. Body <=98304 bytes. Browser trials/accounts have twelve turns per Shanghai day with trial usage carried over at sign-in and additional network/global limits. Unauthenticated external clients retain the per-network allowance; at most five model calls and 12 tool executions per turn, 120-second deadline. Shared site model budget 1000, Agent sub-budget 600. Each attempted model call counts, including failures. Research covers a curated catalogue, not unrestricted web search. Stream errors can occur after HTTP 200: only a done event confirms terminal status; waiting and limited are not complete.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1058,6 +926,192 @@
           },
           "503": {
             "description": "Feedback storage unavailable."
+          }
+        }
+      }
+    },
+    "/api/v1/daily": {
+      "post": {
+        "operationId": "get_daily_card",
+        "summary": "Stable upright daily card and original reflective practice; no model or birth data",
+        "description": "The server chooses today in the requested IANA timezone. Native clients may supply a stable random UUID seed, never personal data; clients without a seed share a public card. First-party guest/account identities take precedence. Status requests do not reveal a card. No personal forecast or same-day redraw. Private account saves use the first-party account protocol.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action",
+                  "timezone"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "status",
+                      "reveal"
+                    ]
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Asia/Shanghai"
+                  },
+                  "locale": {
+                    "enum": [
+                      "zh",
+                      "en"
+                    ]
+                  },
+                  "seed": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "previous": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "result",
+                      "receipt"
+                    ],
+                    "properties": {
+                      "result": {
+                        "type": "object"
+                      },
+                      "receipt": {
+                        "type": "string",
+                        "maxLength": 3000
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Private/no-store server clock and, for reveal, an upright card. First-party callers may receive an X-Wenbu-Receipt header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "clock"
+                  ],
+                  "properties": {
+                    "clock": {
+                      "type": "object",
+                      "required": [
+                        "date",
+                        "timezone",
+                        "serverNow",
+                        "nextAt"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "timezone": {
+                          "type": "string"
+                        },
+                        "serverNow": {
+                          "type": "integer",
+                          "description": "Server epoch milliseconds"
+                        },
+                        "nextAt": {
+                          "type": "integer",
+                          "description": "Next local midnight epoch milliseconds; DST-aware"
+                        }
+                      }
+                    },
+                    "result": {
+                      "type": "object",
+                      "description": "Tarot result with one upright card and daily version/date/timezone. Not a prediction."
+                    },
+                    "practice": {
+                      "type": "object",
+                      "required": [
+                        "action",
+                        "question"
+                      ],
+                      "properties": {
+                        "action": {
+                          "type": "string"
+                        },
+                        "question": {
+                          "type": "string"
+                        }
+                      },
+                      "description": "Original editorial daily practice in the requested locale; no generated prediction."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid IANA timezone, seed, fields or operation"
+          },
+          "429": {
+            "description": "Request rate limit"
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "operationId": "get_capabilities",
+        "summary": "Discover Wenbu endpoints, MCP tools, prompts and conventions",
+        "description": "Public versioned capability manifest. No personal data, model request or account access.",
+        "responses": {
+          "200": {
+            "description": "Current product capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schemaVersion",
+                    "version",
+                    "endpoints",
+                    "mcp",
+                    "conventions",
+                    "privacy",
+                    "evidence"
+                  ],
+                  "properties": {
+                    "schemaVersion": {
+                      "const": "wenbu-capabilities-1"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "endpoints": {
+                      "type": "object"
+                    },
+                    "mcp": {
+                      "type": "object"
+                    },
+                    "conventions": {
+                      "type": "object"
+                    },
+                    "privacy": {
+                      "type": "object"
+                    },
+                    "evidence": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; back off."
           }
         }
       }

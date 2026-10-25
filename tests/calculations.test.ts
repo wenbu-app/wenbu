@@ -7,6 +7,39 @@ import { tarotDeck } from '../src/data/tarot';
 import { agentContext } from '../src/lib/journal';
 const pillars = (v: ReturnType<typeof calculateBazi>) => v.pillars.map((p) => p.value);
 describe('calendar contracts', () => {
+  it('returns conventional relationship names rather than unsupported personality labels in English', () => {
+    const result = calculateBazi({ date: '2000-08-16', time: '03:30', timezone: 'Asia/Shanghai' });
+    expect(result.pillars.map(({ role, roleEn }) => [role, roleEn])).toEqual([
+      ['偏财', 'Indirect Wealth'],
+      ['偏印', 'Indirect Resource'],
+      ['日主', 'Day Master'],
+      ['偏财', 'Indirect Wealth'],
+    ]);
+    const fixture = calculateBazi({ date: '2005-12-23', time: '08:37', timezone: 'Asia/Shanghai' });
+    expect(fixture.pillars.map((pillar) => pillar.roleEn)).toEqual([
+      'Indirect Wealth',
+      'Direct Resource',
+      'Day Master',
+      'Hurting Officer',
+    ]);
+  });
+  it('marks an omitted timezone instead of silently treating it as a supplied birthplace', () => {
+    const assumed = calculateBazi({ date: '2000-08-16', time: '09:00' });
+    const explicit = calculateBazi({ date: '2000-08-16', time: '09:00', timezone: 'Asia/Shanghai' });
+    expect(assumed.calendar.timezoneAssumed).toBe(true);
+    expect(explicit.calendar.timezoneAssumed).toBe(false);
+    expect(pillars(assumed)).toEqual(pillars(explicit));
+    expect(assumed.warnings.some((warning) => warning.includes('Timezone was not supplied'))).toBe(true);
+  });
+  it('distinguishes lunar New Year animals from the Li Chun year-pillar convention', () => {
+    const result = calculateBazi({ date: '2024-02-05', time: '12:00', timezone: 'Asia/Shanghai' });
+    expect(result.calendar.zodiac).toBe('兔');
+    expect(result.calendar.yearPillarZodiac).toBe('龙');
+    expect(result.calendar.zodiacEn).toBe('Rabbit');
+    expect(result.calendar.yearPillarZodiacEn).toBe('Dragon');
+    expect(result.calendar.zodiacConvention).toBe('lunar-new-year');
+    expect(result.pillars[0].value).toBe('甲辰');
+  });
   it.each([
     ['2005-12-23', '08:37', 'midnight', ['乙酉', '戊子', '辛巳', '壬辰']],
     ['1988-02-15', '23:30', 'midnight', ['戊辰', '甲寅', '庚子', '戊子']],

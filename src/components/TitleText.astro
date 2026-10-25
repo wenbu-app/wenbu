@@ -1,0 +1,6 @@
+---
+import { titleParts } from '../lib/reading-type';
+const { text } = Astro.props as { text: string };
+---
+
+{titleParts(text).map((part) => (part.keep ? <span class="keep-term">{part.text}</span> : part.text))}
