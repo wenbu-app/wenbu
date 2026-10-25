@@ -30,3 +30,7 @@ Live validation exposed a whole-array size gate that rejected two model response
 The private checkpoint retains a superset until the atomic D1 admission commits. A failed transaction leaves candidates recoverable. A cleanup outage can conservatively repeat criticism, but existing topic IDs prevent duplicate admissions. Complete decisions remain in per-run R2 archives; D1 receives a bounded projection. Zero admissions produce an `unfilled` receipt.
 
 Regression coverage includes 28/26-item responses, invalid and duplicate neighbors, legacy archive recovery, bounded critic batches, reserve overflow, later pending-pool reuse, admission rollback without candidate loss, and a rejected proposal repaired under its original stable ID. Existing quality gates and publication history remain enforced.
+
+The latest planning rejection/correction summary is included in the next pass alongside search, research, weekly and growth observations. This avoids forgetting adversarial feedback across six-hour replenishments. Its bounded projection also supports legacy receipts; full candidate decisions remain archived. No policy/cooldown/budget is reset for this continuity change.
+
+The continuity follow-up also attempted a short read-only Grok CLI review; it produced no output within 65 seconds. This is an unavailable review, not an approval. Resolved rejection IDs are omitted from future feedback while their earlier review history remains retained.

@@ -8,6 +8,7 @@ import {
   candidateSchema,
   parseCommissioningProposals,
   commissioningBatch,
+  commissioningFeedback,
   type CommissioningCandidate,
   commissioningReviewSchema,
   comparisonPartners,
@@ -660,7 +661,7 @@ async function commissionTopics(env: Env, runId: string, leaseOwner: string) {
   const observations = (
     await db
       .prepare(
-        "SELECT kind,checked_at,evidence_json FROM editorial_observations AS o WHERE kind IN ('topic_research','search_console','weekly_review','growth_review') AND checked_at=(SELECT MAX(checked_at) FROM editorial_observations WHERE kind=o.kind) ORDER BY checked_at DESC LIMIT 8",
+        "SELECT kind,checked_at,evidence_json FROM editorial_observations AS o WHERE kind IN ('topic_research','search_console','weekly_review','growth_review','topic_planning') AND checked_at=(SELECT MAX(checked_at) FROM editorial_observations WHERE kind=o.kind) ORDER BY checked_at DESC LIMIT 8",
       )
       .all<{ kind: string; checked_at: number; evidence_json: string }>()
   ).results.map((row) => {
@@ -697,7 +698,8 @@ async function commissionTopics(env: Env, runId: string, leaseOwner: string) {
                 };
               })()
             : undefined,
-        rejectedCandidates: evidence.rejectedCandidates,
+        rejectedCandidates:
+          row.kind === 'topic_planning' ? commissioningFeedback(evidence) : evidence.rejectedCandidates,
         sourceUrls: evidence.sourceUrls,
       }).slice(0, 6000),
     };
@@ -904,6 +906,13 @@ async function commissionTopics(env: Env, runId: string, leaseOwner: string) {
     accepted,
     reviews: allReviews,
     rejections,
+    rejectedCandidates: rejections
+      .filter((r) => !accepted.some((t) => t.id === r.id))
+      .map((r) => ({
+        ...r,
+        task: retained.find((t) => t.id === r.id)?.task,
+        correction: allReviews.find((review) => review.id === r.id)?.reason,
+      })),
     invalid,
     reviewDefects,
     readyAfter: active + accepted.length,
@@ -919,6 +928,7 @@ async function commissionTopics(env: Env, runId: string, leaseOwner: string) {
     ...fullEvidence,
     decisionArchive,
     deferredArchive,
+    rejectedCandidates: commissioningFeedback(fullEvidence),
     accepted: accepted.map((t) => ({ id: t.id, task: t.task.slice(0, 300), unique: t.unique.slice(0, 300) })),
     reviews: allReviews.map((r) => ({ id: r.id, decision: r.decision, reason: r.reason.slice(0, 300) })),
     invalid: invalid.slice(0, 48).map((r) => ({ id: r.id, reason: r.reason.slice(0, 300) })),

@@ -3,6 +3,7 @@ import {
   candidateSchema,
   parseCommissioningProposals,
   commissioningBatch,
+  commissioningFeedback,
   COMMISSIONING_POLICY,
   commissioningCoolingDown,
   storedCommissioningPolicy,
@@ -46,6 +47,49 @@ const review = (overrides: Partial<CommissioningReview> = {}): CommissioningRevi
 });
 
 describe('editorial canonical commissioning', () => {
+  it('carries real rejection corrections into the next planning pass, including legacy receipts', () => {
+    const evidence = {
+      rejections: [
+        null,
+        {
+          id: 'rejected-topic',
+          reason: 'existing_intent_or_insufficient_novelty',
+          owner: 'learn/read-ai-with-sources',
+        },
+      ],
+      reviews: [
+        {
+          id: 'rejected-topic',
+          reason:
+            'The existing page already includes this exact passage-to-claim example; find a different unresolved task.',
+        },
+      ],
+    };
+    const feedback = commissioningFeedback(evidence);
+    expect(feedback).toHaveLength(1);
+    expect(feedback[0].correction).toContain('already includes this exact');
+    expect(feedback[0].owner).toBe('learn/read-ai-with-sources');
+    expect(commissioningFeedback({ ...evidence, accepted: [{ id: 'rejected-topic' }] })).toEqual([]);
+    expect(
+      commissioningFeedback({
+        rejectedCandidates: [{ ...feedback[0], task: 'An actual retained reader task.' }],
+      })[0].task,
+    ).toBe('An actual retained reader task.');
+    expect(commissioningFeedback({ rejections: [null, 'bad', { id: 'no-reason' }] })).toEqual([]);
+  });
+  it('bounds rejection feedback without relabelling a rejection as an accepted task', () => {
+    const row = {
+      id: 'x'.repeat(100),
+      owner: 'x'.repeat(200),
+      reason: 'x'.repeat(900),
+      task: 'x'.repeat(800),
+      correction: 'x'.repeat(900),
+    };
+    const feedback = commissioningFeedback({ rejectedCandidates: Array.from({ length: 30 }, () => row) });
+    expect(feedback).toHaveLength(8);
+    expect(JSON.stringify(feedback).length).toBeLessThan(5500);
+    expect(feedback[0]).not.toHaveProperty('accepted');
+  });
   it.each([28, 26])('retains every valid proposal when the model returns %i items', (count) => {
     const topics = Array.from({ length: count }, (_, i) => candidate({ id: `candidate-${i}` }));
     const parsed = parseCommissioningProposals({ topics });

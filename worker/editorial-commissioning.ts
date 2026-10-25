@@ -116,6 +116,40 @@ export function commissioningBatch(candidates: CommissioningCandidate[]) {
   };
 }
 
+export function commissioningFeedback(evidence: Record<string, unknown>) {
+  const rows = Array.isArray(evidence.rejectedCandidates)
+    ? evidence.rejectedCandidates
+    : Array.isArray(evidence.rejections)
+      ? evidence.rejections
+      : [];
+  const reviews = Array.isArray(evidence.reviews) ? evidence.reviews : [];
+  const accepted = Array.isArray(evidence.accepted) ? evidence.accepted : [];
+  return rows
+    .flatMap((row) => {
+      if (
+        !row ||
+        typeof row !== 'object' ||
+        typeof row.id !== 'string' ||
+        typeof row.reason !== 'string' ||
+        accepted.some((t) => t && typeof t === 'object' && t.id === row.id)
+      )
+        return [];
+      const review = reviews.find((r) => r && typeof r === 'object' && r.id === row.id);
+      const clip = (value: unknown, size: number) =>
+        typeof value === 'string' ? value.slice(0, size) : undefined;
+      return [
+        {
+          id: row.id.slice(0, 66),
+          owner: clip(row.owner, 96),
+          reason: row.reason.slice(0, 120),
+          task: clip(row.task, 120),
+          correction: clip(row.correction ?? review?.reason, 160),
+        },
+      ];
+    })
+    .slice(0, 8);
+}
+
 export const commissioningReviewSchema = z
   .object({
     reviews: z
