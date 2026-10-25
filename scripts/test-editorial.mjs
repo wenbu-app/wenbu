@@ -55,7 +55,8 @@ const planningCandidates = [
     sources: ['wenbu', 'iztro'],
   },
 ];
-let repairPlanning = false,
+let planningFeedbackSeen = false,
+  repairPlanning = false,
   remainingReviewFailures = 0,
   draftMarker = '',
   failReview = false,
@@ -127,6 +128,14 @@ const mf = new Miniflare({
             review = input.messages[0].content.startsWith('You are a strict');
           if (input.messages[0].content.includes('Wenbu managing editor')) {
             const packet = JSON.parse(input.messages[1].content);
+            if (
+              packet.observedSignals.some(
+                (signal) =>
+                  signal.kind === 'topic_planning' &&
+                  signal.summary.includes('A separate serialization audit'),
+              )
+            )
+              planningFeedbackSeen = true;
             assert.ok(
               packet.canonicalOwners.some((o) => o.path === 'learn/bazi-basics' && o.coverage.length > 100),
             );
@@ -584,6 +593,10 @@ try {
     'failed commissioning audit rolls back the topic admission and retains a blocked run',
     fault.status === 'blocked' &&
       !(await db.prepare("SELECT id FROM editorial_topics WHERE id='synthetic-fault-topic'").first()),
+  );
+  check(
+    'a subsequent native planning pass receives prior adversarial rejection feedback',
+    planningFeedbackSeen,
   );
   await db.exec('DROP TRIGGER fail_commissioning_commit;');
   const afterFaultCalls = calls;
