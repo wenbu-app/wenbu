@@ -79,7 +79,7 @@
     { "name": "wenbu-indexnow", "binding": "INDEXNOW_WORKFLOW", "class_name": "IndexNowWorkflow" },
   ],
   "triggers": {
-    "crons": ["15 * * * *", "*/15 * * * *", "30 14 * * *", "0 1,7,13 * * *", "30 23 * * *", "30 2 * * SUN"],
+    "crons": ["15 * * * *", "*/15 * * * *", "30 14 * * *", "0 1,7,13 * * *", "30 23 * * *", "30 22 * * *"],
   },
   "observability": {
     "enabled": true,

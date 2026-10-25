@@ -2,6 +2,9 @@ import { editorialSources, type EditorialTopic } from '../src/data/editorial-top
 import { stripDocumentHtml } from './agent-library';
 import { contentHash, type ResearchSource } from './editorial-schema';
 import type { Env } from './types';
+import { editorialResponse } from './editorial-render';
+import { comparisonPartners } from './editorial-commissioning';
+import { pathForTopic } from './editorial-schema';
 
 async function boundedText(response: Response, max = 2_000_000) {
   const reader = response.body?.getReader();
@@ -47,37 +50,35 @@ async function fetchOfficial(request: Request) {
   }
   throw new Error('source_redirect_limit');
 }
-export async function researchEditorial(env: Env, topic: EditorialTopic): Promise<ResearchSource[]> {
-  const sources: ResearchSource[] = [];
-  if (topic.mode === 'extend') {
-    for (const locale of ['zh', 'en']) {
-      const url = `${env.SITE_URL}/${topic.category === 'learn' ? 'knowledge/' + locale + '/' + topic.slug + '.md' : (locale === 'en' ? 'en/' : '') + 'compare/' + topic.slug + '/'}`;
-      const response = await env.ASSETS.fetch(new Request(url));
-      if (!response.ok) throw new Error('original_article_unavailable');
-      const raw = await boundedText(response),
-        content = stripDocumentHtml(raw);
-      sources.push({
-        id: 'current-' + locale,
-        title: `Current ${locale} canonical article — preserve it and add a distinct useful exercise`,
-        url,
-        role: 'Existing article, not a new external source. Avoid repeating its explanation.',
-        fetchedAt: new Date().toISOString(),
-        hash: await contentHash(raw),
-        excerpt: content.slice(0, 18000),
-        truncated: content.length > 18000,
-      });
-    }
-  }
-  // Product comparisons must also see the current daily practice, beyond engine/API documentation.
-  for (const id of new Set([
-    ...topic.sources,
-    ...(topic.category === 'compare' ? ['daily'] : []),
-    ...(topic.category === 'compare' || topic.tool === 'agent' ? ['capabilities'] : []),
-  ])) {
-    const source = editorialSources[id];
-    if (!source) throw new Error('unapproved_source');
-    const url = new URL(source.url),
-      own = url.origin === env.SITE_URL;
+async function ownSource(env: Env, request: Request) {
+  return (await editorialResponse(request, env)) ?? env.ASSETS.fetch(request);
+}
+async function sourceHealth(
+  env: Env,
+  id: string,
+  status: string,
+  characters: number,
+  error: string | null = null,
+) {
+  await env
+    .ANALYTICS!.prepare(
+      `INSERT INTO editorial_source_health(id,url,checked_at,status,error_code,characters)
+    VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET url=excluded.url,checked_at=excluded.checked_at,
+    status=excluded.status,error_code=excluded.error_code,characters=excluded.characters`,
+    )
+    .bind(id, editorialSources[id].url, Date.now(), status, error, characters)
+    .run();
+}
+export async function readApprovedEditorialSource(
+  env: Env,
+  id: string,
+  terms: string[] = [],
+): Promise<ResearchSource | null> {
+  const source = editorialSources[id];
+  if (!source) throw new Error('unapproved_source');
+  const url = new URL(source.url),
+    own = url.origin === env.SITE_URL;
+  try {
     const request = new Request(url, {
       redirect: 'manual',
       signal: AbortSignal.timeout(20_000),
@@ -86,50 +87,113 @@ export async function researchEditorial(env: Env, topic: EditorialTopic): Promis
         Accept: 'text/html,text/markdown,text/plain',
       },
     });
-    try {
-      const response = own ? await env.ASSETS.fetch(request) : await fetchOfficial(request);
-      if (!response.ok) {
-        await response.body?.cancel();
-        continue;
-      }
-      const raw = await boundedText(response),
-        text = /html/i.test(response.headers.get('Content-Type') ?? '') ? stripDocumentHtml(raw) : raw;
-      if (
-        !own &&
+    const response = own ? await ownSource(env, request) : await fetchOfficial(request);
+    if (!response.ok) {
+      await response.body?.cancel();
+      await sourceHealth(env, id, 'unavailable', 0, `http_${response.status}`);
+      return null;
+    }
+    const raw = await boundedText(response);
+    const text = /html/i.test(response.headers.get('Content-Type') ?? '') ? stripDocumentHtml(raw) : raw;
+    if (
+      (!own &&
         /ignore (?:all |any |the )?(?:previous|prior|system) (?:instructions|prompts)|(?:system|developer) prompt|return.{0,50}(?:factual|bilingual).{0,20}true|you are (?:chatgpt|a language model)/i.test(
           text,
-        )
+        )) ||
+      text.length < 150 ||
+      /just a moment|verify you are human|access denied/i.test(text.slice(0, 400))
+    ) {
+      await sourceHealth(env, id, 'unavailable', text.length, 'unusable_source_text');
+      return null;
+    }
+    const limit = own ? 18000 : 6500;
+    let excerpt = text.slice(0, limit);
+    if (text.length > limit && terms.length) {
+      const needle = terms.find((term) => text.toLowerCase().indexOf(term, limit) > 0);
+      const offset = needle ? text.toLowerCase().indexOf(needle, limit) : -1;
+      if (offset > 0)
+        excerpt =
+          text.slice(0, Math.floor(limit / 2)) +
+          '\n[Excerpt gap]\n' +
+          text.slice(Math.max(0, offset - 300), offset + Math.floor(limit / 2));
+    }
+    await sourceHealth(env, id, 'available', text.length);
+    return {
+      id,
+      ...source,
+      fetchedAt: new Date().toISOString(),
+      hash: await contentHash(raw),
+      excerpt,
+      truncated: text.length > excerpt.length,
+    };
+  } catch (error) {
+    await sourceHealth(
+      env,
+      id,
+      'unavailable',
+      0,
+      error instanceof Error && /^[a-z_]{1,70}$/.test(error.message) ? error.message : 'source_transport',
+    );
+    return null;
+  }
+}
+export async function refreshEditorialSources(env: Env) {
+  const rows = (
+    await env
+      .ANALYTICS!.prepare('SELECT id,checked_at FROM editorial_source_health')
+      .all<{ id: string; checked_at: number }>()
+  ).results;
+  const ids = Object.keys(editorialSources).filter(
+    (id) => !rows.some((row) => row.id === id && row.checked_at > Date.now() - 6 * 3600_000),
+  );
+  for (let i = 0; i < ids.length; i += 5)
+    await Promise.all(ids.slice(i, i + 5).map((id) => readApprovedEditorialSource(env, id)));
+  return (
+    await env
+      .ANALYTICS!.prepare(
+        'SELECT id,url,checked_at,status,error_code,characters FROM editorial_source_health',
       )
-        continue;
-      if (text.length < 150 || /just a moment|verify you are human|access denied/i.test(text.slice(0, 400)))
-        continue;
-      const limit = own ? 14_000 : 6500;
-      // Preserve the opening and relevant later passages, rather than treating an excerpt as a full read.
-      const terms = topic.en.toLowerCase().match(/[a-z]{5,}/g) ?? [];
-      let excerpt = text.slice(0, limit);
-      if (text.length > limit && terms.length) {
-        const needle = terms.find((term) => text.toLowerCase().indexOf(term, limit) > 0);
-        const offset = needle ? text.toLowerCase().indexOf(needle, limit) : -1;
-        if (offset > 0)
-          excerpt =
-            text.slice(0, Math.floor(limit / 2)) +
-            '\n[Excerpt gap]\n' +
-            text.slice(Math.max(0, offset - 300), offset + Math.floor(limit / 2));
-      }
+      .all()
+  ).results;
+}
+export async function researchEditorial(env: Env, topic: EditorialTopic): Promise<ResearchSource[]> {
+  const sources: ResearchSource[] = [];
+  if (topic.mode === 'extend') {
+    for (const locale of ['zh', 'en']) {
+      const slug = `${topic.category === 'compare' ? 'compare-' : ''}${topic.slug}`;
+      const url = `${env.SITE_URL}/knowledge/${locale}/${slug}.md`;
+      const response = await ownSource(env, new Request(url));
+      if (!response.ok) throw new Error('original_article_unavailable');
+      const raw = await boundedText(response),
+        content = stripDocumentHtml(raw);
       sources.push({
-        id,
-        ...source,
+        id: 'current-' + locale,
+        title: `Current complete ${locale} canonical article`,
+        url,
+        role: 'Current public original and earlier additions; add substantial coverage without repeating or replacing them.',
         fetchedAt: new Date().toISOString(),
         hash: await contentHash(raw),
-        excerpt,
-        truncated: text.length > excerpt.length,
+        excerpt: content.slice(0, 30000),
+        truncated: content.length > 30000,
       });
-    } catch {
-      /* An unavailable source is excluded, never represented as read. */
     }
   }
-  if (sources.length < 2) throw new Error('insufficient_read_sources');
-  if (topic.category === 'compare' && !sources.some((s) => new URL(s.url).origin !== env.SITE_URL))
+  const ids = [
+    ...new Set([
+      ...topic.sources,
+      ...(topic.category === 'compare' ? ['daily'] : []),
+      ...(topic.category === 'compare' || topic.tool === 'agent' ? ['capabilities'] : []),
+    ]),
+  ];
+  const terms = topic.en.toLowerCase().match(/[a-z]{5,}/g) ?? [];
+  const read = await Promise.all(ids.map((id) => readApprovedEditorialSource(env, id, terms)));
+  sources.push(...read.filter((s): s is ResearchSource => s !== null));
+  // Existing zh/en copies do not masquerade as two newly read supporting sources.
+  if (read.filter(Boolean).length < 2) throw new Error('insufficient_read_sources');
+  if (
+    topic.category === 'compare' &&
+    !sources.some((s) => comparisonPartners[s.id]?.owner === pathForTopic(topic))
+  )
     throw new Error('vendor_source_unavailable');
   return sources;
 }

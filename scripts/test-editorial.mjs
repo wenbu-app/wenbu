@@ -55,7 +55,9 @@ const planningCandidates = [
     sources: ['wenbu', 'iztro'],
   },
 ];
-let failReview = false,
+let remainingReviewFailures = 0,
+  draftMarker = '',
+  failReview = false,
   malformedNext = false,
   syntaxRepairSeen = false,
   indexnowCalls = 0,
@@ -143,7 +145,7 @@ const mf = new Miniflare({
               ],
             });
           }
-          if (input.messages[0].content.includes('critical canonical-ownership editor')) {
+          if (input.messages[0].content.includes('adversarial demand and canonical-ownership editor')) {
             return Response.json({
               choices: [
                 {
@@ -201,6 +203,12 @@ const mf = new Miniflare({
             });
           }
           const draft = fixtureDraft();
+          if (!review && draftMarker) {
+            draft.zh.sections[0].paragraphs[0] += ' 测试标记：' + draftMarker;
+            draft.en.sections[0].paragraphs[0] += ' Synthetic revision marker: ' + draftMarker;
+          }
+          const rejectThisReview = review && (failReview || remainingReviewFailures > 0);
+          if (review && remainingReviewFailures > 0) remainingReviewFailures--;
           if (review)
             assert.ok(
               JSON.parse(input.messages[1].content).canonicalOwners.some(
@@ -234,12 +242,14 @@ const mf = new Miniflare({
                   content: JSON.stringify(
                     review
                       ? {
-                          factual: !failReview,
+                          factual: !rejectThisReview,
                           bilingual: true,
                           useful: true,
                           original: true,
                           natural: true,
-                          issues: failReview ? ['Unverified example'] : [],
+                          issues: rejectThisReview
+                            ? ['Unverified example; repair its scope using the cited source.']
+                            : [],
                         }
                       : draft,
                   ),
@@ -380,7 +390,7 @@ try {
     await new Promise((r) => setTimeout(r, 200));
   }
   check(
-    'failed editorial review blocks publication after one repair',
+    'failed editorial review blocks publication after all bounded repairs',
     state.runs.some((r) => r.slot === '2026-10-15-15' && r.status === 'blocked'),
   );
   check(
@@ -388,8 +398,8 @@ try {
     (await db.prepare('SELECT COUNT(*) AS n FROM editorial_publications').first()).n === 1,
   );
   check(
-    'quality failure uses four logical model stages',
-    state.runs.find((r) => r.slot === '2026-10-15-15').model_calls === 4,
+    'quality failure uses all three writing and review rounds',
+    state.runs.find((r) => r.slot === '2026-10-15-15').model_calls === 6,
   );
   failReview = false;
   malformedNext = true;
@@ -512,9 +522,9 @@ try {
   );
   check(
     'commissioning records its policy, per-candidate review and actual accepted reserve',
-    planningAudit.policyVersion === 2 &&
-      planningAudit.reviews.length === 3 &&
-      planningAudit.rejections.length === 2,
+    planningAudit.policyVersion === 3 &&
+      planningAudit.reviews.length === 6 &&
+      planningAudit.rejections.length === 5,
   );
   const callsBeforeRepeat = calls;
   const repeatedPlanning = await mf.dispatchFetch('https://wenbu.app/__test/planning').then((r) => r.json());
@@ -648,6 +658,138 @@ try {
   );
   await mf.dispatchFetch(diagnosticUrl, { method: 'POST', headers: diagnosticHeaders });
   check('native diagnostic has a deduplicated daily instance', diagnosticHeads === 1 && indexnowCalls === 1);
+  // A second independently reviewed addition must preserve the first public
+  // edition, stable citation identity, and exact old/new section anchors.
+  const originalDoc = JSON.parse(
+    (
+      await db
+        .prepare("SELECT document_json FROM editorial_publications WHERE path='learn/daily-card-reflection'")
+        .first()
+    ).document_json,
+  );
+  const followupTopic = {
+    ...originalDoc.topic,
+    id: 'synthetic-daily-followup',
+    mode: 'extend',
+    task: 'Add a distinct synthetic fixture example for cumulative publication verification.',
+    unique:
+      'A separate retained example used only in this native test; it must not replace any existing edition.',
+  };
+  await db
+    .prepare(
+      'INSERT INTO editorial_topics(id,slug,category,definition_json,priority,created_at) VALUES(?,?,?,?,?,?)',
+    )
+    .bind(
+      followupTopic.id,
+      followupTopic.slug,
+      followupTopic.category,
+      JSON.stringify(followupTopic),
+      85,
+      Date.now(),
+    )
+    .run();
+  const followupId = 'synthetic-native-followup';
+  await db
+    .prepare(
+      "INSERT INTO editorial_runs(id,slot,topic_id,status,created_at,updated_at) VALUES(?,?,?,'queued',?,?)",
+    )
+    .bind(followupId, '2026-10-16-09', followupTopic.id, Date.now(), Date.now())
+    .run();
+  remainingReviewFailures = 2;
+  draftMarker = 'CUMULATIVE-THIRD-ROUND';
+  await mf.dispatchFetch('https://wenbu.app/__test/dispatch', {
+    method: 'POST',
+    body: JSON.stringify({ time: Date.parse('2026-10-16T01:00:00Z') }),
+  });
+  let followup;
+  for (let n = 0; n < 160; n++) {
+    followup = await db
+      .prepare('SELECT status,model_calls FROM editorial_runs WHERE id=?')
+      .bind(followupId)
+      .first();
+    if (['published', 'blocked'].includes(followup.status)) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  check(
+    'third writing/review round can repair and publish instead of abandoning a valid task',
+    followup.status === 'published' && followup.model_calls === 6,
+  );
+  const cumulative = await mf
+    .dispatchFetch('https://wenbu.app/knowledge/en/daily-card-reflection.json')
+    .then((r) => r.json());
+  check(
+    'cumulative update preserves the complete original edition and stable public identity',
+    cumulative.id === 'editorial-' + originalDoc.topic.id &&
+      cumulative.previousAdditions.length === 1 &&
+      cumulative.content.includes('CUMULATIVE-THIRD-ROUND') &&
+      cumulative.content.includes(originalDoc.en.answer),
+  );
+  const fullHtml = await mf
+    .dispatchFetch('https://wenbu.app/learn/daily-card-reflection/')
+    .then((r) => r.text());
+  check(
+    'retained and latest sections have separate exact anchors',
+    fullHtml.includes('id="editorial-history-0-section-0"') && fullHtml.includes('id="editorial-section-0"'),
+  );
+  check(
+    'the attempted update is consumed without rewriting the original task identity',
+    (await db.prepare('SELECT status FROM editorial_topics WHERE id=?').bind(followupTopic.id).first())
+      .status === 'published',
+  );
+  const retainedAnchor = `editorial-${originalDoc.revision.slice(0, 24)}-section-0`;
+  const retainedSection = await mf
+    .dispatchFetch('https://wenbu.app/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        'X-Wenbu-Test': 'true',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 91,
+        method: 'tools/call',
+        params: {
+          name: 'read_library',
+          arguments: { id: cumulative.id, locale: 'en', section: retainedAnchor },
+        },
+      }),
+    })
+    .then((r) => r.json());
+  assert.ok(retainedSection.result?.structuredContent, JSON.stringify(retainedSection));
+  check(
+    'an earlier revision section remains readable by its pinned MCP citation after an update',
+    fullHtml.includes(`id="${retainedAnchor}"`) &&
+      retainedSection.result.structuredContent.content.includes(originalDoc.en.sections[0].paragraphs[0]) &&
+      !retainedSection.result.structuredContent.content.includes('CUMULATIVE-THIRD-ROUND'),
+  );
+  const currentPublications = (await db.prepare('SELECT COUNT(*) AS n FROM editorial_publications').first())
+    .n;
+  const replayDispatch = await mf
+    .dispatchFetch('https://wenbu.app/__test/dispatch', {
+      method: 'POST',
+      body: JSON.stringify({ time: Date.parse('2026-10-16T01:00:00Z') }),
+    })
+    .then((r) => r.json());
+  check(
+    'completed slot is not republished by a subsequent reconciliation',
+    replayDispatch.status === 'no_due_slot' &&
+      (await db.prepare('SELECT COUNT(*) AS n FROM editorial_publications').first()).n ===
+        currentPublications,
+  );
+  await db.prepare('UPDATE editorial_daily_budgets SET model_calls=119,planning_calls=0').run();
+  const reservations = await Promise.all(
+    [1, 2].map(() => mf.dispatchFetch('https://wenbu.app/__test/budget', { method: 'POST' })),
+  );
+  check(
+    'native concurrent model reservations cannot exceed the daily cap',
+    reservations
+      .map((r) => r.status)
+      .sort()
+      .join(',') === '200,409' &&
+      (await db.prepare('SELECT model_calls FROM editorial_daily_budgets ORDER BY day DESC LIMIT 1').first())
+        .model_calls === 120,
+  );
   console.log(
     JSON.stringify({
       passed: true,

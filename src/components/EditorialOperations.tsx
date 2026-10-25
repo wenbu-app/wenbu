@@ -13,6 +13,29 @@ type Status = {
     published_urls_json: string | null;
   }[];
   observations: { id: string; kind: string; status: string; checked_at: number }[];
+  production?: {
+    days: {
+      day: string;
+      target: number;
+      due: number;
+      published: number;
+      missed: number | null;
+      attempts: number;
+    }[];
+    readyTasks: number;
+    viableReadyTasks: number;
+    reserveTarget: number;
+    keywordCoverage: {
+      pillar: string;
+      readyTasks: number;
+      publishedOwners: number;
+      zh: string[];
+      en: string[];
+    }[];
+    failureCounts: Record<string, number>;
+  };
+  productionPolicy?: { reviewRounds: number; attemptsPerSlot: number; modelCallsPerDay: number };
+  modelBudgets?: { day: string; model_calls: number; planning_calls: number }[];
   state: { last_content_at: number | null; last_health_at: number | null };
 };
 export default function EditorialOperations({ token }: { token: string }) {
@@ -72,6 +95,69 @@ export default function EditorialOperations({ token }: { token: string }) {
             <span>每天 3 个双语主题 / 3 bilingual topics per day</span>
             <span>待生产 / Ready: {data.topics.find((t) => t.status === 'ready')?.total ?? 0}</span>
           </div>
+          {data.production && (
+            <div style={{ margin: '24px 0' }}>
+              <h3>产量与覆盖 / Delivery and coverage</h3>
+              <p style={{ fontSize: 13, lineHeight: 1.9 }}>
+                今日发布 / Published today: <strong>{data.production.days.at(-1)?.published} / 3</strong>
+                {' · '}已到期 / Due: {data.production.days.at(-1)?.due}
+                {' · '}来源可用的待写任务 / Source-viable tasks: {data.production.viableReadyTasks} /{' '}
+                {data.production.reserveTarget}
+                {' · '}模型请求 / Model requests:{' '}
+                {data.modelBudgets?.find((b) => b.day === data.production?.days.at(-1)?.day)?.model_calls ??
+                  '—'}{' '}
+                / {data.productionPolicy?.modelCallsPerDay ?? '—'}
+              </p>
+              <div
+                className="editorial-table"
+                tabIndex={0}
+                role="region"
+                aria-label="每日内容交付 / Daily content delivery"
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th>日期 / Day</th>
+                      <th>发布 / Published</th>
+                      <th>到期 / Due</th>
+                      <th>尝试 / Attempts</th>
+                      <th>未交付 / Missed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.production.days.slice(-7).map((d) => (
+                      <tr key={d.day}>
+                        <td>{d.day}</td>
+                        <td>
+                          {d.published} / {d.target}
+                        </td>
+                        <td>{d.due}</td>
+                        <td>{d.attempts}</td>
+                        <td>{d.missed ?? '今日尚未结束 / In progress'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <details style={{ marginTop: 18 }}>
+                <summary>关键词方向与储备 / Keyword lanes and reserve</summary>
+                <p style={{ fontSize: 12 }}>
+                  下列为编辑任务与研究假设，不代表搜索量或排名。/ Editorial coverage is not search volume or
+                  ranking.
+                </p>
+                {data.production.keywordCoverage.map((lane) => (
+                  <p key={lane.pillar} style={{ fontSize: 13, lineHeight: 1.9 }}>
+                    <strong>{lane.pillar}</strong> · {lane.readyTasks} 待写 / ready · {lane.publishedOwners}{' '}
+                    已发布主页面 / published owners
+                    <br />
+                    {lane.zh.join(' · ')}
+                    <br />
+                    {lane.en.join(' · ')}
+                  </p>
+                ))}
+              </details>
+            </div>
+          )}
           <div
             className="editorial-table"
             tabIndex={0}
@@ -115,8 +201,9 @@ export default function EditorialOperations({ token }: { token: string }) {
             </table>
           </div>
           <p style={{ fontSize: 12, color: '#6b7464' }}>
-            质检未通过会顺延。提交回执不等于收录；爬虫访问不等于 AI 引用。/ Failed quality checks defer
-            publication. Submission is not indexing; a crawl is not an AI citation.
+            失败后自动修补或换题补位，达到预算上限则记录缺口。提交回执不等于收录；爬虫访问不等于 AI 引用。/
+            Failed drafts are repaired or replaced within the request budget. Submission is not indexing; a
+            crawl is not an AI citation.
           </p>
           <ul>
             {data.observations.slice(0, 6).map((o) => (

@@ -194,7 +194,7 @@ describe('editorial review regressions', () => {
       'ready',
     );
   });
-  it('retries a failed slot once with a new immutable attempt and preserves its failure', async () => {
+  it('continues a failed slot with bounded immutable attempts and preserves every failure', async () => {
     const { env, sql } = database();
     env.EDITORIAL_ENABLED = 'true';
     env.EDITORIAL_WORKFLOW = { createBatch: vi.fn().mockResolvedValue([]) } as unknown as NonNullable<
@@ -203,11 +203,15 @@ describe('editorial review regressions', () => {
     const time = Date.parse('2026-10-16T01:00:00Z');
     await dispatchEditorial(env, time);
     await failEditorial(env, 'editorial-2026-10-16-09', 'source_unavailable');
+    expect((await dispatchEditorial(env, time)).status).toBe('no_due_slot');
+    sql.prepare('UPDATE editorial_runs SET updated_at=?').run(Date.now() - 16 * 60000);
     const retry = await dispatchEditorial(env, time);
     expect(retry.id).toBe('editorial-2026-10-16-09-retry-1');
     expect(sql.prepare('SELECT COUNT(*) AS n FROM editorial_runs').get()?.n).toBe(2);
     await failEditorial(env, retry.id!, 'source_unavailable');
     expect((await dispatchEditorial(env, time)).status).toBe('no_due_slot');
+    sql.prepare('UPDATE editorial_runs SET updated_at=?').run(Date.now() - 16 * 60000);
+    expect((await dispatchEditorial(env, time)).id).toBe('editorial-2026-10-16-09-retry-2');
   });
   it('explicitly disables provider thinking and archives a truncated response before rejecting it', async () => {
     const { env } = database();
@@ -393,8 +397,10 @@ describe('editorial review regressions', () => {
     sql
       .prepare('INSERT INTO editorial_runs(id,slot,status,created_at,updated_at) VALUES(?,?,?,?,?)')
       .run(id, slot, 'reviewing', Date.now() - 31 * 60000, Date.now() - 31 * 60000);
-    expect((await dispatchEditorial(env, Date.parse('2026-10-16T01:00:00Z'))).id).toBe(id + '-retry-1');
+    expect((await dispatchEditorial(env, Date.parse('2026-10-16T01:00:00Z'))).status).toBe('no_due_slot');
     expect(sql.prepare('SELECT status FROM editorial_runs WHERE id=?').get(id)?.status).toBe('blocked');
+    sql.prepare('UPDATE editorial_runs SET updated_at=? WHERE id=?').run(Date.now() - 16 * 60000, id);
+    expect((await dispatchEditorial(env, Date.parse('2026-10-16T01:00:00Z'))).id).toBe(id + '-retry-1');
   });
   it('reads both canonical language editions before extending a guide', async () => {
     const { env } = database();

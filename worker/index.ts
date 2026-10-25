@@ -41,6 +41,8 @@ import { editorialResponse } from './editorial-render';
 import { editorialDiscovery } from './editorial-discovery';
 import {
   dispatchEditorial,
+  dispatchEditorialCycle,
+  dispatchTopicPlanning,
   recoverEditorial,
   reviseEditorial,
   EDITORIAL_CRON,
@@ -226,6 +228,10 @@ export default {
           if (path === '/api/admin/editorial/run') {
             await seedEditorial(env);
             return json(await dispatchEditorial(env));
+          }
+          if (path === '/api/admin/editorial/plan') {
+            if (!env.EDITORIAL_WORKFLOW) return json({ error: { code: 'editorial_unavailable' } }, 503);
+            return json(await dispatchTopicPlanning(env));
           }
           if (path === '/api/admin/editorial/recover') {
             const recovery = z
@@ -489,7 +495,7 @@ export default {
     }
     if (event.cron === INDEXNOW_CRON) ctx.waitUntil(dispatchScheduledIndexNow(event, env));
     if ([EDITORIAL_CRON, EDITORIAL_RECONCILE_CRON].includes(event.cron))
-      ctx.waitUntil(dispatchEditorial(env, event.scheduledTime));
+      ctx.waitUntil(dispatchEditorialCycle(env, event.scheduledTime));
     if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_HEALTH_CRON)
       ctx.waitUntil(
         env.EDITORIAL_WORKFLOW.createBatch([
@@ -500,14 +506,6 @@ export default {
         ]),
       );
     if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_PLANNING_CRON)
-      ctx.waitUntil(
-        env.EDITORIAL_WORKFLOW.createBatch([
-          {
-            id:
-              'editorial-planning-' + new Date(event.scheduledTime + 8 * 3600_000).toISOString().slice(0, 10),
-            params: { kind: 'planning' },
-          },
-        ]),
-      );
+      ctx.waitUntil(dispatchTopicPlanning(env, event.scheduledTime));
   },
 } satisfies ExportedHandler<Env>;

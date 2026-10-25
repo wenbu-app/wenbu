@@ -3,6 +3,9 @@ import { contentHash, pathForTopic, type EditorialDocument } from './editorial-s
 import type { Env } from './types';
 import { searchQueueStatements } from './search-console-queue';
 import { registerEditorialPaths } from '../src/lib/analytics-contract';
+import { EDITORIAL_POLICY } from './editorial-policy';
+import { sourceViable } from './editorial-commissioning';
+import { editorialGrowthStatus } from './editorial-growth';
 
 export async function seedEditorial(env: Env) {
   if (!env.ANALYTICS) throw new Error('editorial_database_unavailable');
@@ -42,8 +45,10 @@ export async function claimEditorial(env: Env, runId: string, slot: string) {
   }
   const recent = (
     await db
-      .prepare('SELECT path FROM editorial_publications ORDER BY updated_at DESC LIMIT 2')
-      .all<{ path: string }>()
+      .prepare(
+        'SELECT path,document_json,updated_at FROM editorial_publications ORDER BY updated_at DESC LIMIT 20',
+      )
+      .all<{ path: string; document_json: string; updated_at: number }>()
   ).results;
   const rows = (
     await db
@@ -53,13 +58,40 @@ export async function claimEditorial(env: Env, runId: string, slot: string) {
       .bind(now - 28 * 86400_000, now - 86400_000)
       .all<{ id: string; definition_json: string }>()
   ).results;
-  const candidates = rows.map((r) => JSON.parse(r.definition_json) as EditorialTopic);
+  const health = (
+    await db
+      .prepare('SELECT id,status,checked_at FROM editorial_source_health')
+      .all<{ id: string; status: string; checked_at: number }>()
+  ).results;
+  const unavailable = new Set(
+    health.filter((h) => h.status !== 'available' && h.checked_at > now - 86400_000).map((h) => h.id),
+  );
+  const candidates = rows
+    .map((r) => JSON.parse(r.definition_json) as EditorialTopic)
+    .filter(
+      (t) =>
+        sourceViable(t, unavailable) &&
+        !recent.some(
+          (p) => p.path === pathForTopic(t) && p.updated_at > now - EDITORIAL_POLICY.ownerRefreshMs,
+        ),
+    )
+    .sort((a, b) => {
+      const penalty = (t: EditorialTopic) =>
+        recent
+          .slice(0, 3)
+          .reduce(
+            (n, p, i) =>
+              n + ((JSON.parse(p.document_json) as EditorialDocument).topic.tool === t.tool ? 20 - i * 5 : 0),
+            0,
+          );
+      return b.priority - penalty(b) - (a.priority - penalty(a));
+    });
   const chosen =
     candidates.find(
       (t) =>
         !(
-          recent.length === 2 &&
-          recent.every((r) => r.path.startsWith('compare/')) &&
+          recent.length >= 2 &&
+          recent.slice(0, 2).every((r) => r.path.startsWith('compare/')) &&
           t.category === 'compare'
         ),
     ) ?? candidates[0];
@@ -190,9 +222,9 @@ export async function publishEditorial(
       .bind(doc.revision, JSON.stringify(urls), now, runId, path, doc.revision),
     db
       .prepare(
-        "UPDATE editorial_topics SET last_published_at=?,attempts=0,quality_failures=0,status='published' WHERE id=? AND EXISTS(SELECT 1 FROM editorial_publications WHERE path=? AND revision=?)",
+        "UPDATE editorial_topics SET last_published_at=?,attempts=0,quality_failures=0,status='published' WHERE id=(SELECT topic_id FROM editorial_runs WHERE id=?) AND EXISTS(SELECT 1 FROM editorial_publications WHERE path=? AND revision=?)",
       )
-      .bind(now, doc.topic.id, path, doc.revision),
+      .bind(now, runId, path, doc.revision),
     db.prepare('UPDATE editorial_state SET last_content_at=? WHERE id=1 AND lease_owner=?').bind(now, runId),
     ...searchQueueStatements(db, urls, doc.revision, now, { path }),
   ]);
@@ -238,7 +270,7 @@ export async function observeEditorial(
 }
 export async function editorialStatus(env: Env) {
   const db = env.ANALYTICS!;
-  const [topics, runs, observations, state, commissioningRuns] = await Promise.all([
+  const [topics, runs, observations, state, commissioningRuns, sourceHealth, budgets] = await Promise.all([
     db.prepare('SELECT status,COUNT(*) AS total FROM editorial_topics GROUP BY status').all(),
     db
       .prepare(
@@ -258,6 +290,14 @@ export async function editorialStatus(env: Env) {
         'SELECT id,policy_version,status,started_at,finished_at,error_code,receipt_json FROM editorial_commissioning_runs ORDER BY started_at DESC LIMIT 10',
       )
       .all(),
+    db
+      .prepare(
+        'SELECT id,url,checked_at,status,error_code,characters FROM editorial_source_health ORDER BY status,id',
+      )
+      .all(),
+    db
+      .prepare('SELECT day,model_calls,planning_calls FROM editorial_daily_budgets ORDER BY day DESC LIMIT 7')
+      .all(),
   ]);
   return {
     enabled: env.EDITORIAL_ENABLED === 'true',
@@ -267,6 +307,10 @@ export async function editorialStatus(env: Env) {
     runs: runs.results,
     observations: observations.results,
     commissioningRuns: commissioningRuns.results,
+    productionPolicy: EDITORIAL_POLICY,
+    sourceHealth: sourceHealth.results,
+    modelBudgets: budgets.results,
+    production: await editorialGrowthStatus(env),
     state,
   };
 }
