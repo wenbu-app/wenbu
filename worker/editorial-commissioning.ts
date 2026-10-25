@@ -33,6 +33,9 @@ export const comparisonPartners: Record<string, { name: string; owner: string }>
   trusted: { name: 'Trusted Tarot', owner: 'compare/trusted-tarot' },
   sage: { name: 'Sage', owner: 'compare/sage-tarot' },
   tarotjournal: { name: 'Tarot Journal', owner: 'compare/tarot-journal' },
+  cardloom: { name: 'Cardloom', owner: 'compare/cardloom' },
+  deeporacle: { name: 'Deep Oracle', owner: 'compare/deep-oracle' },
+  tarotlearninglab: { name: 'Tarot Learning Lab', owner: 'compare/tarot-learning-lab' },
   learntarot: { name: 'Learning the Tarot', owner: 'compare/learning-the-tarot' },
 };
 

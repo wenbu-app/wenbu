@@ -143,6 +143,21 @@ export const editorialSources: Record<string, { title: string; url: string; role
     url: 'https://tarotjournal.com/',
     role: 'Vendor features; public journals are not permission to copy personal readings',
   },
+  cardloom: {
+    title: 'Cardloom · official readings and local journal',
+    url: 'https://cardloom.site/',
+    role: 'Vendor statements about browser draws, physical-deck logging, local journal export and optional AI; no account, storage or security audit',
+  },
+  deeporacle: {
+    title: 'Deep Oracle · official tarot tools and learning library',
+    url: 'https://www.deeporacle.ai/en/tarot',
+    role: 'Vendor statements about free card draws and references; distinguish tarot access from separately priced BaZi reports and do not infer undocumented journal features',
+  },
+  tarotlearninglab: {
+    title: 'Tarot Learning Lab · official readings and saved readings',
+    url: 'https://tarotlearninglab.com/readings',
+    role: 'Vendor statements about online or physical-deck readings, browser or membership saves and a partly free course; no paid membership test',
+  },
   learntarot: {
     title: 'Learning the Tarot · Joan Bunning official course',
     url: 'https://learntarot.com/',
