@@ -729,7 +729,8 @@ async function commissionTopics(env: Env, runId: string, leaseOwner: string) {
   const poolKey = 'editorial/commissioning-pending.json';
   let pending: CommissioningCandidate[] = [];
   const retained: CommissioningCandidate[] = [];
-  const known = new Set(existingTopics.map((t) => t.id));
+  const existingIds = new Set(existingTopics.map((t) => t.id));
+  const seenVersions = new Set<string>();
   const invalid: { id: string; reason: string }[] = [];
   const reviewDefects: unknown[] = [];
   let proposed = 0,
@@ -737,10 +738,21 @@ async function commissionTopics(env: Env, runId: string, leaseOwner: string) {
     feedback: unknown = null;
   const retain = (candidates: CommissioningCandidate[]) => {
     for (const candidate of candidates) {
-      if (known.has(candidate.id)) continue;
-      known.add(candidate.id);
+      const version = JSON.stringify(candidate);
+      if (
+        existingIds.has(candidate.id) ||
+        accepted.some((t) => t.id === candidate.id) ||
+        pending.some((t) => t.id === candidate.id) ||
+        seenVersions.has(version)
+      )
+        continue;
+      seenVersions.add(version);
       pending.push(candidate);
-      retained.push(candidate);
+      // A rejected proposal may be corrected under the same stable ID. Retain
+      // its latest version; the earlier response remains immutable in its archive.
+      const prior = retained.findIndex((t) => t.id === candidate.id);
+      if (prior >= 0) retained[prior] = candidate;
+      else retained.push(candidate);
     }
   };
   const checkpoint = (candidates: CommissioningCandidate[]) =>

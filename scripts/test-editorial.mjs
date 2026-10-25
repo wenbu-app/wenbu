@@ -55,7 +55,8 @@ const planningCandidates = [
     sources: ['wenbu', 'iztro'],
   },
 ];
-let remainingReviewFailures = 0,
+let repairPlanning = false,
+  remainingReviewFailures = 0,
   draftMarker = '',
   failReview = false,
   malformedNext = false,
@@ -140,7 +141,18 @@ const mf = new Miniflare({
               choices: [
                 {
                   finish_reason: 'stop',
-                  message: { content: JSON.stringify({ topics: planningCandidates }) },
+                  message: {
+                    content: JSON.stringify({
+                      topics: planningCandidates.map((t) =>
+                        repairPlanning && packet.previousFeedback
+                          ? {
+                              ...t,
+                              task: 'A corrected serialization audit with a reproducible version mismatch and resolution.',
+                            }
+                          : t,
+                      ),
+                    }),
+                  },
                 },
               ],
             });
@@ -155,7 +167,12 @@ const mf = new Miniflare({
                     content: JSON.stringify({
                       reviews: JSON.parse(input.messages[1].content).candidates.map((t) => ({
                         id: t.id,
-                        decision: t.id === 'synthetic-coin-sheet' ? 'merge' : 'new',
+                        decision:
+                          repairPlanning && !t.task.startsWith('A corrected')
+                            ? 'reject'
+                            : t.id === 'synthetic-coin-sheet'
+                              ? 'merge'
+                              : 'new',
                         closestOwner: 'learn/iching-three-coins',
                         sameReaderOutcome: t.id === 'synthetic-coin-sheet',
                         formatOnlyDifference: t.id === 'synthetic-coin-sheet',
@@ -647,6 +664,36 @@ try {
   check(
     'a later pass re-reads the retained pool and admits candidates without another proposal call',
     resumed.status === 'planned' && resumed.recovered === large.deferred && resumed.accepted > 0,
+  );
+  await db
+    .prepare('UPDATE editorial_commissioning_runs SET started_at=started_at-?')
+    .bind(7 * 86400_000)
+    .run();
+  await db.prepare("UPDATE editorial_topics SET status='published' WHERE id LIKE 'synthetic-batch-%'").run();
+  await db.prepare('UPDATE editorial_daily_budgets SET planning_calls=0').run();
+  await archive.delete('editorial/commissioning-pending.json');
+  planningCandidates.splice(0, planningCandidates.length, {
+    ...planningCandidate,
+    id: 'synthetic-repair-topic',
+    slug: 'synthetic-repair-topic',
+  });
+  repairPlanning = true;
+  const repairedPlan = await mf
+    .dispatchFetch('https://wenbu.app/__test/planning', {
+      method: 'POST',
+      body: JSON.stringify({ id: 'synthetic-repaired-planning' }),
+    })
+    .then((r) => r.json());
+  repairPlanning = false;
+  check(
+    'adversarial feedback can repair a rejected proposal under its same stable ID',
+    repairedPlan.accepted === 1 &&
+      repairedPlan.reviewed === 2 &&
+      (
+        await db
+          .prepare("SELECT definition_json FROM editorial_topics WHERE id='synthetic-repair-topic'")
+          .first()
+      ).definition_json.includes('A corrected serialization audit'),
   );
   const health = await mf.dispatchFetch('https://wenbu.app/__test/health').then((r) => r.json());
   check(
