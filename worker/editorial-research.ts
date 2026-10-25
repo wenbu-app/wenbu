@@ -3,7 +3,7 @@ import { stripDocumentHtml } from './agent-library';
 import { contentHash, type ResearchSource } from './editorial-schema';
 import type { Env } from './types';
 import { editorialResponse } from './editorial-render';
-import { comparisonPartners } from './editorial-commissioning';
+import { comparisonPartners, distinctEditorialSourceUrls } from './editorial-commissioning';
 import { pathForTopic } from './editorial-schema';
 
 async function boundedText(response: Response, max = 2_000_000) {
@@ -189,7 +189,8 @@ export async function researchEditorial(env: Env, topic: EditorialTopic): Promis
   const read = await Promise.all(ids.map((id) => readApprovedEditorialSource(env, id, terms)));
   sources.push(...read.filter((s): s is ResearchSource => s !== null));
   // Existing zh/en copies do not masquerade as two newly read supporting sources.
-  if (read.filter(Boolean).length < 2) throw new Error('insufficient_read_sources');
+  if (distinctEditorialSourceUrls(read.flatMap((s) => (s ? [s.id] : []))).size < 2)
+    throw new Error('insufficient_read_sources');
   if (
     topic.category === 'compare' &&
     !sources.some((s) => comparisonPartners[s.id]?.owner === pathForTopic(topic))
