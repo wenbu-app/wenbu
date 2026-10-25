@@ -2,7 +2,7 @@ import { shanghaiDay } from './editorial-schema';
 import type { Env } from './types';
 
 export const EDITORIAL_POLICY = {
-  version: 3,
+  version: 4,
   dailyTopics: 3,
   hours: [9, 15, 21],
   reviewRounds: 3,
