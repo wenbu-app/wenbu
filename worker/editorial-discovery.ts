@@ -6,6 +6,7 @@ import {
   originalComparisonMarkdown,
   assetRequest,
   editorialIdentity,
+  editorialSectionId,
 } from './editorial-render';
 import { publishedDocuments } from './editorial-store';
 import type { Env } from './types';
@@ -161,7 +162,7 @@ export async function editorialLibraryDocuments(env: Env, locale: 'zh' | 'en') {
             ? readLibrary('guide-' + doc.topic.slug, locale).content
             : originalComparisonMarkdown(doc.topic.slug, locale)) + '\n\n---\n\n'
         : '') + editorialMarkdown(doc, locale),
-    keywords: `${doc.topic.tool} ${doc.topic.zh} ${doc.topic.en}`,
+    keywords: `${doc.topic.tool} ${doc.topic.zh} ${doc.topic.en} ${JSON.stringify(doc.topic.search ?? {})}`,
     sections: [
       ...(doc.topic.mode === 'extend' && doc.topic.category === 'learn'
         ? (() => {
@@ -172,8 +173,24 @@ export async function editorialLibraryDocuments(env: Env, locale: 'zh' | 'en') {
             }));
           })()
         : []),
+      ...(doc.previousAdditions ?? []).flatMap((addition, history) =>
+        addition[locale].sections.map((section, index) => ({
+          id: editorialSectionId(addition, index),
+          aliases: [`editorial-history-${history}-section-${index}`],
+          title: section.heading,
+          content: [
+            `## ${section.heading}`,
+            ...section.paragraphs,
+            ...section.sourceIds
+              .map((id) => addition.sources.find((s) => s.id === id))
+              .filter((s) => s !== undefined)
+              .map((s) => `[${s.title}](${s.url})`),
+          ].join('\n\n'),
+        })),
+      ),
       ...doc[locale].sections.map((section, index) => ({
-        id: `editorial-section-${index}`,
+        id: editorialSectionId(doc, index),
+        aliases: [`editorial-section-${index}`],
         title: section.heading,
         content: [
           `## ${section.heading}`,

@@ -3,6 +3,7 @@ import { observeEditorial, publishedDocuments } from './editorial-store';
 import { indexNowStatus } from './indexnow';
 import { searchConsoleAction, searchConsoleStatus } from './search-console';
 import type { Env } from './types';
+import { recordEditorialGrowthReview } from './editorial-growth';
 export async function checkEditorialHealth(env: Env) {
   const docs = await publishedDocuments(env),
     checks: { path: string; status: number; issues: string[] }[] = [];
@@ -109,6 +110,7 @@ export async function checkEditorialHealth(env: Env) {
       note: 'Crawler access and machine-readable documents are not AI answer citations.',
     },
     publishedTopics: docs.length,
+    productionReview: await recordEditorialGrowthReview(env),
   };
   const observation = await observeEditorial(
     env,

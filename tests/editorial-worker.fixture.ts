@@ -5,8 +5,17 @@ export { IndexNowWorkflow } from '../worker/indexnow-workflow';
 import { checkEditorialHealth } from '../worker/editorial-health';
 export { UsageGate, DeletionLedger } from '../worker/index';
 import type { Env } from '../worker/types';
+import { reserveEditorialModelCall } from '../worker/editorial-policy';
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    if (new URL(request.url).pathname === '/__test/budget') {
+      try {
+        await reserveEditorialModelCall(env, 'synthetic-budget', true);
+        return Response.json({ reserved: true });
+      } catch {
+        return Response.json({ reserved: false }, { status: 409 });
+      }
+    }
     if (new URL(request.url).pathname === '/__test/health')
       return Response.json(await checkEditorialHealth(env));
     if (new URL(request.url).pathname === '/__test/indexnow') {

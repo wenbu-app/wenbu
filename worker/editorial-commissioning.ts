@@ -4,8 +4,9 @@ import { comparisons } from '../src/data/comparisons';
 import { editorialSources, type EditorialTopic } from '../src/data/editorial-topics';
 import { pathForTopic, type EditorialDocument } from './editorial-schema';
 import type { Env } from './types';
+import { defaultSearchBrief } from '../src/data/editorial-demand';
 
-export const COMMISSIONING_POLICY = 2;
+export const COMMISSIONING_POLICY = 3;
 export const EDITORIAL_RESERVE_TARGET = 42;
 
 export function commissioningCoolingDown(
@@ -14,7 +15,7 @@ export function commissioningCoolingDown(
   ready: number,
   now: number,
 ) {
-  const delay = ready < EDITORIAL_RESERVE_TARGET ? 86400_000 : 6 * 86400_000;
+  const delay = ready < EDITORIAL_RESERVE_TARGET ? 6 * 3600_000 : 6 * 86400_000;
   return lastPlanningAt !== null && previousPolicy >= COMMISSIONING_POLICY && now - lastPlanningAt < delay;
 }
 
@@ -39,6 +40,15 @@ export const comparisonPartners: Record<string, { name: string; owner: string }>
   learntarot: { name: 'Learning the Tarot', owner: 'compare/learning-the-tarot' },
 };
 
+export function sourceViable(topic: EditorialTopic, unavailable: Set<string>) {
+  const usable = topic.sources.filter((id) => editorialSources[id] && !unavailable.has(id));
+  return (
+    usable.length >= 2 &&
+    (topic.category !== 'compare' ||
+      usable.some((id) => comparisonPartners[id]?.owner === pathForTopic(topic)))
+  );
+}
+
 export const candidateSchema = z
   .object({
     id: z.string().regex(/^[a-z][a-z0-9-]{2,65}$/),
@@ -53,6 +63,16 @@ export const candidateSchema = z
     sources: z.array(z.string()).min(2).max(5),
     comparisonSourceId: z.string().nullable(),
     priority: z.number().int().min(40).max(85),
+    search: z
+      .object({
+        pillar: z.string().min(3).max(80),
+        intent: z.enum(['learn', 'solve', 'compare', 'use']),
+        zh: z.array(z.string().min(2).max(100)).min(2).max(8),
+        en: z.array(z.string().min(3).max(120)).min(2).max(8),
+        basis: z.enum(['research_hypothesis', 'observed_query']),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type CommissioningCandidate = z.infer<typeof candidateSchema>;
@@ -69,6 +89,7 @@ export const commissioningReviewSchema = z
             sameReaderOutcome: z.boolean(),
             formatOnlyDifference: z.boolean(),
             requiresNewCanonical: z.boolean(),
+            addsSubstantiveCoverage: z.boolean().optional(),
             existingOutcome: z.string().min(20).max(600),
             newOutcome: z.string().min(20).max(600),
             reason: z.string().min(30).max(900),
@@ -144,7 +165,14 @@ export function editorialOwners(
         ...doc.en.sections.map((s) => s.heading),
       ]),
     ];
-    owner.coverage += '\n' + JSON.stringify({ revision: doc.revision, zh: doc.zh, en: doc.en });
+    owner.coverage +=
+      '\n' +
+      JSON.stringify({
+        revision: doc.revision,
+        zh: doc.zh,
+        en: doc.en,
+        previousAdditions: doc.previousAdditions,
+      });
     owners.set(path, owner);
   }
   return [...owners.values()];
@@ -177,7 +205,7 @@ export function storedCommissioningPolicy(serialized?: string) {
 export function commissionCandidates(
   candidates: CommissioningCandidate[],
   reviews: CommissioningReview[],
-  existing: EditorialTopic[],
+  existing: (EditorialTopic & { state?: string })[],
   owners = editorialOwners(existing),
 ) {
   const candidateIds = new Set(candidates.map((t) => t.id));
@@ -200,14 +228,28 @@ export function commissionCandidates(
     const review = reviews.find((r) => r.id === candidate.id)!,
       path = pathForTopic(candidate);
     let reason = '';
-    if (
-      review.decision !== 'new' ||
-      review.sameReaderOutcome ||
-      review.formatOnlyDifference ||
-      !review.requiresNewCanonical
+    const merge =
+      candidate.mode === 'extend' &&
+      review.decision === 'merge' &&
+      review.addsSubstantiveCoverage === true &&
+      !review.formatOnlyDifference &&
+      !review.requiresNewCanonical &&
+      review.closestOwner === path &&
+      !!owners.find((o) => o.path === path)?.coverage;
+    const fresh =
+      candidate.mode === 'new' &&
+      review.decision === 'new' &&
+      !review.sameReaderOutcome &&
+      !review.formatOnlyDifference &&
+      review.requiresNewCanonical;
+    if (!merge && !fresh) reason = 'existing_intent_or_insufficient_novelty';
+    else if (
+      ids.has(candidate.id) ||
+      (!merge && keys.has(path)) ||
+      (merge &&
+        (accepted.some((t) => pathForTopic(t) === path) ||
+          existing.some((t) => pathForTopic(t) === path && (t.state ?? 'ready') === 'ready')))
     )
-      reason = 'existing_intent_or_insufficient_novelty';
-    else if (candidate.mode !== 'new' || keys.has(path) || ids.has(candidate.id))
       reason = 'canonical_owner_exists';
     else if (candidate.sources.some((id) => !editorialSources[id])) reason = 'unknown_source';
     else if (candidate.category === 'learn' && candidate.slug.startsWith('compare-'))
@@ -227,7 +269,12 @@ export function commissionCandidates(
     const { comparisonSourceId: _, ...topic } = candidate;
     keys.add(path);
     ids.add(topic.id);
-    accepted.push(topic);
+    accepted.push({
+      ...topic,
+      search: topic.search
+        ? { ...topic.search, basis: 'research_hypothesis' }
+        : defaultSearchBrief(topic.tool),
+    });
   }
   return { accepted, rejections };
 }

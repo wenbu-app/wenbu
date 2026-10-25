@@ -89,12 +89,15 @@ export type ResearchSource = {
   excerpt: string;
   truncated: boolean;
 };
-export type EditorialDocument = EditorialDraft & {
+export type EditorialAddition = EditorialDraft & {
   topic: EditorialTopic;
   sources: Omit<ResearchSource, 'excerpt'>[];
-  publishedAt: string;
   updatedAt: string;
   revision: string;
+};
+export type EditorialDocument = EditorialAddition & {
+  publishedAt: string;
+  previousAdditions?: EditorialAddition[];
   review: {
     factual: boolean;
     bilingual: boolean;
@@ -113,6 +116,19 @@ export const editorialReviewSchema = z
     original: z.boolean(),
     natural: z.boolean(),
     issues: z.array(z.string().max(2000)).max(30),
+    corrections: z
+      .array(
+        z
+          .object({
+            component: z.string().max(100),
+            defect: z.string().min(10).max(700),
+            repair: z.string().min(10).max(900),
+            sourceId: z.string().nullable(),
+          })
+          .strict(),
+      )
+      .max(10)
+      .optional(),
   })
   .strict();
 

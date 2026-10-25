@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 const command = process.argv[2] ?? 'status';
-if (!['status', 'run', 'check', 'observe', 'recover', 'revise'].includes(command))
-  throw new Error('Use status, run, check, observe, recover or revise.');
+if (!['status', 'run', 'plan', 'check', 'observe', 'recover', 'revise'].includes(command))
+  throw new Error('Use status, run, plan, check, observe, recover or revise.');
 const token =
   process.env.WENBU_ADMIN_TOKEN ||
   (

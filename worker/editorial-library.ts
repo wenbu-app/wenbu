@@ -51,7 +51,13 @@ export async function readCompleteLibrary(id: string, locale: 'zh' | 'en', secti
   const docs = env ? await editorialLibraryDocuments(env, locale) : [];
   const doc = docs.find((d) => d.id === documentId || d.alias === documentId);
   if (!doc) return readLibrary(id, locale, section);
-  const part = section ? doc.sections.find((part) => part.id === section) : null;
+  const part = section
+    ? doc.sections.find(
+        (part) =>
+          part.id === section ||
+          ('aliases' in part && Array.isArray(part.aliases) && part.aliases.includes(section!)),
+      )
+    : null;
   if (section && !part) throw new Error('Unknown document section. Use a section ID from the outline.');
   const content = part?.content ?? doc.content;
   return {

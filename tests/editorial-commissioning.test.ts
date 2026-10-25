@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   candidateSchema,
+  COMMISSIONING_POLICY,
   commissioningCoolingDown,
   storedCommissioningPolicy,
   commissioningReviewSchema,
@@ -76,9 +77,9 @@ describe('editorial canonical commissioning', () => {
   });
   it('spaces depleted-reserve retries without suppressing the next weekly review', () => {
     const now = Date.parse('2026-10-18T02:30:00Z');
-    expect(commissioningCoolingDown(now - 12 * 3600_000, 2, 35, now)).toBe(true);
-    expect(commissioningCoolingDown(now - 48 * 3600_000, 2, 35, now)).toBe(false);
-    expect(commissioningCoolingDown(now - 48 * 3600_000, 2, 50, now)).toBe(true);
+    expect(commissioningCoolingDown(now - 3 * 3600_000, COMMISSIONING_POLICY, 35, now)).toBe(true);
+    expect(commissioningCoolingDown(now - 48 * 3600_000, COMMISSIONING_POLICY, 35, now)).toBe(false);
+    expect(commissioningCoolingDown(now - 48 * 3600_000, COMMISSIONING_POLICY, 50, now)).toBe(true);
     expect(commissioningCoolingDown(now - 3600_000, 1, 35, now)).toBe(false);
   });
   it('provides section coverage and queued outcomes, including comparison owners', () => {
@@ -93,6 +94,32 @@ describe('editorial canonical commissioning', () => {
     const result = commissionCandidates([candidate()], [review()], editorialTopics);
     expect(result.accepted.map((t) => t.id)).toEqual(['api-result-integrity']);
     expect(result.accepted[0]).not.toHaveProperty('comparisonSourceId');
+  });
+  it('admits a substantial update on its real owner without admitting a format-only duplicate', () => {
+    const t = candidate({ id: 'sourced-claim-scope-gap', slug: 'read-ai-with-sources', mode: 'extend' });
+    const r = review({
+      id: t.id,
+      decision: 'merge',
+      closestOwner: 'learn/read-ai-with-sources',
+      sameReaderOutcome: true,
+      requiresNewCanonical: false,
+      addsSubstantiveCoverage: true,
+      reason:
+        'The page explains citations but lacks a worked passage-to-claim scope mismatch. Add that supported counterexample on this owner.',
+    });
+    const existing = editorialTopics.map((topic) => ({ ...topic, state: 'published' }));
+    const result = commissionCandidates([t], [r], existing);
+    expect(result.accepted).toHaveLength(1);
+    expect(result.accepted[0].mode).toBe('extend');
+    expect(result.accepted[0].search?.basis).toBe('research_hypothesis');
+    expect(commissionCandidates([t], [{ ...r, formatOnlyDifference: true }], existing).accepted).toEqual([]);
+    expect(commissionCandidates([t], [{ ...r, addsSubstantiveCoverage: false }], existing).accepted).toEqual(
+      [],
+    );
+    expect(
+      commissionCandidates([t], [r], [...existing, { ...t, id: 'active-reservation', state: 'ready' }])
+        .accepted,
+    ).toEqual([]);
   });
   it.each([
     { decision: 'merge' as const },

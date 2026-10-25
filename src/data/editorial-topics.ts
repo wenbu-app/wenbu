@@ -1,3 +1,4 @@
+import type { SearchBrief } from './editorial-demand';
 export type EditorialTopic = {
   id: string;
   slug: string;
@@ -10,6 +11,7 @@ export type EditorialTopic = {
   unique: string;
   sources: string[];
   priority: number;
+  search?: SearchBrief;
 };
 
 export const editorialSources: Record<string, { title: string; url: string; role: string }> = {

@@ -98,7 +98,7 @@ export async function preserveExtendedMetadata(
   headers.delete('Last-Modified');
   return new Response(html, { status: response.status, headers });
 }
-export function editorialMarkdown(doc: EditorialDocument, locale: 'zh' | 'en') {
+export function editorialMarkdown(doc: EditorialDocument, locale: 'zh' | 'en'): string {
   const e = doc[locale];
   const refs = (ids: string[]) =>
     ids
@@ -107,6 +107,9 @@ export function editorialMarkdown(doc: EditorialDocument, locale: 'zh' | 'en') {
       .map((s) => `[${s!.title}](${s!.url})`)
       .join(' · ');
   return [
+    ...(doc.previousAdditions ?? []).map((addition) =>
+      editorialMarkdown({ ...doc, ...addition, previousAdditions: [] }, locale),
+    ),
     `# ${e.title}`,
     e.description,
     `Updated: ${doc.updatedAt.slice(0, 10)} · Wenbu AI-assisted editorial`,
@@ -149,12 +152,20 @@ function citations(doc: EditorialDocument, ids: string[]) {
     .map((s) => `<a href="${h(s!.url)}" rel="noreferrer" data-track="source">${h(s!.title)} ↗</a>`)
     .join('')}</p>`;
 }
-export function editorialBody(doc: EditorialDocument, locale: 'zh' | 'en') {
+export const editorialSectionId = (doc: Pick<EditorialDocument, 'revision'>, index: number) =>
+  `editorial-${doc.revision.slice(0, 24)}-section-${index}`;
+export function editorialBody(doc: EditorialDocument, locale: 'zh' | 'en', anchor = 'editorial'): string {
   const e: EditorialEdition = doc[locale],
     t = (zh: string, en: string) => (locale === 'zh' ? zh : en);
-  return `<div class="editorial-answer"><p>${h(e.answer)}</p>${citations(doc, e.answerSourceIds)}</div><ul>${e.takeaways.map((x) => `<li>${h(x)}</li>`).join('')}</ul>
+  const retained = (doc.previousAdditions ?? [])
+    .map(
+      (addition, i) =>
+        `<section class="editorial-retained"><h2>${h(addition[locale].title)}</h2>${editorialBody({ ...doc, ...addition, previousAdditions: [] }, locale, `editorial-history-${i}`)}</section>`,
+    )
+    .join('');
+  return `${retained}<div class="editorial-answer"><p>${h(e.answer)}</p>${citations(doc, e.answerSourceIds)}</div><ul>${e.takeaways.map((x) => `<li>${h(x)}</li>`).join('')}</ul>
     <figure class="editorial-figure"><h2>${h(e.figure.title)}</h2><ol>${e.figure.steps.map((s, i) => `<li><b aria-hidden="true">${String(i + 1).padStart(2, '0')}</b><strong>${h(s.label)}</strong><p>${h(s.detail)}</p></li>`).join('')}</ol><figcaption>${h(e.figure.caption)}</figcaption>${citations(doc, e.figure.sourceIds)}</figure>
-    ${e.sections.map((s, i) => `<section id="editorial-section-${i}"><h2>${h(s.heading)}</h2>${s.paragraphs.map((p) => `<p>${h(p)}</p>`).join('')}${citations(doc, s.sourceIds)}</section>`).join('')}
+    ${e.sections.map((s, i) => `<section id="${anchor}-section-${i}"><span id="${h(editorialSectionId(doc, i))}" aria-hidden="true"></span><h2>${h(s.heading)}</h2>${s.paragraphs.map((p) => `<p>${h(p)}</p>`).join('')}${citations(doc, s.sourceIds)}</section>`).join('')}
     <div class="editorial-table" role="region" aria-label="${h(e.table.title)}" tabindex="0"><table><caption>${h(e.table.title)}</caption><thead><tr>${e.table.columns.map((c) => `<th scope="col">${h(c)}</th>`).join('')}</tr></thead><tbody>${e.table.rows.map((row) => `<tr>${row.map((c) => `<td>${h(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${citations(doc, e.table.sourceIds)}
     <section class="editorial-example"><h2>${h(e.example.title)}</h2><p>${h(e.example.intro)}</p><ol>${e.example.steps.map((s) => `<li>${h(s)}</li>`).join('')}</ol><p>${h(e.example.conclusion)}</p>${citations(doc, e.example.sourceIds)}</section>
     <section><h2>${t('常见问题', 'Questions you may have')}</h2>${e.faq.map((f) => `<details><summary>${h(f.question)}</summary><p>${h(f.answer)}</p>${citations(doc, f.sourceIds)}</details>`).join('')}</section>
@@ -329,6 +340,7 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
                 edition: doc[lang],
                 editionScope: doc.topic.mode === 'extend' ? 'addition' : 'full',
                 sources: doc.sources,
+                previousAdditions: doc.previousAdditions ?? [],
               }),
         {
           headers: {
