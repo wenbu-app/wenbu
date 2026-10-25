@@ -6,8 +6,9 @@ import { pathForTopic, type EditorialDocument } from './editorial-schema';
 import type { Env } from './types';
 import { defaultSearchBrief } from '../src/data/editorial-demand';
 
-export const COMMISSIONING_POLICY = 3;
+export const COMMISSIONING_POLICY = 4;
 export const EDITORIAL_RESERVE_TARGET = 42;
+export const COMMISSIONING_BATCH_SIZE = 24;
 
 export function commissioningCoolingDown(
   lastPlanningAt: number | null,
@@ -77,6 +78,44 @@ export const candidateSchema = z
   .strict();
 export type CommissioningCandidate = z.infer<typeof candidateSchema>;
 
+// A model can exceed its requested batch size without making every individual
+// proposal invalid. Preserve valid work and keep only the critic's input bounded.
+export function parseCommissioningProposals(raw: unknown) {
+  const envelope = z
+    .object({ topics: z.array(z.unknown()) })
+    .strict()
+    .safeParse(raw);
+  if (!envelope.success)
+    return {
+      candidates: [] as CommissioningCandidate[],
+      invalid: [{ id: 'envelope', reason: envelope.error.message }],
+    };
+  const candidates: CommissioningCandidate[] = [],
+    invalid: { id: string; reason: string }[] = [],
+    seen = new Set<string>();
+  for (const [index, value] of envelope.data.topics.entries()) {
+    const parsed = candidateSchema.safeParse(value);
+    if (!parsed.success) {
+      invalid.push({ id: `item-${index}`, reason: parsed.error.message });
+      continue;
+    }
+    if (seen.has(parsed.data.id)) {
+      invalid.push({ id: parsed.data.id, reason: 'duplicate_candidate_id' });
+      continue;
+    }
+    seen.add(parsed.data.id);
+    candidates.push(parsed.data);
+  }
+  return { candidates, invalid };
+}
+
+export function commissioningBatch(candidates: CommissioningCandidate[]) {
+  return {
+    batch: candidates.slice(0, COMMISSIONING_BATCH_SIZE),
+    deferred: candidates.slice(COMMISSIONING_BATCH_SIZE),
+  };
+}
+
 export const commissioningReviewSchema = z
   .object({
     reviews: z
@@ -96,7 +135,7 @@ export const commissioningReviewSchema = z
           })
           .strict(),
       )
-      .max(24),
+      .max(COMMISSIONING_BATCH_SIZE),
   })
   .strict();
 export type CommissioningReview = z.infer<typeof commissioningReviewSchema>['reviews'][number];

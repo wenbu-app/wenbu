@@ -1,6 +1,6 @@
 # Continuous editorial delivery review
 
-Policy 3 keeps three bilingual reader tasks per day and changes how the system recovers an unfinished slot. It does not lower publication gates or equate publication with search traffic.
+Policy 4 keeps three bilingual reader tasks per day and changes how the system recovers an unfinished slot. It does not lower publication gates or equate publication with search traffic.
 
 ## Changes reviewed
 
@@ -19,6 +19,14 @@ Codex review covers scheduling deduplication, source identity, current-owner rea
 
 Native integration tests use workerd, Workflows, D1, R2 and HTMLRewriter with synthetic providers. They do not establish the quality of a real generated article. Production planning/publication must be checked against actual terminal receipts and both public language editions; raw operating data remains outside this public repository.
 
-A read-only Grok CLI attempt disabled tools, web and subagents. It returned no output before a 102-second timeout. Its review is unavailable, not passed.
+A read-only Grok CLI attempt disabled tools, web and subagents. It returned no output before a 102-second timeout. Its review is unavailable, not passed. A second read-only follow-up attempt for the batch fix also returned no output within 65 seconds; it provides no approval.
 
 The Cloudflare production schedule runs independently of a laptop. Authenticated Google/Bing and neutral AI-answer reviews continue through the existing Codex heartbeat and depend on the execution host and valid browser access. Google requests, actual indexing, visits, server-confirmed use and AI citations remain separate evidence. IndexNow pauses and all prior failure/acceptance history are unchanged.
+
+## Proposal batch follow-up
+
+Live validation exposed a whole-array size gate that rejected two model responses even though every individual candidate was valid. Policy 4 validates items independently, sends at most 24 candidates to each critic, and retains overflow in private R2 for later passes. A one-time compatibility path recovers archived proposals from the preceding zero-admission policy. Recovered proposals receive fresh ownership/source review; recovery itself never admits them.
+
+The private checkpoint retains a superset until the atomic D1 admission commits. A failed transaction leaves candidates recoverable. A cleanup outage can conservatively repeat criticism, but existing topic IDs prevent duplicate admissions. Complete decisions remain in per-run R2 archives; D1 receives a bounded projection. Zero admissions produce an `unfilled` receipt.
+
+Regression coverage includes 28/26-item responses, invalid and duplicate neighbors, legacy archive recovery, bounded critic batches, reserve overflow, later pending-pool reuse, and admission rollback without candidate loss. Existing quality gates and publication history remain enforced.

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   candidateSchema,
+  parseCommissioningProposals,
+  commissioningBatch,
   COMMISSIONING_POLICY,
   commissioningCoolingDown,
   storedCommissioningPolicy,
@@ -44,6 +46,23 @@ const review = (overrides: Partial<CommissioningReview> = {}): CommissioningRevi
 });
 
 describe('editorial canonical commissioning', () => {
+  it.each([28, 26])('retains every valid proposal when the model returns %i items', (count) => {
+    const topics = Array.from({ length: count }, (_, i) => candidate({ id: `candidate-${i}` }));
+    const parsed = parseCommissioningProposals({ topics });
+    expect(parsed.invalid).toEqual([]);
+    const { batch, deferred } = commissioningBatch(parsed.candidates);
+    expect(batch).toHaveLength(24);
+    expect(deferred).toHaveLength(count - 24);
+    expect([...batch, ...deferred]).toEqual(topics);
+  });
+  it('isolates invalid and duplicate items without discarding valid neighbors', () => {
+    const good = candidate();
+    const result = parseCommissioningProposals({ topics: [{ ...good, priority: 'bad' }, good, good] });
+    expect(result.candidates).toEqual([good]);
+    expect(result.invalid).toHaveLength(2);
+    expect(result.invalid[1].reason).toBe('duplicate_candidate_id');
+    expect(parseCommissioningProposals({ unrelated: [] }).candidates).toEqual([]);
+  });
   it('labels a retained reservation without presenting it as a published page', () => {
     const t = { ...candidate(), state: 'quarantined' };
     expect(

@@ -146,13 +146,14 @@ const mf = new Miniflare({
             });
           }
           if (input.messages[0].content.includes('adversarial demand and canonical-ownership editor')) {
+            assert.ok(JSON.parse(input.messages[1].content).candidates.length <= 24);
             return Response.json({
               choices: [
                 {
                   finish_reason: 'stop',
                   message: {
                     content: JSON.stringify({
-                      reviews: planningCandidates.map((t) => ({
+                      reviews: JSON.parse(input.messages[1].content).candidates.map((t) => ({
                         id: t.id,
                         decision: t.id === 'synthetic-coin-sheet' ? 'merge' : 'new',
                         closestOwner: 'learn/iching-three-coins',
@@ -522,9 +523,9 @@ try {
   );
   check(
     'commissioning records its policy, per-candidate review and actual accepted reserve',
-    planningAudit.policyVersion === 3 &&
-      planningAudit.reviews.length === 6 &&
-      planningAudit.rejections.length === 5,
+    planningAudit.policyVersion === 4 &&
+      planningAudit.reviews.length === 3 &&
+      planningAudit.rejections.length === 2,
   );
   const callsBeforeRepeat = calls;
   const repeatedPlanning = await mf.dispatchFetch('https://wenbu.app/__test/planning').then((r) => r.json());
@@ -583,6 +584,69 @@ try {
         })
         .then((r) => r.json())
     ).status === 'already_planned' && calls === afterFaultCalls,
+  );
+  const failedPool = await archive.get('editorial/commissioning-pending.json').then((r) => r.json());
+  check(
+    'a failed admission transaction preserves its candidates in the private checkpoint',
+    failedPool.topics.some((t) => t.id === 'synthetic-fault-topic'),
+  );
+  await db
+    .prepare('UPDATE editorial_commissioning_runs SET started_at=started_at-?')
+    .bind(2 * 86400_000)
+    .run();
+  // Test-only fresh-day budget for the next two persisted-pool scenarios.
+  await db.prepare('UPDATE editorial_daily_budgets SET planning_calls=0').run();
+  // Simulate the two real over-limit responses with 54 valid, independent tasks.
+  const largePool = Array.from({ length: 54 }, (_, i) => ({
+    ...planningCandidate,
+    id: `synthetic-batch-${i}`,
+    slug: `synthetic-batch-${i}`,
+  }));
+  await archive.delete('editorial/commissioning-pending.json');
+  await db
+    .prepare(
+      "INSERT INTO editorial_commissioning_runs(id,policy_version,status,started_at,finished_at,receipt_json) VALUES('synthetic-legacy-oversize',3,'completed',?,?,?)",
+    )
+    .bind(Date.now(), Date.now(), JSON.stringify({ status: 'planned', accepted: 0 }))
+    .run();
+  await archive.put(
+    'editorial/synthetic-legacy-oversize/commissioning-proposals-1.json',
+    JSON.stringify({ topics: largePool.slice(0, 28) }),
+  );
+  await archive.put(
+    'editorial/synthetic-legacy-oversize/commissioning-proposals-2.json',
+    JSON.stringify({ topics: largePool.slice(28) }),
+  );
+  const large = await mf
+    .dispatchFetch('https://wenbu.app/__test/planning', {
+      method: 'POST',
+      body: JSON.stringify({ id: 'synthetic-large-batch' }),
+    })
+    .then((r) => r.json());
+  const remainingPool = await archive.get('editorial/commissioning-pending.json').then((r) => r.json());
+  check(
+    'overflow candidates are reviewed in batches of 24 and reserve overflow remains durable',
+    large.status === 'planned' &&
+      large.recovered === 54 &&
+      large.reviewed <= 48 &&
+      large.deferred > 0 &&
+      remainingPool.topics.length === large.deferred &&
+      large.readyAfter === 42,
+  );
+  await db
+    .prepare('UPDATE editorial_commissioning_runs SET started_at=started_at-?')
+    .bind(7 * 86400_000)
+    .run();
+  await db.prepare("UPDATE editorial_topics SET status='published' WHERE id LIKE 'synthetic-batch-%'").run();
+  const resumed = await mf
+    .dispatchFetch('https://wenbu.app/__test/planning', {
+      method: 'POST',
+      body: JSON.stringify({ id: 'synthetic-resume-batch' }),
+    })
+    .then((r) => r.json());
+  check(
+    'a later pass re-reads the retained pool and admits candidates without another proposal call',
+    resumed.status === 'planned' && resumed.recovered === large.deferred && resumed.accepted > 0,
   );
   const health = await mf.dispatchFetch('https://wenbu.app/__test/health').then((r) => r.json());
   check(
