@@ -20,6 +20,8 @@ This release follows the [design plan](../plans/2026-10-25-product-experience.md
 
 Real browser checks covered Chinese/English layouts at 1280px, 390px and 320px, the complete example, article handoff, retained drafts, collapsible results, calendar sample input and technical-term wrapping. The 320px page and English pillar labels had no horizontal overflow. Screenshots and raw operational evidence remain in the private release folder.
 
+Production readback also caught fixed-height artwork cropping the newly published guide covers in list view. Those covers now keep the same responsive aspect ratio as the original collection, with card artwork scaled to the actual column width.
+
 Two bounded local end-to-end turns also used the configured model service with explicitly synthetic questions. The Chinese article handoff completed with two read sections, a sourced report and its draft retained. The English teaching example completed after calculation, search and reading, correctly distinguishing Rabbit by Lunar New Year from Dragon by Li Chun. These examples are evidence for those flows, not a general accuracy benchmark or a claim of predictive validity.
 
 Codex source review checked privacy boundaries, result focus, canonical ownership, schema conformity, errors and queue idempotency. It found and repaired the strict JSON Schema/extra-field mismatch, dynamic-section lookup, generic English relationship labels and the static-blog queue gap. A read-only Grok CLI attempt, with tools/web/subagents disabled, returned no output within **91.74 seconds** and was terminated. Its review is **unavailable, not passed**.
