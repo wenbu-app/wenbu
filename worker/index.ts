@@ -247,7 +247,7 @@ export default {
           }
           if (path === '/api/admin/editorial/check') {
             if (!env.EDITORIAL_WORKFLOW) return json({ error: { code: 'editorial_unavailable' } }, 503);
-            const id = 'editorial-health-' + new Date().toISOString().slice(0, 10);
+            const id = 'editorial-health-manual-' + crypto.randomUUID();
             await env.EDITORIAL_WORKFLOW.createBatch([{ id, params: { kind: 'health' } }]);
             return json({ status: 'queued', id });
           }

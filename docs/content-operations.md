@@ -15,6 +15,8 @@ Current operating target: **three reader tasks per day, each published in comple
 
 The Cloudflare publishing pipeline works without an open laptop. The supplemental Codex browser review requires its execution host and authenticated browser sessions. Expired access is recorded as unavailable and reported; it is not replaced by a fabricated zero or inferred indexing result.
 
+Manual `content:check` creates a fresh technical-health Workflow with a unique `editorial-health-manual-<uuid>` ID, so a release check cannot accidentally return the already-completed daily instance. The 07:30 scheduled check keeps its date-based deduplication. A queued receipt still requires reading that exact instance to confirm its terminal result.
+
 ## Google priority request queue
 
 The user authorized one pass over all indexable non-article pages on 2026-10-17, followed by requests for newly published or materially updated articles. Home pages and tools have the highest priority, followed by library/comparison directories and public explanations. The bootstrap uses the deployed public manifest, excluding individual `/learn/` and `/compare/` articles, private/noindex routes, APIs and duplicate machine formats. It is idempotent per core URL. It is not a claim that all queued URLs have already been submitted.

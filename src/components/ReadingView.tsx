@@ -4,6 +4,7 @@ import TarotCard from './TarotCard';
 import type { Reading } from '../lib/tools';
 import type { Locale } from '../lib/schema';
 import { choose, href } from '../lib/i18n';
+import { baziRoleEn } from '../lib/bazi-labels';
 
 export default function ReadingView({ result, locale }: { result: Reading; locale: Locale }) {
   const t = (zh: string, en: string) => choose(locale, zh, en);
@@ -67,7 +68,11 @@ export default function ReadingView({ result, locale }: { result: Reading; local
                 {t(['年柱', '月柱', '日柱', '时柱'][i], ['YEAR', 'MONTH', 'DAY', 'HOUR'][i])}
               </span>
               <span className="pillar-role" title={p.role ?? undefined}>
-                {p.value ? (locale === 'zh' ? p.role : p.roleEn) : t('时刻未知', 'Unknown time')}
+                {p.value
+                  ? locale === 'zh'
+                    ? p.role
+                    : baziRoleEn(p.role, p.roleEn)
+                  : t('时刻未知', 'Unknown time')}
               </span>
               <strong style={{ color: result.elements.find((e) => e.zh === p.stemElement)?.color }}>
                 {p.stem ?? '—'}

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateBazi, validateDate } from '../src/lib/bazi';
+import { baziRoleEn } from '../src/lib/bazi-labels';
 import { identifyHexagram, castIching, randomInt } from '../src/lib/iching';
 import { drawTarot } from '../src/lib/tarot';
 import { calculateZiwei } from '../src/lib/ziwei';
@@ -7,6 +8,10 @@ import { tarotDeck } from '../src/data/tarot';
 import { agentContext } from '../src/lib/journal';
 const pillars = (v: ReturnType<typeof calculateBazi>) => v.pillars.map((p) => p.value);
 describe('calendar contracts', () => {
+  it('normalizes legacy saved display labels without recalculating a chart', () => {
+    expect(baziRoleEn('偏财', 'Opportunity')).toBe('Indirect Wealth');
+    expect(baziRoleEn('偏印', 'Intuition')).toBe('Indirect Resource');
+  });
   it('returns conventional relationship names rather than unsupported personality labels in English', () => {
     const result = calculateBazi({ date: '2000-08-16', time: '03:30', timezone: 'Asia/Shanghai' });
     expect(result.pillars.map(({ role, roleEn }) => [role, roleEn])).toEqual([
