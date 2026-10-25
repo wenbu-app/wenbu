@@ -1,5 +1,5 @@
 import { EDITORIAL_POLICY } from './editorial-policy';
-import { shanghaiDay, type EditorialDocument } from './editorial-schema';
+import { contentHash, shanghaiDay, type EditorialDocument } from './editorial-schema';
 import { editorialDemandLanes, defaultSearchBrief } from '../src/data/editorial-demand';
 import type { EditorialTopic } from '../src/data/editorial-topics';
 import type { Env } from './types';
@@ -105,13 +105,7 @@ export async function editorialGrowthStatus(env: Env, now = Date.now()) {
 }
 
 export async function recordEditorialGrowthReview(env: Env) {
-  const day = shanghaiDay(Date.now()),
-    id = 'growth-review-' + day;
-  const exists = await env
-    .ANALYTICS!.prepare('SELECT id FROM editorial_observations WHERE id=?')
-    .bind(id)
-    .first();
-  if (exists) return { id, status: 'already_recorded' };
+  const day = shanghaiDay(Date.now());
   const production = await editorialGrowthStatus(env);
   const previous = production.days[production.days.length - 2];
   const failures = (
@@ -176,6 +170,14 @@ export async function recordEditorialGrowthReview(env: Env) {
     },
     sourceUrls: ['https://wenbu.app/knowledge/index.json', 'https://wenbu.app/capabilities.json'],
   };
+  const { checkedAt: _checkedAt, ...snapshot } = production;
+  const fingerprint = await contentHash(JSON.stringify({ production: snapshot, repairFeedback }));
+  const id = `growth-review-${day}-${fingerprint.slice(0, 24)}`;
+  const exists = await env
+    .ANALYTICS!.prepare('SELECT id FROM editorial_observations WHERE id=?')
+    .bind(id)
+    .first();
+  if (exists) return { id, status: 'already_recorded' };
   const status = previous.missed || production.viableReadyTasks < 42 ? 'attention' : 'observed';
   await env
     .ANALYTICS!.prepare(

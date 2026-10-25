@@ -522,6 +522,32 @@ try {
       searchJobs.results.filter((j) => j.revision === original.revision && j.status === 'superseded')
         .length === 2,
   );
+  const beforePlanningRace = calls;
+  await db
+    .prepare("UPDATE editorial_state SET lease_owner='other-native-content',lease_until=? WHERE id=1")
+    .bind(Date.now() + 60000)
+    .run();
+  const busyPlanning = await mf
+    .dispatchFetch('https://wenbu.app/__test/planning', {
+      method: 'POST',
+      body: JSON.stringify({ id: 'synthetic-busy-planning' }),
+    })
+    .then((r) => r.json());
+  check(
+    'planning lease races retain a blocked receipt without spending model calls or stealing the lease',
+    busyPlanning.status === 'blocked' &&
+      busyPlanning.error === 'editorial_busy' &&
+      calls === beforePlanningRace &&
+      (await db.prepare('SELECT lease_owner FROM editorial_state').first()).lease_owner ===
+        'other-native-content',
+  );
+  await db.prepare("UPDATE editorial_state SET lease_owner='',lease_until=0 WHERE id=1").run();
+  await db
+    .prepare(
+      "UPDATE editorial_commissioning_runs SET started_at=started_at-? WHERE id='synthetic-busy-planning'",
+    )
+    .bind(16 * 60000)
+    .run();
   const planning = await mf.dispatchFetch('https://wenbu.app/__test/planning').then((r) => r.json());
   check(
     'native commissioning admits a new outcome and blocks an overlap and library-as-app comparison',

@@ -15,8 +15,14 @@ export function commissioningCoolingDown(
   previousPolicy: number,
   ready: number,
   now: number,
+  errorCode?: string | null,
 ) {
-  const delay = ready < EDITORIAL_RESERVE_TARGET ? 6 * 3600_000 : 6 * 86400_000;
+  const delay =
+    errorCode === 'editorial_busy'
+      ? 15 * 60_000
+      : ready < EDITORIAL_RESERVE_TARGET
+        ? 6 * 3600_000
+        : 6 * 86400_000;
   return lastPlanningAt !== null && previousPolicy >= COMMISSIONING_POLICY && now - lastPlanningAt < delay;
 }
 
@@ -42,11 +48,23 @@ export const comparisonPartners: Record<string, { name: string; owner: string }>
 };
 
 export function sourceViable(topic: EditorialTopic, unavailable: Set<string>) {
-  const usable = topic.sources.filter((id) => editorialSources[id] && !unavailable.has(id));
+  const usable = [...new Set(topic.sources)].filter((id) => editorialSources[id] && !unavailable.has(id));
   return (
-    usable.length >= 2 &&
+    distinctEditorialSourceUrls(usable).size >= 2 &&
     (topic.category !== 'compare' ||
       usable.some((id) => comparisonPartners[id]?.owner === pathForTopic(topic)))
+  );
+}
+
+export function distinctEditorialSourceUrls(ids: string[]) {
+  return new Set(
+    ids.flatMap((id) => {
+      const source = editorialSources[id];
+      if (!source) return [];
+      const url = new URL(source.url);
+      url.hash = '';
+      return [url.href];
+    }),
   );
 }
 
@@ -61,7 +79,11 @@ export const candidateSchema = z
     en: z.string().min(15).max(150),
     task: z.string().min(40).max(800),
     unique: z.string().min(70).max(1200),
-    sources: z.array(z.string()).min(2).max(5),
+    sources: z
+      .array(z.string())
+      .min(2)
+      .max(5)
+      .refine((ids) => new Set(ids).size === ids.length, 'Source IDs must be distinct'),
     comparisonSourceId: z.string().nullable(),
     priority: z.number().int().min(40).max(85),
     search: z
@@ -124,17 +146,21 @@ export function commissioningFeedback(evidence: Record<string, unknown>) {
       : [];
   const reviews = Array.isArray(evidence.reviews) ? evidence.reviews : [];
   const accepted = Array.isArray(evidence.accepted) ? evidence.accepted : [];
-  return rows
+  const seen = new Set<string>();
+  return [...rows]
+    .reverse()
     .flatMap((row) => {
       if (
         !row ||
         typeof row !== 'object' ||
         typeof row.id !== 'string' ||
         typeof row.reason !== 'string' ||
-        accepted.some((t) => t && typeof t === 'object' && t.id === row.id)
+        accepted.some((t) => t && typeof t === 'object' && t.id === row.id) ||
+        seen.has(row.id)
       )
         return [];
-      const review = reviews.find((r) => r && typeof r === 'object' && r.id === row.id);
+      seen.add(row.id);
+      const review = [...reviews].reverse().find((r) => r && typeof r === 'object' && r.id === row.id);
       const clip = (value: unknown, size: number) =>
         typeof value === 'string' ? value.slice(0, size) : undefined;
       return [
@@ -325,6 +351,8 @@ export function commissionCandidates(
     )
       reason = 'canonical_owner_exists';
     else if (candidate.sources.some((id) => !editorialSources[id])) reason = 'unknown_source';
+    else if (distinctEditorialSourceUrls(candidate.sources).size < 2)
+      reason = 'insufficient_distinct_sources';
     else if (candidate.category === 'learn' && candidate.slug.startsWith('compare-'))
       reason = 'comparison_category_mismatch';
     else if (candidate.category === 'compare') {

@@ -4,6 +4,8 @@ import {
   parseCommissioningProposals,
   commissioningBatch,
   commissioningFeedback,
+  distinctEditorialSourceUrls,
+  sourceViable,
   COMMISSIONING_POLICY,
   commissioningCoolingDown,
   storedCommissioningPolicy,
@@ -13,7 +15,7 @@ import {
   type CommissioningCandidate,
   type CommissioningReview,
 } from '../worker/editorial-commissioning';
-import { editorialTopics } from '../src/data/editorial-topics';
+import { editorialTopics, editorialSources } from '../src/data/editorial-topics';
 import { fixtureDraft } from './helpers/editorial-fixture';
 
 const candidate = (overrides: Partial<CommissioningCandidate> = {}): CommissioningCandidate => ({
@@ -47,6 +49,44 @@ const review = (overrides: Partial<CommissioningReview> = {}): CommissioningRevi
 });
 
 describe('editorial canonical commissioning', () => {
+  it('requires distinct registered source documents at schema, stock and admission boundaries', () => {
+    const topic = candidate({ sources: ['methods', 'methods'] });
+    expect(candidateSchema.safeParse(topic).success).toBe(false);
+    expect(sourceViable(topic, new Set())).toBe(false);
+    expect(commissionCandidates([topic], [review()], editorialTopics).rejections[0].reason).toBe(
+      'insufficient_distinct_sources',
+    );
+    editorialSources.syntheticAlias = {
+      ...editorialSources.methods,
+      url: editorialSources.methods.url + '#alias',
+    };
+    try {
+      expect(distinctEditorialSourceUrls(['methods', 'syntheticAlias']).size).toBe(1);
+      expect(sourceViable(candidate({ sources: ['methods', 'syntheticAlias'] }), new Set())).toBe(false);
+    } finally {
+      delete editorialSources.syntheticAlias;
+    }
+  });
+  it('retains the latest unresolved version once per topic rather than recycling older critique', () => {
+    const evidence = {
+      rejectedCandidates: [
+        { id: 'same-topic', reason: 'old scope', task: 'old task', correction: 'old repair' },
+        { id: 'same-topic', reason: 'new scope', task: 'new task', correction: 'new repair' },
+      ],
+    };
+    expect(commissioningFeedback(evidence)).toEqual([
+      { id: 'same-topic', owner: undefined, reason: 'new scope', task: 'new task', correction: 'new repair' },
+    ]);
+    expect(
+      commissioningFeedback({
+        rejections: [{ id: 'topic', reason: 'retained rejection' }],
+        reviews: [
+          { id: 'topic', reason: 'old review' },
+          { id: 'topic', reason: 'new review' },
+        ],
+      })[0].correction,
+    ).toBe('new review');
+  });
   it('carries real rejection corrections into the next planning pass, including legacy receipts', () => {
     const evidence = {
       rejections: [
@@ -85,7 +125,9 @@ describe('editorial canonical commissioning', () => {
       task: 'x'.repeat(800),
       correction: 'x'.repeat(900),
     };
-    const feedback = commissioningFeedback({ rejectedCandidates: Array.from({ length: 30 }, () => row) });
+    const feedback = commissioningFeedback({
+      rejectedCandidates: Array.from({ length: 30 }, (_, i) => ({ ...row, id: String(i) + row.id })),
+    });
     expect(feedback).toHaveLength(8);
     expect(JSON.stringify(feedback).length).toBeLessThan(5500);
     expect(feedback[0]).not.toHaveProperty('accepted');
