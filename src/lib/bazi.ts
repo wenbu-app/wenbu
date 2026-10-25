@@ -1,6 +1,7 @@
 import { Solar, LunarUtil } from 'lunar-typescript';
 import { Temporal } from '@js-temporal/polyfill';
 import { birthSchema, InputError, type BirthInput } from './schema';
+import { baziRoleEn } from './bazi-labels';
 
 export const elements = [
   { zh: '木', en: 'Wood', color: '#557363', image: '生长 / Growth' },
@@ -26,19 +27,6 @@ const zodiacNames: Record<string, string> = {
   鸡: 'Rooster',
   狗: 'Dog',
   猪: 'Pig',
-};
-const roles: Record<string, string> = {
-  比肩: 'Peer',
-  劫财: 'Rob Wealth',
-  食神: 'Eating God',
-  伤官: 'Hurting Officer',
-  偏财: 'Indirect Wealth',
-  正财: 'Direct Wealth',
-  七杀: 'Seven Killings',
-  正官: 'Direct Officer',
-  偏印: 'Indirect Resource',
-  正印: 'Direct Resource',
-  日主: 'Day Master',
 };
 
 export function validateDate(date: string) {
@@ -135,7 +123,7 @@ export function calculateBazi(raw: unknown) {
       branchElement: LunarUtil.WU_XING_ZHI[branch],
       hidden: LunarUtil.ZHI_HIDE_GAN[branch],
       role,
-      roleEn: roles[role] ?? role,
+      roleEn: baziRoleEn(role),
       pinyin: `${stemNames[stems.indexOf(stem)]} ${branchNames[branches.indexOf(branch)]}`,
       nayin: LunarUtil.NAYIN[value],
     };

@@ -15,7 +15,7 @@ const evidence = {
 const fetchSafe = (url, init = {}) =>
   fetch(url, {
     ...init,
-    headers: { 'X-Wenbu-Test': 'true', ...init.headers },
+    headers: { 'X-Wenbu-Test': 'true', 'X-Wenbu-Analytics': 'off', ...init.headers },
     signal: AbortSignal.timeout(50000),
   });
 async function post(path, body, extra = {}) {
@@ -35,7 +35,40 @@ const builtPaths = [...builtSitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
   (match) => new URL(match[1]).pathname,
 );
 assert.ok(builtPaths.length > 0, 'Build the site before running its release smoke check.');
-assert.deepEqual([...urls].sort(), [...builtPaths].sort(), 'Live sitemap must match this build.');
+const deployedManifest = await (await fetchSafe(base + '/indexnow-manifest.json')).json();
+const builtManifest = JSON.parse(
+  await readFile(new URL('../dist/indexnow-manifest.json', import.meta.url), 'utf8'),
+);
+assert.equal(
+  deployedManifest.staticRevision ?? deployedManifest.revision,
+  builtManifest.revision,
+  'The deployed static build must match this source.',
+);
+const manifestPaths = deployedManifest.pages.map((page) => {
+  const url = new URL(page.url);
+  assert.equal(url.origin, builtManifest.origin);
+  assert.equal(url.search + url.hash, '');
+  return url.pathname;
+});
+assert.deepEqual(
+  [...urls].sort(),
+  [...manifestPaths].sort(),
+  'Live sitemap must match the current publication manifest.',
+);
+assert.ok(
+  builtPaths.every((path) => urls.includes(path)),
+  'Published additions must preserve every static canonical owner.',
+);
+evidence.manifest = {
+  staticRevision: deployedManifest.staticRevision ?? deployedManifest.revision,
+  revision: deployedManifest.revision,
+  staticPages: builtPaths.length,
+  publishedAdditions: urls.length - builtPaths.length,
+};
+const capabilityResponse = await fetchSafe(base + '/api/v1/capabilities');
+assert.equal(capabilityResponse.status, 200);
+const capabilities = await capabilityResponse.json();
+assert.equal(capabilities.version, evidence.health.version);
 assert.ok(urls.includes('/tarot/deck/') && urls.includes('/en/tarot/deck/'));
 assert.ok(!urls.some((url) => url.includes('/insights/')));
 for (let i = 0; i < urls.length; i += 4) {
@@ -101,11 +134,12 @@ const client = new Client({ name: 'wenbu-release-verification', version: '1.0' }
 try {
   await client.connect(
     new StreamableHTTPClientTransport(new URL(base + '/mcp'), {
-      requestInit: { headers: { 'X-Wenbu-Test': 'true' } },
+      requestInit: { headers: { 'X-Wenbu-Test': 'true', 'X-Wenbu-Analytics': 'off' } },
     }),
   );
   const listed = await client.listTools();
-  assert.equal(listed.tools.length, 6);
+  assert.deepEqual(listed.tools.map((tool) => tool.name).sort(), [...capabilities.mcp.tools].sort());
+  assert.ok(listed.tools.every((tool) => tool.outputSchema));
   for (const tool of listed.tools) evidence.mcp.push(tool.name);
   const result = await client.callTool({ name: 'cast_iching', arguments: { lines: [7, 7, 7, 7, 7, 7] } });
   assert.equal(result.structuredContent.original.number, 1);
@@ -124,7 +158,21 @@ try {
     evidence.library.push({ locale, id: content.source.id, title: content.source.title });
   }
   const resources = await client.listResources();
-  assert.ok(resources.resources.some((x) => x.uri === 'wenbu://methodology'));
+  assert.deepEqual(
+    resources.resources.map((resource) => resource.uri).sort(),
+    [...capabilities.mcp.resources].sort(),
+  );
+  const contract = await client.readResource({ uri: 'wenbu://capabilities' });
+  assert.deepEqual(JSON.parse(contract.contents[0].text), capabilities);
+  const prompts = await client.listPrompts();
+  assert.deepEqual(prompts.prompts.map((prompt) => prompt.name).sort(), [...capabilities.mcp.prompts].sort());
+  const daily = await client.callTool({
+    name: 'get_daily_card',
+    arguments: { timezone: 'UTC', locale: 'en' },
+  });
+  assert.equal(daily.structuredContent.scope, 'public');
+  assert.equal(daily.structuredContent.result.cards.length, 1);
+  assert.equal(daily.structuredContent.result.cards[0].reversed, false);
 } finally {
   await client.close();
 }

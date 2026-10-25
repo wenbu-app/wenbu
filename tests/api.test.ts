@@ -3,6 +3,7 @@ import worker, { boundedBody, originAllowed } from '../worker/index';
 import { identityHash, interpret } from '../worker/ai';
 import type { Env } from '../worker/types';
 import { productCapabilities } from '../src/lib/product-capabilities';
+import { database } from './helpers/analytics-db';
 const env = { SITE_URL: 'https://wenbu.app', DEEPSEEK_MODEL: 'deepseek-v4-flash' } as Env;
 const req = (body: unknown, origin?: string, path = 'bazi') =>
   new Request('https://wenbu.app/api/v1/' + path, {
@@ -12,6 +13,34 @@ const req = (body: unknown, origin?: string, path = 'bazi') =>
   });
 afterEach(() => vi.restoreAllMocks());
 describe('public edge API', () => {
+  it('creates a fresh manual technical check without reusing the scheduled daily instance', async () => {
+    const { env } = database();
+    env.SITE_URL = 'https://wenbu.app';
+    const batches: { id: string; params: { kind: string } }[][] = [];
+    env.EDITORIAL_WORKFLOW = {
+      createBatch: async (batch: { id: string; params: { kind: string } }[]) => {
+        batches.push(batch);
+        return [];
+      },
+    } as unknown as NonNullable<Env['EDITORIAL_WORKFLOW']>;
+    for (let i = 0; i < 2; i++) {
+      const response = await worker.fetch(
+        new Request('https://wenbu.app/api/admin/editorial/check', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer test-only-private-admin', Origin: 'https://wenbu.app' },
+        }),
+        env,
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        status: 'queued',
+        id: expect.stringMatching(/^editorial-health-manual-[a-f0-9-]{36}$/),
+      });
+    }
+    expect(batches).toHaveLength(2);
+    expect(batches[0][0].id).not.toBe(batches[1][0].id);
+    expect(batches.every((batch) => batch[0].params.kind === 'health')).toBe(true);
+  });
   it('serves a public capability manifest without account or model access', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch');
     const response = await worker.fetch(new Request('https://wenbu.app/api/v1/capabilities'), env);
