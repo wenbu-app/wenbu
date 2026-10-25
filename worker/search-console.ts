@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Env } from './types';
 import { searchQueueStatements } from './search-console-queue';
+import { reconcileStaticBlogs } from './search-static-articles';
 import { inspectionSchema, recordSearchInspection, searchInspectionsStatus } from './search-inspections';
 
 const origin = 'https://wenbu.app';
@@ -88,7 +89,13 @@ export async function searchConsoleAction(env: Env, input: z.infer<typeof search
       );
       added += results.filter((_, i) => i % 3 === 1).reduce((n, r) => n + (r.meta.changes ?? 0), 0);
     }
-    return { status: 'reconciled', publications: publications.length, added };
+    const staticBlogs = await reconcileStaticBlogs(env, now);
+    return {
+      status: 'reconciled',
+      publications: publications.length,
+      added: added + staticBlogs.added,
+      staticBlogs,
+    };
   }
   if (input.action === 'seed') {
     // The deployed manifest already excludes noindex, private and noncanonical routes.

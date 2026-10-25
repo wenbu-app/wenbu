@@ -10,6 +10,7 @@ import { guideDepth, handbookUpdated } from '../data/guide-depth';
 import { guideOutline, guideMinutes, knowledgeDocument, knowledgeLinks } from '../lib/knowledge';
 import KnowledgeLibrary from '../components/KnowledgeLibrary.astro';
 import ArticleCompanion from '../components/ArticleCompanion.astro';
+import TitleText from '../components/TitleText.astro';
 import { newGuideSlugs, topicForGuide } from '../data/learning-paths';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import TarotGallery from '../components/TarotGallery';
@@ -260,7 +261,9 @@ const ctaLabels: Record<string, [string, string]> = {
                     ? t('让探索有迹可循', 'YOUR READING JOURNAL')
                     : t('关于问卜', 'ABOUT WENBU'))}
         </span>
-        <h1>{displayHeading}</h1>
+        <h1>
+          <TitleText text={displayHeading} />
+        </h1>
         <p>{tool ? t(tool.descriptionZh, tool.descriptionEn) : description}</p>
         {article && (
           <div class="article-meta">
@@ -478,6 +481,15 @@ const ctaLabels: Record<string, [string, string]> = {
               </section>
             )}
             <div class="article-try">
+              {article.category === 'learn' && (
+                <a
+                  class="article-context-link"
+                  href={`${href(locale, 'agent')}?guide=${article.slug}`}
+                  data-track="article-guide-agent"
+                >
+                  {t('围绕这篇，继续问', 'Explore this guide with Wenbu')} ↗
+                </a>
+              )}
               <p>{t('读到这里，可以试一试。', 'Ready to put this into practice?')}</p>
               <a class="button primary" href={href(locale, article.tool)} data-track="article-tool">
                 {t(...(ctaLabels[article.tool] || ctaLabels.agent))} ↗

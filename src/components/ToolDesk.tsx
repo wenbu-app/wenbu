@@ -524,7 +524,7 @@ export default function ToolDesk({ kind, locale }: { kind: ToolKind; locale: Loc
                     <LoaderCircle className="spin" size={18} />
                   ) : (
                     <>
-                      {t('展开我的命盘', 'Reveal my chart')}
+                      {t('生成我的命盘', 'Create my chart')}
                       <ArrowRight size={18} />
                     </>
                   )}

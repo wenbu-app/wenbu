@@ -6,7 +6,7 @@
 
 - [Daily card](https://wenbu.app/en/daily/): a free, stable upright card for the current local date, one small action and a reflection prompt. No birth data, model call or signup required. Optional account save. `POST /api/v1/daily` with `{"action":"reveal","timezone":"Asia/Shanghai"}`; native clients may pass a stable random UUID `seed`. Without it, native clients receive the shared public card. No private account access via CLI or MCP.
 
-- [Agent workspace](https://wenbu.app/en/agent/): DeepSeek conversations, calculated charts and research from the Wenbu library and selected references. History is saved in this browser; sending a message shares the conversation and selected context with DeepSeek
+- [Agent workspace](https://wenbu.app/en/agent/): Wenbu conversations, calculated charts and research from the Wenbu library and selected references. Guest history stays in the browser; optional verified email accounts can save chosen records. Sending a message shares the conversation and selected context with Wenbu’s model provider.
 - [BaZi calculator](https://wenbu.app/en/bazi/): date, time, timezone and explicit calendar conventions
 - [I Ching](https://wenbu.app/en/iching/): three-coin method with all changing lines
 - [Tarot](https://wenbu.app/en/tarot/): full 78-card deck, one or three cards
@@ -25,6 +25,7 @@
 ## Agent integration
 
 - [Agent event protocol](https://wenbu.app/agent-protocol.md): explicit consent, selected context, SSE events and bounded execution
+- [Capability manifest](https://wenbu.app/api/v1/capabilities): versioned tools, selectable prompts, conventions and privacy; no personal history access.
 - [MCP endpoint](https://wenbu.app/mcp): stateless Streamable HTTP
 - [Agent guide](https://wenbu.app/en/agents/)
 - [OpenAPI schema](https://wenbu.app/openapi.json)
@@ -43,7 +44,7 @@
 
 ## Complete public knowledge exports
 
-- [Bilingual knowledge index](https://wenbu.app/knowledge/index.json): all 21 guides, canonical URLs and language-specific full Markdown/JSON links.
+- [Bilingual knowledge index](https://wenbu.app/knowledge/index.json): the current complete guide catalogue, canonical URLs and language-specific full Markdown/JSON links.
 - [Example Markdown guide](https://wenbu.app/knowledge/en/bazi-basics.md): complete text, diagram description, comparison table, worked example, glossary, FAQs and annotated sources.
 - [Example structured guide](https://wenbu.app/knowledge/en/bazi-basics.json): schemaVersion, outline and the same editorial content.
 

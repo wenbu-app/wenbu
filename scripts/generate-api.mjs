@@ -1,4 +1,5 @@
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile } from 'node:fs/promises';
+const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const date = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$', description: 'Gregorian date, 1901–2099' };
 const time = { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' };
 const locale = { type: 'string', enum: ['zh', 'en'], default: 'zh' };
@@ -235,9 +236,9 @@ const agentSchema = body(
 paths['/api/v1/agent'] = {
   post: {
     operationId: 'run_agent_turn',
-    summary: 'Run one bounded DeepSeek Agent turn with real tools and streamed artifacts',
+    summary: 'Run one bounded Wenbu Agent turn with real tools and streamed artifacts',
     description:
-      'Explicit consent to send selected context to DeepSeek. No server-side conversation history. Body <=98304 bytes. Twelve turns/network/Shanghai day; at most five model calls and 12 tool executions per turn, 120-second deadline. Shared site model budget 1000, Agent sub-budget 600. Each attempted model call counts, including failures. Research covers a curated catalogue, not unrestricted web search. Stream errors can occur after HTTP 200: only a done event confirms terminal status; waiting and limited are not complete.',
+      'Explicit consent to send selected context to DeepSeek. Unauthenticated external calls have no saved application history; first-party verified email accounts can opt into cloud records. Body <=98304 bytes. Browser trials/accounts have twelve turns per Shanghai day with trial usage carried over at sign-in and additional network/global limits. Unauthenticated external clients retain the per-network allowance; at most five model calls and 12 tool executions per turn, 120-second deadline. Shared site model budget 1000, Agent sub-budget 600. Each attempted model call counts, including failures. Research covers a curated catalogue, not unrestricted web search. Stream errors can occur after HTTP 200: only a done event confirms terminal status; waiting and limited are not complete.',
     requestBody: { required: true, content: { 'application/json': { schema: agentSchema } } },
     responses: {
       200: {
@@ -300,6 +301,47 @@ paths['/api/feedback'] = {
     },
   },
 };
+paths['/api/v1/daily'] = JSON.parse(
+  await readFile(new URL('./schemas/daily-path.json', import.meta.url), 'utf8'),
+);
+paths['/api/v1/capabilities'] = {
+  get: {
+    operationId: 'get_capabilities',
+    summary: 'Discover Wenbu endpoints, MCP tools, prompts and conventions',
+    description: 'Public versioned capability manifest. No personal data, model request or account access.',
+    responses: {
+      200: {
+        description: 'Current product capabilities',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: [
+                'schemaVersion',
+                'version',
+                'endpoints',
+                'mcp',
+                'conventions',
+                'privacy',
+                'evidence',
+              ],
+              properties: {
+                schemaVersion: { const: 'wenbu-capabilities-1' },
+                version: { type: 'string' },
+                endpoints: { type: 'object' },
+                mcp: { type: 'object' },
+                conventions: { type: 'object' },
+                privacy: { type: 'object' },
+                evidence: { type: 'object' },
+              },
+            },
+          },
+        },
+      },
+      429: { description: 'Rate limited; back off.' },
+    },
+  },
+};
 await writeFile(
   'public/agent-request.schema.json',
   JSON.stringify(
@@ -320,7 +362,7 @@ await writeFile(
       openapi: '3.1.0',
       info: {
         title: 'Wenbu · 问卜',
-        version: '1.1.0',
+        version,
         description: 'Free, transparent cultural calculation tools. No predictive validity claims.',
         license: { name: 'MIT', identifier: 'MIT' },
       },
@@ -352,7 +394,9 @@ await writeFile(
         'instructions',
       ],
       properties: {
-        schema: { enum: ['https://wenbu.app/context.schema.json', 'https://wenbu.genedai.me/context.schema.json'] },
+        schema: {
+          enum: ['https://wenbu.app/context.schema.json', 'https://wenbu.genedai.me/context.schema.json'],
+        },
         version: { const: 1 },
         kind: { enum: Object.keys(schemas) },
         createdAt: { type: 'string', format: 'date-time' },

@@ -14,6 +14,7 @@ export type ConversationChoice = {
   action: 'guided' | 'clarification' | 'followup' | 'example';
   mode?: AgentMode;
   freshContext?: boolean;
+  sourceIds?: string[];
 };
 
 export function quickTrialChoice(locale: Locale): ConversationChoice {

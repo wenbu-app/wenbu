@@ -283,3 +283,82 @@ describe('Search Console durable browser queue', () => {
     expect((await searchConsoleStatus(f.env)).globalRetryAt).toBe(Date.now() + 86400_000);
   });
 });
+
+describe('deployed static blog revisions', () => {
+  it('baselines the archive, then queues only new or changed blog revisions without clearing receipts or a pause', async () => {
+    const f = fixture();
+    let pages = [
+      '/blog/connect-your-agent/',
+      '/en/blog/connect-your-agent/',
+      '/blog/untouched/',
+      '/learn/bazi-basics/',
+      '/journal/',
+    ].map((path) => ({ url: origin + path, hash }));
+    f.env.ASSETS = { fetch: async () => Response.json({ pages }) } as unknown as Fetcher;
+    expect(await searchConsoleAction(f.env, { action: 'reconcile' })).toMatchObject({
+      added: 0,
+      staticBlogs: { baseline: true, checked: 3, added: 0 },
+    });
+    expect((await searchConsoleStatus(f.env)).jobs).toHaveLength(0);
+    const pause = Date.now() + 86400_000;
+    f.sql.prepare("UPDATE search_console_state SET retry_at=?,reason='quota' WHERE id=1").run(pause);
+    f.sql
+      .prepare(
+        "INSERT INTO search_console_queue(id,url,revision,kind,priority,status,created_at,updated_at,requested_at) VALUES(?,?,?,'article',100,'requested',?,?,?)",
+      )
+      .run(crypto.randomUUID(), pages[0].url, hash, Date.now(), Date.now(), Date.now());
+    pages = pages.map((page) => ({
+      ...page,
+      hash: page.url.includes('connect-your-agent') ? 'b'.repeat(64) : page.hash,
+    }));
+    expect(await searchConsoleAction(f.env, { action: 'reconcile' })).toMatchObject({
+      added: 2,
+      staticBlogs: { baseline: false, added: 2 },
+    });
+    expect(await searchConsoleAction(f.env, { action: 'reconcile' })).toMatchObject({ added: 0 });
+    let state = await searchConsoleStatus(f.env);
+    expect(state.globalRetryAt).toBe(pause);
+    expect(state.jobs.filter((job) => job.status === 'requested')).toHaveLength(1);
+    expect(state.jobs.filter((job) => job.status === 'pending')).toHaveLength(2);
+    expect(state.jobs.every((job) => job.kind === 'article' && job.url.includes('connect-your-agent'))).toBe(
+      true,
+    );
+    pages.push({ url: origin + '/blog/new-guide/', hash: 'c'.repeat(64) });
+    expect(await searchConsoleAction(f.env, { action: 'reconcile' })).toMatchObject({ added: 1 });
+    state = await searchConsoleStatus(f.env);
+    expect(state.jobs.filter((job) => job.status === 'pending')).toHaveLength(3);
+    expect(state.inspections.counts).toEqual(
+      expect.arrayContaining([
+        { provider: 'google', status: 'unknown', total: 3 },
+        { provider: 'bing', status: 'unknown', total: 3 },
+      ]),
+    );
+  });
+  it('rolls the fingerprint and queued revision back together on a storage failure', async () => {
+    const f = fixture();
+    let current = hash;
+    f.env.ASSETS = {
+      fetch: async () => Response.json({ pages: [{ url: origin + '/blog/test/', hash: current }] }),
+    } as unknown as Fetcher;
+    await searchConsoleAction(f.env, { action: 'reconcile' });
+    current = 'b'.repeat(64);
+    const db = f.env.ANALYTICS!,
+      batch = db.batch.bind(db);
+    db.batch = (items) => batch([...items, db.prepare('INSERT INTO missing_static_blog_table VALUES(1)')]);
+    await expect(searchConsoleAction(f.env, { action: 'reconcile' })).rejects.toThrow();
+    expect(f.sql.prepare('SELECT revision FROM search_static_blog_revisions').get()?.revision).toBe(hash);
+    expect((await searchConsoleStatus(f.env)).jobs).toHaveLength(0);
+    db.batch = batch;
+    expect(await searchConsoleAction(f.env, { action: 'reconcile' })).toMatchObject({ added: 1 });
+  });
+  it('rejects foreign manifest origins instead of adding arbitrary URLs', async () => {
+    const f = fixture();
+    f.env.ASSETS = {
+      fetch: async () => Response.json({ pages: [{ url: 'https://example.com/blog/test/', hash }] }),
+    } as unknown as Fetcher;
+    await expect(searchConsoleAction(f.env, { action: 'reconcile' })).rejects.toThrow(
+      'search_static_manifest_invalid',
+    );
+    expect((await searchConsoleStatus(f.env)).jobs).toHaveLength(0);
+  });
+});

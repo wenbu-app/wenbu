@@ -6,6 +6,8 @@ import { publishedDocument, publishedDocuments } from './editorial-store';
 import type { Env } from './types';
 import { comparisons } from '../src/data/comparisons';
 import { articles } from '../src/data/articles';
+import { learningTopics, topicForGuide } from '../src/data/learning-paths';
+import { titleParts } from '../src/lib/reading-type';
 export function editorialIdentity(doc: EditorialDocument, locale: 'zh' | 'en') {
   const original =
     doc.topic.mode === 'extend'
@@ -26,6 +28,10 @@ export const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 const h = escapeHtml;
+const heading = (value: string) =>
+  titleParts(value)
+    .map((part) => (part.keep ? `<span class="keep-term">${h(part.text)}</span>` : h(part.text)))
+    .join('');
 const pref = (locale: 'zh' | 'en') => (locale === 'en' ? '/en/' : '/');
 const machineSlug = (doc: EditorialDocument) =>
   `${doc.topic.category === 'compare' ? 'compare-' : ''}${doc.topic.slug}`;
@@ -155,16 +161,48 @@ export function editorialBody(doc: EditorialDocument, locale: 'zh' | 'en') {
     <section><h2>${t('术语速查', 'Terms in this guide')}</h2><dl>${e.glossary.map((g) => `<dt><strong>${h(g.term)}</strong></dt><dd>${h(g.definition)}${citations(doc, g.sourceIds)}</dd>`).join('')}</dl></section>
     <details class="editorial-evidence"><summary>${t('查看事实与来源的核对笔记', 'See the claim and source notes')}</summary><ul>${e.evidence.map((item) => `<li><p>${h(item.claim)}</p><q>${h(item.quote)}</q>${citations(doc, [item.sourceId])}</li>`).join('')}</ul></details>
     <section class="editorial-sources"><h2>${t('来源与核对范围', 'Sources and review scope')}</h2><p>${t('这是问卜的 AI 辅助编辑内容，经过自动结构检查和独立生成的编辑检查；不代表独立专家审稿。公开产品介绍不等于付费体验测试。', 'This AI-assisted Wenbu article passed automated structure checks and a separate editorial model pass. It is not independent expert review or a paid-account product test.')}</p><ol>${doc.sources.map((s) => `<li><a href="${h(s.url)}" rel="noreferrer" data-track="source">${h(s.title)} ↗</a><small>${h(s.role)} · ${s.fetchedAt.slice(0, 10)} · ${s.truncated ? t('已读选段', 'Read excerpt') : t('已取回正文', 'Fetched text')}</small></li>`).join('')}</ol></section>
-    <section class="editorial-cta"><h2>${h(e.cta.label)}</h2><p>${h(e.cta.reason)}</p><a class="button primary" data-track="article-tool" href="${pref(locale)}${doc.topic.tool}/">${h(e.cta.label)} ↗</a><div class="editorial-downloads"><a data-track="guide-markdown" href="/knowledge/${locale}/${machineSlug(doc)}.md">Markdown ↗</a><a data-track="guide-json" href="/knowledge/${locale}/${machineSlug(doc)}.json">JSON ↗</a><a href="${pref(locale)}${locale === 'en' ? 'compare/' : 'compare/'}">${t('比较不同产品', 'Compare products')} ↗</a></div></section>`;
+    <section class="editorial-cta"><h2>${h(e.cta.label)}</h2><p>${h(e.cta.reason)}</p><a class="button primary" data-track="article-tool" href="${pref(locale)}${doc.topic.tool}/">${h(e.cta.label)} ↗</a><p><a class="article-context-link" data-track="article-guide-agent" href="${pref(locale)}agent/?guide=${machineSlug(doc)}">${t('围绕这篇，继续问', 'Explore this guide with Wenbu')} ↗</a></p><div class="editorial-downloads"><a data-track="guide-markdown" href="/knowledge/${locale}/${machineSlug(doc)}.md">Markdown ↗</a><a data-track="guide-json" href="/knowledge/${locale}/${machineSlug(doc)}.json">JSON ↗</a><a href="${pref(locale)}${locale === 'en' ? 'compare/' : 'compare/'}">${t('比较不同产品', 'Compare products')} ↗</a></div></section>`;
 }
 export function editorialCards(
   docs: EditorialDocument[],
   locale: 'zh' | 'en',
   category: 'learn' | 'compare',
 ) {
-  const relevant = docs.filter((d) => d.topic.category === category).slice(0, 12);
+  const relevant = docs.filter(
+    (d) =>
+      d.topic.category === category &&
+      !(category === 'compare' ? comparisons : articles).some((original) => original.slug === d.topic.slug),
+  );
   if (!relevant.length) return '';
-  return `<section class="editorial-catalogue"><h2>${category === 'compare' ? (locale === 'zh' ? '按需求，找到适合的工具' : 'Choose a tool for your task') : locale === 'zh' ? '最近补充的实践与指南' : 'Recent guides and practical additions'}</h2><div class="editorial-cards">${relevant.map((d) => `<a class="editorial-card" data-track="library-article" href="${pref(locale)}${pathForTopic(d.topic)}/"><div class="editorial-card-art" aria-hidden="true">${editorialArt(d.topic.tool, d.topic.category === 'compare')}</div><small>${d.updatedAt.slice(0, 10)} · ${d.topic.mode === 'extend' ? (locale === 'zh' ? '新增练习' : 'Updated practice') : category === 'compare' ? (locale === 'zh' ? '产品对比' : 'Product comparison') : locale === 'zh' ? '图解指南' : 'Illustrated guide'}</small><h3>${h(d[locale].title)}</h3><p>${h(d[locale].description)}</p></a>`).join('')}</div></section>`;
+  return `<section class="editorial-catalogue"><h2>${category === 'compare' ? (locale === 'zh' ? '按需求，找到适合的工具' : 'Choose a tool for your task') : locale === 'zh' ? '最近补充的实践与指南' : 'Recent guides and practical additions'}</h2><div class="editorial-cards">${relevant.map((d) => `<a class="editorial-card" data-track="library-article" href="${pref(locale)}${pathForTopic(d.topic)}/"><div class="editorial-card-art" aria-hidden="true">${editorialArt(d.topic.tool, d.topic.category === 'compare')}</div><small>${d.updatedAt.slice(0, 10)} · ${d.topic.mode === 'extend' ? (locale === 'zh' ? '新增练习' : 'Updated practice') : category === 'compare' ? (locale === 'zh' ? '产品对比' : 'Product comparison') : locale === 'zh' ? '图解指南' : 'Illustrated guide'}</small><h3>${heading(d[locale].title)}</h3><p>${h(d[locale].description)}</p></a>`).join('')}</div></section>`;
+}
+function libraryTopic(doc: EditorialDocument) {
+  return (
+    topicForGuide(doc.topic.slug) ??
+    learningTopics.find((topic) => topic.id === doc.topic.tool) ??
+    learningTopics[5]
+  );
+}
+function guideSearch(doc: EditorialDocument) {
+  const topic = libraryTopic(doc);
+  return [
+    doc.topic.slug.replaceAll('-', ' '),
+    doc.zh.title,
+    doc.en.title,
+    doc.zh.description,
+    doc.en.description,
+    topic.zh,
+    topic.en,
+    doc.topic.tool,
+  ]
+    .join(' ')
+    .normalize('NFKC')
+    .toLowerCase();
+}
+function libraryCard(doc: EditorialDocument, locale: 'zh' | 'en') {
+  const e = doc[locale],
+    topic = libraryTopic(doc);
+  return `<a class="library-guide" href="${pref(locale)}${pathForTopic(doc.topic)}/" data-track="library-article" data-guide data-guide-slug="${h(doc.topic.slug)}" data-search="${h(guideSearch(doc))}"><div class="editorial-card-art" aria-hidden="true">${editorialArt(doc.topic.tool)}</div><div class="library-guide-copy"><div class="library-guide-meta"><span>${h(topic[locale])}</span><span>${doc.updatedAt.slice(0, 10)}</span></div><h4>${heading(e.title)}</h4><p>${h(e.description)}</p><span class="library-guide-read">${locale === 'zh' ? '继续阅读' : 'Read the guide'} ↗</span></div></a>`;
 }
 function rewriteMetadata(response: Response, doc: EditorialDocument, locale: 'zh' | 'en', base: string) {
   const e = doc[locale],
@@ -336,7 +374,7 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
         .on('#editorial-document', {
           element(el) {
             el.setInnerContent(
-              `<div class="shell editorial-reading"><nav class="breadcrumbs" aria-label="${locale === 'zh' ? '当前位置' : 'Breadcrumb'}"><a href="${pref(locale)}">${locale === 'zh' ? '首页' : 'Home'}</a> / <a href="${pref(locale)}${doc.topic.category}/">${doc.topic.category === 'compare' ? (locale === 'zh' ? '产品对比' : 'Comparisons') : locale === 'zh' ? '知识手册' : 'Library'}</a></nav><header class="editorial-heading"><span class="eyebrow">WENBU · ${doc.topic.category === 'compare' ? 'SIDE BY SIDE' : 'FIELD NOTES'}</span><h1>${h(e.title)}</h1><p>${h(e.description)}</p><div class="editorial-meta"><span>Wenbu · ${locale === 'zh' ? 'AI 辅助编辑' : 'AI-assisted editorial'}</span><time datetime="${doc.updatedAt}">${doc.updatedAt.slice(0, 10)}</time><span>${locale === 'zh' ? '图解 · 实例 · 来源' : 'Figures · Worked example · Sources'}</span></div><div class="editorial-hero-art" aria-hidden="true">${editorialArt(doc.topic.tool, doc.topic.category === 'compare')}</div></header><div class="editorial-grid"><article class="editorial-prose">${editorialBody(doc, locale)}</article><aside class="editorial-toc"><strong>${locale === 'zh' ? '这一篇讲什么' : 'On this page'}</strong><nav>${e.sections.map((s, i) => `<a href="#editorial-section-${i}">${h(s.heading)}</a>`).join('')}</nav></aside></div></div>`,
+              `<div class="shell editorial-reading"><nav class="breadcrumbs" aria-label="${locale === 'zh' ? '当前位置' : 'Breadcrumb'}"><a href="${pref(locale)}">${locale === 'zh' ? '首页' : 'Home'}</a> / <a href="${pref(locale)}${doc.topic.category}/">${doc.topic.category === 'compare' ? (locale === 'zh' ? '产品对比' : 'Comparisons') : locale === 'zh' ? '知识手册' : 'Library'}</a></nav><header class="editorial-heading"><span class="eyebrow">WENBU · ${doc.topic.category === 'compare' ? 'SIDE BY SIDE' : 'FIELD NOTES'}</span><h1>${heading(e.title)}</h1><p>${h(e.description)}</p><div class="editorial-meta"><span>Wenbu · ${locale === 'zh' ? 'AI 辅助编辑' : 'AI-assisted editorial'}</span><time datetime="${doc.updatedAt}">${doc.updatedAt.slice(0, 10)}</time><span>${locale === 'zh' ? '图解 · 实例 · 来源' : 'Figures · Worked example · Sources'}</span></div><div class="editorial-hero-art" aria-hidden="true">${editorialArt(doc.topic.tool, doc.topic.category === 'compare')}</div></header><div class="editorial-grid"><article class="editorial-prose">${editorialBody(doc, locale)}</article><aside class="editorial-toc"><strong>${locale === 'zh' ? '这一篇讲什么' : 'On this page'}</strong><nav>${e.sections.map((s, i) => `<a href="#editorial-section-${i}">${h(s.heading)}</a>`).join('')}</nav></aside></div></div>`,
               { html: true },
             );
           },
@@ -358,11 +396,94 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
   if (normalized === '/learn/' || normalized === '/compare/') {
     const docs = await publishedDocuments(env),
       category = normalized === '/compare/' ? 'compare' : 'learn';
-    const response = await env.ASSETS.fetch(assetRequest(request));
+    let response = await env.ASSETS.fetch(assetRequest(request));
+    if (category === 'compare')
+      return new HTMLRewriter()
+        .on('[data-editorial-catalogue]', {
+          element(el) {
+            el.setInnerContent(editorialCards(docs, locale, category), { html: true });
+          },
+        })
+        .transform(response);
+    const guides = docs.filter((doc) => doc.topic.category === 'learn');
+    const originals = articles.filter((article) => article.category === 'learn');
+    const additions = guides.filter((doc) => !originals.some((article) => article.slug === doc.topic.slug));
+    const total = originals.length + additions.length;
+    // The visible directory and its CollectionPage describe the same canonical owners.
+    const items = learningTopics.flatMap((topic) => [
+      ...topic.slugs
+        .map((slug) => originals.find((article) => article.slug === slug))
+        .filter((article) => article !== undefined)
+        .map((article) => ({
+          name: article[locale].title,
+          url: `${env.SITE_URL}${pref(locale)}learn/${article.slug}/`,
+        })),
+      ...additions
+        .filter((doc) => libraryTopic(doc).id === topic.id)
+        .map((doc) => ({
+          name: doc[locale].title,
+          url: `${env.SITE_URL}${pref(locale)}${pathForTopic(doc.topic)}/`,
+        })),
+    ]);
+    const sourceHtml = await response.text();
+    const html = sourceHtml.replace(
+      /<script([^>]*type="application\/ld\+json"[^>]*)>([\s\S]*?)<\/script>/g,
+      (whole, attributes, raw) => {
+        try {
+          const schema = JSON.parse(raw);
+          for (const node of schema['@graph'] ?? [schema])
+            if (node['@type'] === 'CollectionPage' && node.url === `${env.SITE_URL}${pref(locale)}learn/`)
+              node.mainEntity = {
+                '@type': 'ItemList',
+                numberOfItems: items.length,
+                itemListElement: items.map((item, index) => ({
+                  '@type': 'ListItem',
+                  position: index + 1,
+                  ...item,
+                })),
+              };
+          return `<script${attributes}>${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>`;
+        } catch {
+          return whole;
+        }
+      },
+    );
+    const headers = new Headers(response.headers);
+    headers.delete('Content-Length');
+    headers.delete('ETag');
+    headers.delete('Last-Modified');
+    response = new Response(html, { status: response.status, headers });
     return new HTMLRewriter()
+      .on('[data-library-edition]', {
+        element(el) {
+          el.setInnerContent(
+            locale === 'zh'
+              ? `${total} 篇双语图解指南 · 案例与来源 · 免费阅读`
+              : `${total} illustrated guides · Examples and sources · Free to read`,
+          );
+        },
+      })
+      .on('[data-guide-slug]', {
+        element(el) {
+          const doc = guides.find((doc) => doc.topic.slug === el.getAttribute('data-guide-slug'));
+          if (doc)
+            el.setAttribute('data-search', `${el.getAttribute('data-search') ?? ''} ${guideSearch(doc)}`);
+        },
+      })
+      .on('[data-topic-guides]', {
+        element(el) {
+          el.append(
+            additions
+              .filter((doc) => libraryTopic(doc).id === el.getAttribute('data-topic-guides'))
+              .map((doc) => libraryCard(doc, locale))
+              .join(''),
+            { html: true },
+          );
+        },
+      })
       .on('[data-editorial-catalogue]', {
         element(el) {
-          el.setInnerContent(editorialCards(docs, locale, category), { html: true });
+          el.setInnerContent('');
         },
       })
       .transform(response);

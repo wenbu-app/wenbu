@@ -1,0 +1,109 @@
+/* Shared reading rhythm. Preserve the paper, ink and original artwork. */
+.keep-term {
+  white-space: nowrap;
+}
+.page-heading h1,
+.editorial-heading h1 {
+  text-wrap: pretty;
+}
+.prose,
+.editorial-prose {
+  min-width: 0;
+}
+.prose p,
+.editorial-prose p {
+  max-width: 74ch;
+}
+.prose section + section,
+.editorial-prose section + section {
+  margin-top: 42px;
+}
+.article-context-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--red);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.article-try {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 24px;
+}
+.article-try > p {
+  flex-basis: 100%;
+  margin-bottom: 0;
+}
+.library-guide .editorial-card-art {
+  width: 100%;
+  aspect-ratio: 15 / 8;
+  margin: 0;
+  overflow: hidden;
+}
+.library-guide .editorial-card-art > svg {
+  width: 100%;
+  height: 100%;
+}
+.library-guide-copy {
+  min-width: 0;
+}
+.library-guide h4 {
+  text-wrap: pretty;
+}
+.library-guide-meta {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.reading-conventions {
+  margin: 22px 0 28px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 5px;
+}
+.reading-conventions > strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.reading-conventions dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+  margin: 12px 0 0;
+}
+.reading-conventions dl > div {
+  min-width: 0;
+}
+.reading-conventions dt {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.reading-conventions dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.reading-conventions p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+@media (max-width: 700px) {
+  .prose section + section,
+  .editorial-prose section + section {
+    margin-top: 32px;
+  }
+  .article-try {
+    gap: 14px;
+  }
+  .article-context-link {
+    font-size: 14px;
+  }
+  .reading-conventions {
+    padding: 16px;
+  }
+}

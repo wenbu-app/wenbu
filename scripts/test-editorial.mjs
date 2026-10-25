@@ -327,9 +327,34 @@ try {
     (await response.text()).includes('/en/learn/daily-card-reflection/'),
   );
   response = await mf.dispatchFetch('https://wenbu.app/learn/');
+  const libraryHtml = await response.text();
+  check('library links to new article', libraryHtml.includes('href="/learn/daily-card-reflection/"'));
   check(
-    'library links to new article',
-    (await response.text()).includes('href="/learn/daily-card-reflection/"'),
+    'published guide participates in the same searchable topic grid',
+    /data-topic-guides="reflect"[\s\S]*?data-guide-slug="daily-card-reflection"[^>]*data-search=/.test(
+      libraryHtml,
+    ),
+  );
+  check(
+    'published guide has one catalogue card and a full catalogue count',
+    (libraryHtml.match(/data-guide-slug="daily-card-reflection"/g) ?? []).length === 1 &&
+      libraryHtml.includes('22 篇双语图解指南'),
+  );
+
+  const collection = [
+    ...libraryHtml.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g),
+  ]
+    .flatMap((match) => {
+      const schema = JSON.parse(match[1]);
+      return schema['@graph'] ?? [schema];
+    })
+    .find((node) => node['@type'] === 'CollectionPage');
+  check(
+    'library structured data includes each visible canonical guide once',
+    collection?.mainEntity?.numberOfItems === 22 &&
+      collection.mainEntity.itemListElement.filter(
+        (item) => item.url === 'https://wenbu.app/learn/daily-card-reflection/',
+      ).length === 1,
   );
   response = await mf.dispatchFetch('https://wenbu.app/indexnow-manifest.json');
   const manifest = await response.json();

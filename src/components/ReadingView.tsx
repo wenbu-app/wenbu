@@ -3,7 +3,7 @@ import { MousePointer2, ZoomIn } from 'lucide-react';
 import TarotCard from './TarotCard';
 import type { Reading } from '../lib/tools';
 import type { Locale } from '../lib/schema';
-import { choose } from '../lib/i18n';
+import { choose, href } from '../lib/i18n';
 
 export default function ReadingView({ result, locale }: { result: Reading; locale: Locale }) {
   const t = (zh: string, en: string) => choose(locale, zh, en);
@@ -18,13 +18,55 @@ export default function ReadingView({ result, locale }: { result: Reading; local
           <span className="eyebrow">YOUR FOUR PILLARS</span>
           <span className="small-label">{result.calendar.lunar}</span>
         </div>
+        <section className="reading-conventions" aria-label={t('本次排盘约定', 'Calculation conventions')}>
+          <strong>{t('本次排盘约定', 'Time & conventions')}</strong>
+          <dl>
+            <div>
+              <dt>{t('出生地钟表', 'Local clock')}</dt>
+              <dd>
+                {result.input.date} · {result.input.time || t('时刻未知', 'Time unknown')}
+              </dd>
+            </div>
+            <div>
+              <dt>{t('时区 / 偏移', 'Timezone / offset')}</dt>
+              <dd>
+                {result.input.timezone} · {result.calendar.offset}
+              </dd>
+            </div>
+            <div>
+              <dt>{t('日柱换日', 'Day boundary')}</dt>
+              <dd>
+                {result.input.dayBoundary === 'zi'
+                  ? t('23:00 子初', '23:00 · Zi hour')
+                  : t('00:00 零点', '00:00 · midnight')}
+              </dd>
+            </div>
+            <div>
+              <dt>{t('日时钟表', 'Day / hour clock')}</dt>
+              <dd>
+                {result.input.solarTime
+                  ? t('近似真太阳时', 'Approximate solar time')
+                  : t('当地民用时', 'Local civil time')}
+              </dd>
+            </div>
+          </dl>
+          {result.calendar.yearPillarZodiac &&
+            result.calendar.zodiac !== result.calendar.yearPillarZodiac && (
+              <p>
+                {t(
+                  `农历生肖为${result.calendar.zodiac}，立春年柱生肖为${result.calendar.yearPillarZodiac}。两者换年规则不同，属于正常差异。`,
+                  `The lunar-year animal is ${result.calendar.zodiacEn ?? result.calendar.zodiac}; the Li Chun year-pillar animal is ${result.calendar.yearPillarZodiacEn ?? result.calendar.yearPillarZodiac}. Their year boundaries differ.`,
+                )}
+              </p>
+            )}
+        </section>
         <div className="pillars">
           {result.pillars.map((p, i) => (
             <div key={p.key} className={`pillar ${i === 2 ? 'day-pillar' : ''}`}>
               <span className="pillar-label">
                 {t(['年柱', '月柱', '日柱', '时柱'][i], ['YEAR', 'MONTH', 'DAY', 'HOUR'][i])}
               </span>
-              <span className="pillar-role">
+              <span className="pillar-role" title={p.role ?? undefined}>
                 {p.value ? (locale === 'zh' ? p.role : p.roleEn) : t('时刻未知', 'Unknown time')}
               </span>
               <strong style={{ color: result.elements.find((e) => e.zh === p.stemElement)?.color }}>
@@ -50,6 +92,13 @@ export default function ReadingView({ result, locale }: { result: Reading; local
             </div>
           ))}
         </div>
+        <p className="calculation-note">
+          {t(
+            '十神是传统关系的名称，不是性格测验或现实事件的结论。',
+            'The Ten Gods name traditional relationships, not measured personality traits or promised outcomes.',
+          )}{' '}
+          <a href={href(locale, 'learn/bazi-ten-gods')}>{t('了解这些名称', 'Understand the names')} ↗</a>
+        </p>
         <div className="element-section">
           <div className="element-donut">
             <svg

@@ -18,13 +18,13 @@ Connect remote MCP at `https://wenbu.app/mcp`, use the dependency-free CLI, or i
 
 ## 第一次用，从这里开始
 
-| 你想做什么               | 建议入口                                                             | 需要准备什么                                         |
-| ------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------- |
-| 每天留一点新的视角       | [日签](https://wenbu.app/daily/) | 不用填写资料；免费揭牌、记录和回看，不消耗对话回合 |
-| 还不知道怎么问           | [Agent 对话](https://wenbu.app/agent/)                               | 选一个主题和目标，再修改生成的草稿；点击发送后才开始 |
-| 围绕眼前一件事思考       | [塔罗](https://wenbu.app/tarot/) / [易经](https://wenbu.app/iching/) | 一个具体问题，不需要出生资料                         |
-| 看出生资料对应的传统命盘 | [八字](https://wenbu.app/bazi/) / [紫微](https://wenbu.app/ziwei/)   | 公历生日与当地时间；八字还需时区，紫微必须知道时刻   |
-| 弄懂术语与计算规则       | [知识手册](https://wenbu.app/learn/)                                 | 可以从入门内容读起，再核对结果里的计算约定           |
+| 你想做什么               | 建议入口                                                             | 需要准备什么                                       |
+| ------------------------ | -------------------------------------------------------------------- | -------------------------------------------------- |
+| 每天留一点新的视角       | [日签](https://wenbu.app/daily/)                                     | 不用填写资料；免费揭牌、记录和回看，不消耗对话回合 |
+| 还不知道怎么问           | [Agent 对话](https://wenbu.app/agent/)                               | 直接提问、选择一个开场，或先看不耗回合的完整示例   |
+| 围绕眼前一件事思考       | [塔罗](https://wenbu.app/tarot/) / [易经](https://wenbu.app/iching/) | 一个具体问题，不需要出生资料                       |
+| 看出生资料对应的传统命盘 | [八字](https://wenbu.app/bazi/) / [紫微](https://wenbu.app/ziwei/)   | 公历生日与当地时间；八字还需时区，紫微必须知道时刻 |
+| 弄懂术语与计算规则       | [知识手册](https://wenbu.app/learn/)                                 | 可以从入门内容读起，再核对结果里的计算约定         |
 
 传统符号适合学习和自我反思。历法计算能否复核，与解释能否预测现实是两件事；问卜不把排盘结果当作人生结论。
 
@@ -36,12 +36,12 @@ Connect remote MCP at `https://wenbu.app/mcp`, use the dependency-free CLI, or i
 - 易经：三钱法起卦，保留自下而上的六爻、动爻、本卦与之卦。
 - 塔罗：完整 78 张牌，不放回抽取 1 张或 3 张，可选逆位；牌面为原创 AI 插画。
 - 紫微：十二宫与星曜，公开 iztro 的排盘约定；目前宫位和星曜名称保留中文。
-- Agent：使用 DeepSeek 调用实际工具、读取站内文章与精选外部资料、生成带来源的札记，并继续修改已有结果。研究范围限于资料目录。
-- 保存与接入：浏览器手记、会话导出、MCP、CLI、Skill 与 REST API。
+- Agent：调用实际工具、读取站内文章与精选外部资料、生成带来源的札记，并继续修改已有结果。研究范围限于资料目录。
+- 保存与接入：可选邮箱账号与云端记录、浏览器试用手记、会话导出、MCP、CLI、Skill 与 REST API。
 
 ### 免费与资料处理
 
-计算、抽取、学习内容、手记和 MCP 无需注册或付费。单次 AI 解读每个网络每天最多 5 次，Agent 每天最多 12 回合，上海时间零点重置；仍受全站共享预算限制。AI 不可用时，独立工具仍可使用。详见[免费额度](https://wenbu.app/free/)。
+计算、抽取、学习内容、手记和 MCP 无需注册或付费。浏览器试用和登录账号每天最多 5 次 AI 解读、12 个 Agent 回合，上海时间零点重置；登录会归并当天试用用量，并受额外的网络防滥用和全站预算限制。外部匿名 API 仍按网络限额计数。AI 不可用时，独立工具仍可使用。详见[免费额度](https://wenbu.app/free/)。
 
 未登录时，会话与手记暂存在当前浏览器。邮箱验证码登录后可开启云端记录、选择导入旧记录，并跨设备回看；不要求注册才能查看完整结果。计算请求会发送至问卜的 Cloudflare 服务；使用 AI 时，消息和所选上下文会经该服务发送给 DeepSeek。导出文件可能包含私人资料，下载不等于自动分享，也不等于匿名化。详见[隐私说明](https://wenbu.app/privacy/)。
 
@@ -49,7 +49,7 @@ Connect remote MCP at `https://wenbu.app/mcp`, use the dependency-free CLI, or i
 
 For a short daily practice, try the [free daily card](https://wenbu.app/en/daily/): one stable upright card for the local date, an original action prompt and a question for later. No birth details, account or Agent turn required. Keep a note, optionally save to an account, or explicitly carry the same card into a conversation. It is a reflective practice, not a personal horoscope.
 
-Use [Wenbu Agent](https://wenbu.app/en/agent/) if you would like help framing a question. Choose a topic and an aim, edit the suggested draft, then send it. Choosing an option does not submit the draft for you.
+Use [Wenbu Agent](https://wenbu.app/en/agent/) if you would like help framing a question. Ask directly, select a starter that sends the displayed message, or preview a complete example without using a turn. Selecting a starter preserves any draft you are writing.
 
 For a question about the present, [tarot](https://wenbu.app/en/tarot/) and the [I Ching](https://wenbu.app/en/iching/) need no birth details. [BaZi](https://wenbu.app/en/bazi/) and [Zi Wei](https://wenbu.app/en/ziwei/) arrange traditional charts from birth information. The [handbook](https://wenbu.app/en/learn/) explains how to begin and what the results mean.
 
@@ -71,7 +71,7 @@ AI is optional. To enable it locally, put server-only `DEEPSEEK_API_KEY` and `QU
 
 ## Connect your own agent / 接入自己的 Agent
 
-Use Streamable HTTP at `https://wenbu.app/mcp`. It exposes six tools:
+Use Streamable HTTP at `https://wenbu.app/mcp`. It exposes seven tools:
 
 | Tool              | Purpose                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
@@ -81,10 +81,13 @@ Use Streamable HTTP at `https://wenbu.app/mcp`. It exposes six tools:
 | `calculate_ziwei` | Twelve palaces from a known local birth time and traditional sex parameter |
 | `search_library`  | Search Wenbu guides, symbol notes and reference metadata                   |
 | `read_library`    | Read a guide or symbol entry by its returned ID                            |
+| `get_daily_card`  | Public daily reflection and practice; server calendar, no private history  |
 
 MCP does not call DeepSeek or need your model key. Your host supplies its own interpretation. External reference search results are links and metadata; MCP has no `read_reference` tool, so the host must open those pages itself before citing their contents. Set `locale` explicitly to `zh` or `en`: MCP defaults to English, while REST and CLI calculations default to Chinese. Some traditional names remain in Chinese.
 
 中文接入说明与可复制示例见 [Agent 接入](https://wenbu.app/agents/)；英文说明见 [Agent integrations](https://wenbu.app/en/agents/)。
+
+The capability manifest at [api/v1/capabilities](https://wenbu.app/api/v1/capabilities) describes tool conventions and privacy. Tools advertise validated successful-output schemas. Resources include `wenbu://methodology`, `wenbu://knowledge` and `wenbu://capabilities`; selectable prompts are `reflect_on_reading` and `research_with_sources`. Prompt retrieval does not call a model.
 
 ### Try the CLI
 

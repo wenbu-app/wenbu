@@ -534,3 +534,152 @@
     gap: 16px;
   }
 }
+
+/* The question has the full desk until the reader chooses to open the work. */
+.agent-workspace.mobile-chat {
+  grid-template-columns: 218px minmax(0, 1fr);
+}
+.agent-workspace.mobile-chat .agent-result-pane {
+  display: none;
+}
+.agent-workspace .agent-results-toggle {
+  display: inline-flex;
+  gap: 5px;
+  min-height: 44px;
+}
+.agent-results-toggle[aria-expanded='true'] {
+  color: var(--ink);
+  background: #e9eddf;
+}
+.agent-results-label {
+  font-size: 12px;
+}
+.agent-workspace .agent-conversation {
+  min-width: 0;
+}
+.agent-workspace .agent-welcome {
+  max-width: 760px;
+  padding: 32px 40px 32px;
+}
+.agent-workspace .agent-welcome > p {
+  font-size: 14px;
+  line-height: 1.85;
+}
+.agent-workspace .agent-message-list {
+  padding-top: 36px;
+}
+.agent-workspace .agent-composer-area {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+.agent-guide-entry .agent-onboarding-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.agent-guide-entry .agent-onboarding-heading button {
+  margin-left: auto;
+}
+.agent-entry-guide {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 18px;
+  padding: 18px;
+  border-left: 2px solid #a7b38f;
+  background: #eef0e6;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.agent-entry-guide svg {
+  flex-shrink: 0;
+}
+.agent-guide-choices {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+.agent-guide-choices button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  padding: 18px 20px;
+  min-height: 60px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.agent-guide-choices button:hover:not(:disabled) {
+  background: #e9eddf;
+  border-color: #a8b398;
+}
+.agent-guide-entry .agent-guide-scope {
+  font-size: 12px;
+  margin-top: 20px;
+  color: var(--muted);
+}
+@media (min-width: 1550px) {
+  .agent-workspace.mobile-chat {
+    grid-template-columns: 246px minmax(0, 1fr);
+  }
+}
+@media (min-width: 701px) and (max-width: 1180px) {
+  .agent-workspace.mobile-chat,
+  .agent-workspace.mobile-results {
+    grid-template-columns: 184px minmax(0, 1fr);
+  }
+  .agent-workspace.mobile-results .agent-conversation {
+    display: none;
+  }
+  .agent-workspace.mobile-results .agent-result-pane {
+    display: flex;
+  }
+}
+@media (min-width: 701px) and (max-width: 1000px) {
+  .agent-workspace.mobile-chat,
+  .agent-workspace.mobile-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .agent-workspace .agent-welcome {
+    padding: 28px 20px 24px;
+  }
+  .agent-workspace .agent-welcome h1 {
+    font-size: 29px;
+    line-height: 1.45;
+  }
+  .agent-workspace .agent-welcome > p {
+    font-size: 13px;
+  }
+  .agent-workspace .agent-composer-area {
+    padding: 12px 14px 14px;
+  }
+  .agent-workspace .agent-message-list {
+    padding-top: 28px;
+  }
+  .agent-results-label {
+    display: none;
+  }
+  .agent-entry-guide {
+    margin-top: 18px;
+    padding: 15px;
+    font-size: 14px;
+  }
+  .agent-guide-choices button {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 701px) {
+  .agent-first-steps {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .agent-workspace .agent-birth-start {
+    height: 100%;
+  }
+}

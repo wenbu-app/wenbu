@@ -7,7 +7,7 @@ export const integrationArticles: Article[] = [
     minutes: 6,
     tool: 'agent',
     published: '2026-10-03',
-    updated: '2026-10-03',
+    updated: '2026-10-25',
     sources: [
       {
         title: 'Wenbu · open MCP implementation and reproducible examples',
@@ -27,8 +27,15 @@ export const integrationArticles: Article[] = [
         {
           heading: '先选连接方式，再谈模型',
           paragraphs: [
-            '已经有自己的 Agent，可以连接 https://wenbu.app/mcp。问卜提供六个工具，返回实际计算、抽取结果和原始学习内容；你的宿主仍使用自己的模型。MCP 不会替你调用问卜的 AI，也不需要问卜账户或模型密钥。',
+            '已经有自己的 Agent，可以连接 https://wenbu.app/mcp。问卜提供七个工具，返回实际计算、抽取结果、公开日签和原始学习内容；你的宿主仍使用自己的模型。MCP 不会替你调用问卜的 AI，也不需要问卜账户或模型密钥。',
             '如果希望在终端或程序中读取 JSON，选无需依赖的 CLI。Skill 则是操作说明，帮助 Agent 选择工具、核验来源与处理你决定分享的资料；安装 Skill 不会自动配置 MCP。想让问卜自己研究问题，可以直接打开内置 Agent。接入页同时提供这三种入口。',
+          ],
+        },
+        {
+          heading: '先检查连接，不必交出个人资料',
+          paragraphs: [
+            '运行 node wenbu.mjs doctor，可以核对服务版本、工具、资源和研究模板是否一致；这个诊断不会调用模型，也不读取私人记录。capabilities 返回当前能力清单，search 加关键词可查资料，read 加搜索返回的编号可读取正文或指定章节。',
+            'MCP 的成功结果提供 outputSchema 与 structuredContent，先检查 isError 再使用。reflect_on_reading 和 research_with_sources 是交给宿主模型的可选模板，读取模板不会自动执行。get_daily_card 返回公开日签，可能与个人网页日签不同；不会获取账号里的日签或历史。',
           ],
         },
         {
@@ -42,7 +49,7 @@ export const integrationArticles: Article[] = [
           heading: '第二步：搜到资料之后，真正读它',
           paragraphs: [
             '调用 search_library 搜索一个概念，例如八字换日。搜索结果会返回编号和条目类别。对于 guide 或 symbol，将编号交给 read_library；原创手册可以返回完整正文、目录、案例、图示说明和来源链接。',
-            '如果只读某一章，使用返回目录中的章节编号，保留 scope:"section"。21 篇原创手册都有中英文 HTML、Markdown 和 JSON，从同一内容生成。外部 reference 条目只提供出处信息，MCP 没有 read_reference；你的宿主需要打开外部页面后，才能引用它的正文。搜索摘要不能充当阅读凭据。',
+            '如果只读某一章，使用返回目录中的章节编号，保留 scope:"section"。发布的指南都有中英文 HTML、Markdown 和 JSON，从同一内容生成。外部 reference 条目只提供出处信息，MCP 没有 read_reference；你的宿主需要打开外部页面后，才能引用它的正文。搜索摘要不能充当阅读凭据。',
           ],
         },
         {
@@ -69,8 +76,15 @@ export const integrationArticles: Article[] = [
         {
           heading: 'Choose the connection before the model',
           paragraphs: [
-            'If you already use an agent, connect it to https://wenbu.app/mcp. Six tools return actual calculations, draws and original learning content. Your host keeps using its own model. Wenbu MCP does not call Wenbu’s AI service and requires no account or model key.',
+            'If you already use an agent, connect it to https://wenbu.app/mcp. Seven tools return actual calculations, draws, public daily practice and original learning content. Your host keeps using its own model. Wenbu MCP does not call Wenbu’s AI service and requires no account or model key.',
             'Use the dependency-free CLI when a script or terminal needs JSON. The Skill is an instruction file: it helps an agent choose tools, check sources and handle context you choose to share. Installing it does not configure MCP. For Wenbu to research a question itself, open the built-in Agent. The integration page explains all three paths.',
+          ],
+        },
+        {
+          heading: 'Check the connection before sharing personal details',
+          paragraphs: [
+            'Run node wenbu.mjs doctor to check that the service version, tools, resources and prompts agree. It makes no model call and reads no private records. capabilities returns the current contract; search accepts focused terms, and read accepts a returned document ID and optional section.',
+            'Successful MCP results provide outputSchema and structuredContent; check isError first. reflect_on_reading and research_with_sources are selectable templates for the host model, not automatic executions. get_daily_card returns a public daily prompt that may differ from a personal website card. It cannot fetch account history or a saved personal card.',
           ],
         },
         {
@@ -84,7 +98,7 @@ export const integrationArticles: Article[] = [
           heading: 'Next, read what you find',
           paragraphs: [
             'Search for a concept such as the BaZi day boundary with search_library. Results include IDs and entry types. Pass a guide or symbol ID to read_library. Original guides return complete text, an outline, worked examples, diagram descriptions and source links.',
-            'To read one section, use its ID from the returned outline and preserve scope:"section". All 21 original guides have Chinese and English HTML, Markdown and JSON editions drawn from the same content. External reference entries contain metadata only. MCP has no read_reference tool: your host must open the external page before citing its contents. A search snippet does not establish that a source was read.',
+            'To read one section, use its ID from the returned outline and preserve scope:"section". Published guides have Chinese and English HTML, Markdown and JSON editions drawn from the same content. External reference entries contain metadata only. MCP has no read_reference tool: your host must open the external page before citing its contents. A search snippet does not establish that a source was read.',
           ],
         },
         {

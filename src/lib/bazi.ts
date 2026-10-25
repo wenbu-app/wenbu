@@ -13,18 +13,32 @@ const stems = '甲乙丙丁戊己庚辛壬癸';
 const stemNames = ['Jia', 'Yi', 'Bing', 'Ding', 'Wu', 'Ji', 'Geng', 'Xin', 'Ren', 'Gui'];
 const branches = '子丑寅卯辰巳午未申酉戌亥';
 const branchNames = ['Zi', 'Chou', 'Yin', 'Mao', 'Chen', 'Si', 'Wu', 'Wei', 'Shen', 'You', 'Xu', 'Hai'];
+const zodiacNames: Record<string, string> = {
+  鼠: 'Rat',
+  牛: 'Ox',
+  虎: 'Tiger',
+  兔: 'Rabbit',
+  龙: 'Dragon',
+  蛇: 'Snake',
+  马: 'Horse',
+  羊: 'Goat',
+  猴: 'Monkey',
+  鸡: 'Rooster',
+  狗: 'Dog',
+  猪: 'Pig',
+};
 const roles: Record<string, string> = {
   比肩: 'Peer',
-  劫财: 'Companion',
-  食神: 'Expression',
-  伤官: 'Innovation',
-  偏财: 'Opportunity',
-  正财: 'Stewardship',
-  七杀: 'Challenge',
-  正官: 'Responsibility',
-  偏印: 'Intuition',
-  正印: 'Learning',
-  日主: 'Day master',
+  劫财: 'Rob Wealth',
+  食神: 'Eating God',
+  伤官: 'Hurting Officer',
+  偏财: 'Indirect Wealth',
+  正财: 'Direct Wealth',
+  七杀: 'Seven Killings',
+  正官: 'Direct Officer',
+  偏印: 'Indirect Resource',
+  正印: 'Direct Resource',
+  日主: 'Day Master',
 };
 
 export function validateDate(date: string) {
@@ -87,7 +101,8 @@ export function calculateBazi(raw: unknown) {
       input.longitude * 4 - moment.offsetNanoseconds / 60e9 + equationOfTime(moment.dayOfYear, moment.hour);
     local = local.add({ seconds: Math.round(correctionMinutes * 60) });
   }
-  const annual = fromFields(beijing).getLunar().getEightChar();
+  const annualLunar = fromFields(beijing).getLunar();
+  const annual = annualLunar.getEightChar();
   const lunar = fromFields(local).getLunar();
   const daily = lunar.getEightChar();
   daily.setSect(input.dayBoundary === 'zi' ? 1 : 2);
@@ -130,6 +145,16 @@ export function calculateBazi(raw: unknown) {
     count: pillars.reduce((n, p) => n + Number(p.stemElement === e.zh) + Number(p.branchElement === e.zh), 0),
   }));
   const warnings: string[] = [];
+  const timezoneAssumed = !(
+    raw &&
+    typeof raw === 'object' &&
+    'timezone' in raw &&
+    raw.timezone !== undefined
+  );
+  if (timezoneAssumed)
+    warnings.push(
+      'Timezone was not supplied; Asia/Shanghai was used. Confirm the birthplace clock before interpreting. / 未提供时区，暂按 Asia/Shanghai 排盘；解读前请核对出生地当时的钟表时间。',
+    );
   if (!input.time)
     warnings.push(
       'Birth time is unknown: the hour pillar is omitted; year/month use noon and may differ on a solar-term day. / 出生时刻未知：不排时柱；年、月柱以当地中午为暂定值，交节日可能变化。',
@@ -144,11 +169,17 @@ export function calculateBazi(raw: unknown) {
     );
   return {
     kind: 'bazi' as const,
-    version: 'wenbu-bazi-1.1',
+    version: 'wenbu-bazi-1.2',
     input,
     calendar: {
       lunar: `${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`,
       zodiac: lunar.getYearShengXiao(),
+      zodiacEn: zodiacNames[lunar.getYearShengXiao()],
+      zodiacConvention: 'lunar-new-year',
+      yearPillarZodiac: annualLunar.getYearShengXiaoExact(),
+      yearPillarZodiacEn: zodiacNames[annualLunar.getYearShengXiaoExact()],
+      yearPillarConvention: 'li-chun-at-absolute-instant',
+      timezoneAssumed,
       solar: input.time ? local.toString() : input.date,
       instant: input.time ? moment.toInstant().toString() : null,
       offset: moment.offset,
