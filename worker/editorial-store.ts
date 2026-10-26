@@ -6,6 +6,7 @@ import { registerEditorialPaths } from '../src/lib/analytics-contract';
 import { EDITORIAL_POLICY } from './editorial-policy';
 import { sourceViable } from './editorial-commissioning';
 import { editorialGrowthStatus } from './editorial-growth';
+import { editorialProviderStatus } from './editorial-provider';
 
 export async function seedEditorial(env: Env) {
   if (!env.ANALYTICS) throw new Error('editorial_database_unavailable');
@@ -311,6 +312,7 @@ export async function editorialStatus(env: Env) {
     sourceHealth: sourceHealth.results,
     modelBudgets: budgets.results,
     production: await editorialGrowthStatus(env),
+    modelProvider: await editorialProviderStatus(env),
     state,
   };
 }

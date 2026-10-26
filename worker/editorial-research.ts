@@ -5,6 +5,7 @@ import type { Env } from './types';
 import { editorialResponse } from './editorial-render';
 import { comparisonPartners, distinctEditorialSourceUrls } from './editorial-commissioning';
 import { pathForTopic } from './editorial-schema';
+import { recordEditorialProviderFailure } from './editorial-provider';
 
 async function boundedText(response: Response, max = 2_000_000) {
   const reader = response.body?.getReader();
@@ -156,13 +157,18 @@ export async function refreshEditorialSources(env: Env) {
       .all()
   ).results;
 }
-export async function researchEditorial(env: Env, topic: EditorialTopic): Promise<ResearchSource[]> {
+export async function readEditorialOwner(env: Env, topic: EditorialTopic): Promise<ResearchSource[]> {
   const sources: ResearchSource[] = [];
   if (topic.mode === 'extend') {
     for (const locale of ['zh', 'en']) {
       const slug = `${topic.category === 'compare' ? 'compare-' : ''}${topic.slug}`;
-      const url = `${env.SITE_URL}/knowledge/${locale}/${slug}.md`;
-      const response = await ownSource(env, new Request(url));
+      let url = `${env.SITE_URL}/knowledge/${locale}/${slug}.md`;
+      let response = await ownSource(env, new Request(url));
+      if (response.status === 404 && topic.category === 'compare') {
+        await response.body?.cancel();
+        url = `${env.SITE_URL}/${locale === 'en' ? 'en/' : ''}${pathForTopic(topic)}/`;
+        response = await ownSource(env, new Request(url));
+      }
       if (!response.ok) throw new Error('original_article_unavailable');
       const raw = await boundedText(response),
         content = stripDocumentHtml(raw);
@@ -178,6 +184,10 @@ export async function researchEditorial(env: Env, topic: EditorialTopic): Promis
       });
     }
   }
+  return sources;
+}
+export async function researchEditorial(env: Env, topic: EditorialTopic): Promise<ResearchSource[]> {
+  const sources = await readEditorialOwner(env, topic);
   const ids = [
     ...new Set([
       ...topic.sources,
@@ -228,6 +238,7 @@ export async function editorialModel(
   });
   if (!response.ok) {
     await response.body?.cancel();
+    await recordEditorialProviderFailure(env, response.status);
     throw new Error(`editorial_model_http_${response.status}`);
   }
   const raw = await boundedText(response, 500_000);

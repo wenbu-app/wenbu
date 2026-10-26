@@ -52,7 +52,9 @@ export async function editorialGrowthStatus(env: Env, now = Date.now()) {
         ? 'source_unavailable'
         : /budget/.test(code)
           ? 'model_budget'
-          : 'execution';
+          : /^editorial_(?:model_http_\d{3}|provider_paused|model_unconfigured)$/.test(code)
+            ? 'model_provider'
+            : 'execution';
     failureCounts[bucket] = (failureCounts[bucket] ?? 0) + 1;
   }
   const ready = topics.results.filter((t) => t.status === 'ready');

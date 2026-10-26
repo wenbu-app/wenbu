@@ -15,6 +15,8 @@ Current operating target: **three reader tasks per day, each published in comple
 
 The Cloudflare publishing pipeline works without an open laptop. The supplemental Codex browser review requires its execution host and authenticated browser sessions. Expired access is recorded as unavailable and reported; it is not replaced by a fabricated zero or inferred indexing result.
 
+Shared model-account failures are separate from editorial quality failures. A 401/402 blocks new editorial model reservations and topic attempts until the existing reconciler obtains a positive availability result from the provider's read-only balance endpoint. Checks are leased and spaced at least an hour apart while blocked; missing, malformed or inaccessible data remains unavailable. No credential, account identifier or monetary balance is retained. A positive result resumes eligible work without resetting any budget, historical attempt or search-provider pause. Apply `0013_editorial_model_provider.sql` before this runtime. Private `content:status` exposes `modelProvider`; its state does not disable independent technical checks or search delivery. Permanent request/account errors do not receive an automatic Workflow transport replay.
+
 Manual `content:check` creates a fresh technical-health Workflow with a unique `editorial-health-manual-<uuid>` ID, so a release check cannot accidentally return the already-completed daily instance. The 07:30 scheduled check keeps its date-based deduplication. A queued receipt still requires reading that exact instance to confirm its terminal result.
 
 ## Google priority request queue

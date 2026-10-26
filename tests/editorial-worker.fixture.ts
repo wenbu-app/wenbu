@@ -6,8 +6,20 @@ import { checkEditorialHealth } from '../worker/editorial-health';
 export { UsageGate, DeletionLedger } from '../worker/index';
 import type { Env } from '../worker/types';
 import { reserveEditorialModelCall } from '../worker/editorial-policy';
+import { ensureEditorialProvider } from '../worker/editorial-provider';
+import { readEditorialOwner } from '../worker/editorial-research';
+import { editorialTopics } from '../src/data/editorial-topics';
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    if (new URL(request.url).pathname === '/__test/provider')
+      return Response.json(await ensureEditorialProvider(env));
+    if (new URL(request.url).pathname === '/__test/static-owner')
+      return Response.json(
+        await readEditorialOwner(
+          env,
+          editorialTopics.find((t) => t.category === 'compare' && t.slug === 'fatetell')!,
+        ),
+      );
     if (new URL(request.url).pathname === '/__test/budget') {
       try {
         await reserveEditorialModelCall(env, 'synthetic-budget', true);

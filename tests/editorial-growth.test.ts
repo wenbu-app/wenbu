@@ -85,4 +85,23 @@ describe('editorial production recovery', () => {
     expect(report.keywordCoverage).toHaveLength(6);
     expect(editorialDemandLanes.every((lane) => lane.zh.length >= 4 && lane.en.length >= 4)).toBe(true);
   });
+  it('reports provider failures separately from source and quality defects', async () => {
+    const { env, sql } = database();
+    for (const [i, code] of [
+      'editorial_model_http_402',
+      'editorial_provider_paused',
+      'original_article_unavailable',
+      'quality_gate:missing_artifact',
+    ].entries())
+      sql
+        .prepare(
+          "INSERT INTO editorial_runs(id,slot,status,error_code,created_at,updated_at) VALUES(?,?,'blocked',?,?,?)",
+        )
+        .run('class-' + i, '2026-10-25-' + i, code, now, now);
+    expect((await editorialGrowthStatus(env, now)).failureCounts).toEqual({
+      model_provider: 2,
+      source_unavailable: 1,
+      quality_or_structure: 1,
+    });
+  });
 });
