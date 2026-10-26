@@ -312,7 +312,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
       });
       const receipt = await step.do('atomic-bilingual-publication', stepConfig, async () => {
         await renewEditorialLease(this.env, runId);
-        if (!pass() || draftIssues(document, packet, topic).length)
+        if (!pass() || draftIssues(document, packet, topic, { correction: !!event.payload.revision }).length)
           throw new Error('editorial_quality_gate_failed');
         return publishEditorial(this.env, runId, document, original?.revision ?? null);
       });

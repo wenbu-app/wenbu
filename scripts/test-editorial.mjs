@@ -58,6 +58,7 @@ const planningCandidates = [
 let planningFeedbackSeen = false,
   focusedDraftSeen = false,
   focusedReviewSeen = false,
+  focusedCorrectionSeen = false,
   repairPlanning = false,
   remainingReviewFailures = 0,
   draftMarker = '',
@@ -240,7 +241,10 @@ const mf = new Miniflare({
             assert.equal(contentPacket.shape.zh.sections.length, 2);
             focusedDraftSeen = true;
           }
-          if (focused && review) focusedReviewSeen = true;
+          if (focused && review) {
+            focusedReviewSeen = true;
+            if (contentPacket.contentContract.purpose === 'correction') focusedCorrectionSeen = true;
+          }
           const draft = focused ? fixtureFocusedDraft() : fixtureDraft();
           if (!review && draftMarker) {
             draft.zh.sections[0].paragraphs[0] += ' 测试标记：' + draftMarker;
@@ -888,7 +892,11 @@ try {
   );
   check(
     'a focused addition has its own server-selected writer and independent reviewer contract',
-    focusedDraftSeen && focusedReviewSeen && cumulative.edition.sections.length === 2,
+    focusedDraftSeen &&
+      focusedReviewSeen &&
+      cumulative.edition.sections.length === 2 &&
+      cumulative.editionScope === 'addition' &&
+      cumulative.scope === 'full',
   );
   check(
     'the complete original guide is retained beside the shorter addition',
@@ -947,6 +955,107 @@ try {
     replayDispatch.status === 'no_due_slot' &&
       (await db.prepare('SELECT COUNT(*) AS n FROM editorial_publications').first()).n ===
         currentPublications,
+  );
+  // Correcting a static-owner addition retains accurate paragraphs. The same
+  // correction contract must reach the final atomic gate, not only the writer.
+  const staticOwnerTopic = JSON.parse(
+    (await db.prepare("SELECT definition_json FROM editorial_topics WHERE id='first-reading-update'").first())
+      .definition_json,
+  );
+  const staticOwnerOriginal = {
+    ...fixtureFocusedDraft(),
+    topic: staticOwnerTopic,
+    sources: originalDoc.sources,
+    publishedAt: '2026-10-15T01:00:00.000Z',
+    updatedAt: '2026-10-15T01:00:00.000Z',
+    revision: 'f'.repeat(64),
+    review: { factual: true, bilingual: true, useful: true, original: true, natural: true, issues: [] },
+  };
+  const staticOwnerJson = JSON.stringify(staticOwnerOriginal);
+  await db.batch([
+    db
+      .prepare(
+        'INSERT INTO editorial_publications(path,topic_id,revision,document_json,published_at,updated_at,run_id) VALUES(?,?,?,?,?,?,?)',
+      )
+      .bind(
+        'learn/first-reading',
+        staticOwnerTopic.id,
+        staticOwnerOriginal.revision,
+        staticOwnerJson,
+        Date.now(),
+        Date.now(),
+        'synthetic-static-owner',
+      ),
+    db
+      .prepare(
+        'INSERT INTO editorial_revisions(revision,path,document_json,run_id,published_at) VALUES(?,?,?,?,?)',
+      )
+      .bind(
+        staticOwnerOriginal.revision,
+        'learn/first-reading',
+        staticOwnerJson,
+        'synthetic-static-owner',
+        Date.now(),
+      ),
+  ]);
+  draftMarker = 'FOCUSED-CORRECTION';
+  const focusedRevision = await mf
+    .dispatchFetch('https://wenbu.app/api/admin/editorial/revise', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer local-editorial-test',
+        Origin: 'https://wenbu.app',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        path: 'learn/first-reading',
+        expectedRevision: staticOwnerOriginal.revision,
+        instructions: 'Correct the first paragraph while preserving the accurate remaining paragraphs.',
+      }),
+    })
+    .then((r) => r.json());
+  check(
+    'a static-owner focused correction is queued against the exact revision',
+    focusedRevision.status === 'queued',
+  );
+  let focusedCorrectionRun;
+  for (let n = 0; n < 100; n++) {
+    focusedCorrectionRun = await db
+      .prepare('SELECT status,model_calls FROM editorial_runs WHERE id=?')
+      .bind(focusedRevision.id)
+      .first();
+    if (['published', 'blocked'].includes(focusedCorrectionRun.status)) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const correctedAddition = await mf
+    .dispatchFetch('https://wenbu.app/knowledge/en/first-reading.json')
+    .then((r) => r.json());
+  check(
+    'focused corrections retain accurate owner paragraphs through the final atomic quality gate',
+    focusedCorrectionSeen &&
+      focusedCorrectionRun.status === 'published' &&
+      focusedCorrectionRun.model_calls === 2 &&
+      correctedAddition.revision !== staticOwnerOriginal.revision &&
+      correctedAddition.editionScope === 'addition' &&
+      correctedAddition.edition.sections.length === 2 &&
+      correctedAddition.edition.sections[1].paragraphs[0] ===
+        staticOwnerOriginal.en.sections[1].paragraphs[0],
+  );
+  const correctedStored = JSON.parse(
+    (
+      await db
+        .prepare("SELECT document_json FROM editorial_publications WHERE path='learn/first-reading'")
+        .first()
+    ).document_json,
+  );
+  check(
+    'an explicit correction preserves its first publication date and immutable prior revision without duplicating the superseded addition',
+    correctedStored.publishedAt === staticOwnerOriginal.publishedAt &&
+      correctedAddition.previousAdditions.length === 0 &&
+      !!(await db
+        .prepare('SELECT revision FROM editorial_revisions WHERE revision=?')
+        .bind(staticOwnerOriginal.revision)
+        .first()),
   );
   await db.prepare('UPDATE editorial_daily_budgets SET model_calls=119,planning_calls=0').run();
   const reservations = await Promise.all(

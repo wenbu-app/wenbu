@@ -338,7 +338,8 @@ export async function editorialResponse(request: Request, env: Env): Promise<Res
                 updated: doc.updatedAt,
                 content: markdown,
                 edition: doc[lang],
-                editionScope: doc.topic.mode === 'extend' ? 'addition' : 'full',
+                editionScope:
+                  doc.topic.mode === 'extend' || doc.previousAdditions?.length ? 'addition' : 'full',
                 sources: doc.sources,
                 previousAdditions: doc.previousAdditions ?? [],
               }),
