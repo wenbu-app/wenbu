@@ -322,7 +322,7 @@ export function commissionCandidates(
   const keys = new Set([...ownerPaths, ...existing.map(pathForTopic)]),
     ids = new Set(existing.map((t) => t.id));
   const accepted: EditorialTopic[] = [],
-    rejections: { id: string; reason: string; owner?: string }[] = [];
+    rejections: { id: string; reason: string; owner?: string; correction?: string }[] = [];
   for (const candidate of candidates) {
     const review = reviews.find((r) => r.id === candidate.id)!,
       path = pathForTopic(candidate);
@@ -364,7 +364,35 @@ export function commissionCandidates(
         reason = 'named_product_title_required';
     } else if (candidate.comparisonSourceId !== null) reason = 'comparison_category_mismatch';
     if (reason) {
-      rejections.push({ id: candidate.id, reason, owner: review.closestOwner });
+      const reservation = [...existing, ...accepted].find(
+        (t) => pathForTopic(t) === path && (!('state' in t) || (t.state ?? 'ready') === 'ready'),
+      );
+      const correction =
+        reason === 'canonical_owner_exists' && ids.has(candidate.id)
+          ? 'This topic ID already exists. Keep its history; do not rename or enqueue the same task again.'
+          : reason === 'canonical_owner_exists' && merge && reservation
+            ? `This owner already has a ready reservation: ${reservation.task} Contribution: ${reservation.unique}. Choose an unreserved owner or wait for its actual result; an existing canonical page alone does not forbid a later substantive addition.`
+            : reason === 'existing_intent_or_insufficient_novelty' &&
+                candidate.mode === 'extend' &&
+                !owners.find((o) => o.path === path)?.coverage &&
+                reservation
+              ? `This owner has only a ready reservation, not a published guide: ${reservation.task}. Do not describe planned coverage as already published or extend it before publication. Choose another supported unreserved task or wait for the actual result.`
+              : reason === 'existing_intent_or_insufficient_novelty' &&
+                  review.decision === 'merge' &&
+                  review.addsSubstantiveCoverage === true &&
+                  !review.formatOnlyDifference &&
+                  !review.requiresNewCanonical &&
+                  candidate.mode !== 'extend'
+                ? `The critic selected merge on ${review.closestOwner}. A supported addition must use mode=extend and that exact existing owner; mode=new cannot be admitted as a merge.`
+                : review.decision !== 'reject'
+                  ? `The deterministic admission check rejected this candidate for ${reason}. Repair that source, category or ownership contract using the supplied registries before resubmitting; the critic's positive decision does not override this check.`
+                  : undefined;
+      rejections.push({
+        id: candidate.id,
+        reason,
+        owner: review.closestOwner,
+        ...(correction ? { correction } : {}),
+      });
       continue;
     }
     const { comparisonSourceId: _, ...topic } = candidate;
