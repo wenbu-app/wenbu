@@ -226,6 +226,83 @@ describe('editorial canonical commissioning', () => {
         .accepted,
     ).toEqual([]);
   });
+  it('explains a ready reservation instead of recycling a positive critic reason as the repair', () => {
+    const t = candidate({ id: 'another-scope-gap', slug: 'read-ai-with-sources', mode: 'extend' });
+    const r = review({
+      id: t.id,
+      decision: 'merge',
+      closestOwner: 'learn/read-ai-with-sources',
+      requiresNewCanonical: false,
+      addsSubstantiveCoverage: true,
+      reason: 'This supported missing answer would be a useful extension.',
+    });
+    const existing = [
+      ...editorialTopics.map((t) => ({ ...t, state: 'published' })),
+      {
+        ...t,
+        id: 'already-planned-scope-gap',
+        state: 'ready',
+        task: 'A reserved passage-to-claim scope audit.',
+        unique: 'The existing reservation already provides a failed-passage worked example.',
+      },
+    ];
+    const result = commissionCandidates([t], [r], existing);
+    expect(result.accepted).toEqual([]);
+    expect(result.rejections[0].reason).toBe('canonical_owner_exists');
+    expect(result.rejections[0].correction).toContain(
+      'ready reservation: A reserved passage-to-claim scope audit',
+    );
+    expect(commissioningFeedback({ rejections: result.rejections, reviews: [r] })[0].correction).toContain(
+      'ready reservation',
+    );
+    expect(
+      commissioningFeedback({ rejections: result.rejections, reviews: [r] })[0].correction,
+    ).not.toContain('would be a useful');
+  });
+  it('identifies a new-versus-extend contract mismatch after a positive merge review', () => {
+    const t = candidate({ id: 'wrong-mode-scope-gap', slug: 'read-ai-with-sources', mode: 'new' });
+    const r = review({
+      id: t.id,
+      decision: 'merge',
+      closestOwner: 'learn/read-ai-with-sources',
+      requiresNewCanonical: false,
+      addsSubstantiveCoverage: true,
+    });
+    const result = commissionCandidates([t], [r], editorialTopics);
+    expect(result.accepted).toEqual([]);
+    expect(result.rejections[0].correction).toContain('mode=extend');
+    expect(result.rejections[0].correction).toContain('mode=new cannot be admitted as a merge');
+  });
+  it('does not describe a queued new owner as already published when explaining a rejected extension', () => {
+    const reserved = {
+      ...candidate({ id: 'reserved-new-owner', slug: 'unpublished-owner' }),
+      state: 'ready',
+    };
+    const t = candidate({ id: 'premature-owner-extension', slug: reserved.slug, mode: 'extend' });
+    const r = review({
+      id: t.id,
+      decision: 'merge',
+      closestOwner: 'learn/unpublished-owner',
+      requiresNewCanonical: false,
+      addsSubstantiveCoverage: true,
+    });
+    const result = commissionCandidates([t], [r], [reserved]);
+    expect(result.accepted).toEqual([]);
+    expect(result.rejections[0].correction).toContain('not a published guide');
+    expect(result.rejections[0].correction).toContain(
+      'Do not describe planned coverage as already published',
+    );
+  });
+  it('retains the actual source contract failure after a positive critic decision', () => {
+    const t = candidate({ sources: ['agents', 'unregistered-source'] });
+    const result = commissionCandidates([t], [review()], editorialTopics);
+    expect(result.rejections[0].reason).toBe('unknown_source');
+    expect(result.rejections[0].correction).toContain('deterministic admission check');
+    expect(result.rejections[0].correction).toContain('unknown_source');
+    expect(
+      commissioningFeedback({ rejections: result.rejections, reviews: [review()] })[0].correction,
+    ).not.toContain('different inputs');
+  });
   it.each([
     { decision: 'merge' as const },
     { sameReaderOutcome: true },

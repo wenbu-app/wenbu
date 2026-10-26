@@ -28,7 +28,7 @@ await build({
   target: 'es2022',
   logLevel: 'warning',
 });
-const { fixtureDraft } = await import(pathToFileURL(path.join(temp, 'draft.mjs')).href);
+const { fixtureDraft, fixtureFocusedDraft } = await import(pathToFileURL(path.join(temp, 'draft.mjs')).href);
 const planningCandidate = {
   id: 'synthetic-api-integrity',
   slug: 'synthetic-api-integrity',
@@ -56,6 +56,8 @@ const planningCandidates = [
   },
 ];
 let planningFeedbackSeen = false,
+  focusedDraftSeen = false,
+  focusedReviewSeen = false,
   repairPlanning = false,
   remainingReviewFailures = 0,
   draftMarker = '',
@@ -132,7 +134,8 @@ const mf = new Miniflare({
               packet.observedSignals.some(
                 (signal) =>
                   signal.kind === 'topic_planning' &&
-                  signal.summary.includes('A separate serialization audit'),
+                  signal.summary.includes('deterministic admission check') &&
+                  signal.summary.includes('named_vendor_source_required'),
               )
             )
               planningFeedbackSeen = true;
@@ -229,7 +232,16 @@ const mf = new Miniflare({
               ],
             });
           }
-          const draft = fixtureDraft();
+          const contentPacket = JSON.parse(input.messages[1].content);
+          const focused = contentPacket.contentContract?.kind === 'focused_addition';
+          if (focused && !review) {
+            assert.ok(contentPacket.sources.some((s) => s.id === 'current-zh'));
+            assert.ok(contentPacket.sources.some((s) => s.id === 'current-en'));
+            assert.equal(contentPacket.shape.zh.sections.length, 2);
+            focusedDraftSeen = true;
+          }
+          if (focused && review) focusedReviewSeen = true;
+          const draft = focused ? fixtureFocusedDraft() : fixtureDraft();
           if (!review && draftMarker) {
             draft.zh.sections[0].paragraphs[0] += ' 测试标记：' + draftMarker;
             draft.en.sections[0].paragraphs[0] += ' Synthetic revision marker: ' + draftMarker;
@@ -873,6 +885,15 @@ try {
       cumulative.previousAdditions.length === 1 &&
       cumulative.content.includes('CUMULATIVE-THIRD-ROUND') &&
       cumulative.content.includes(originalDoc.en.answer),
+  );
+  check(
+    'a focused addition has its own server-selected writer and independent reviewer contract',
+    focusedDraftSeen && focusedReviewSeen && cumulative.edition.sections.length === 2,
+  );
+  check(
+    'the complete original guide is retained beside the shorter addition',
+    cumulative.previousAdditions[0].en.sections.length === 4 &&
+      cumulative.content.includes(originalDoc.en.sections[3].paragraphs[1]),
   );
   const fullHtml = await mf
     .dispatchFetch('https://wenbu.app/learn/daily-card-reflection/')

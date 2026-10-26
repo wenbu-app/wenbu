@@ -77,6 +77,73 @@ const edition = z
   })
   .strict();
 export const editorialDraftSchema = z.object({ zh: edition, en: edition }).strict();
+const focusedEdition = edition.extend({
+  sections: z.array(edition.shape.sections.element).min(2).max(7),
+  table: edition.shape.table.extend({
+    rows: z.array(edition.shape.table.shape.rows.element).min(3).max(9),
+  }),
+  example: edition.shape.example.extend({
+    steps: z.array(edition.shape.example.shape.steps.element).min(3).max(7),
+  }),
+  faq: z.array(edition.shape.faq.element).min(2).max(5),
+  glossary: z.array(edition.shape.glossary.element).min(2).max(6),
+});
+const focusedDraftSchema = z.object({ zh: focusedEdition, en: focusedEdition }).strict();
+
+// The server selects an addition contract only after fetching both exact owners.
+// A model cannot opt a new guide into a shorter publication contract.
+export function editorialContentContract(
+  topic: EditorialTopic,
+  sources: ResearchSource[],
+  options: { correction?: boolean } = {},
+) {
+  const slug = `${topic.category === 'compare' ? 'compare-' : ''}${topic.slug}`;
+  const focused =
+    topic.mode === 'extend' &&
+    ['zh', 'en'].every((lang) =>
+      sources.some((source) => {
+        if (source.id !== `current-${lang}` || source.truncated !== false || !source.excerpt.trim())
+          return false;
+        try {
+          const url = new URL(source.url);
+          return (
+            url.origin === 'https://wenbu.app' &&
+            url.pathname === `/knowledge/${lang}/${slug}.md` &&
+            !url.search &&
+            !url.hash
+          );
+        } catch {
+          return false;
+        }
+      }),
+    );
+  return focused
+    ? {
+        kind: 'focused_addition' as const,
+        purpose: options.correction ? 'correction' : 'addition',
+        minimumDepth: { zhCharacters: 700, enWords: 400 },
+        structure:
+          'Prefer two or three focused sections. Target 700–1200 Chinese characters and 400–700 English words across the edition; lengths are editorial guidance, never a search ranking target.',
+        contribution: options.correction
+          ? 'Repair the specified defect in the latest edition. Preserve accurate unaffected text; a correction does not require an invented new exercise or background.'
+          : 'Supply the missing answer and a worked artifact with an answer key or observable outcome. Do not restate the original introduction, definitions, caveats or onboarding. Add only new FAQ and glossary entries needed for this task. The original and earlier additions remain on the owner.',
+      }
+    : {
+        kind: 'complete_guide' as const,
+        purpose: options.correction ? 'correction' : 'new_article',
+        minimumDepth: { zhCharacters: 1500, enWords: 850 },
+        structure:
+          'Use four substantial sections with two paragraphs each. Target 1800–2400 Chinese characters and 950–1250 English words across the edition, without padding.',
+        contribution: options.correction
+          ? 'Repair the specified defect in the latest complete edition, preserving accurate unaffected coverage rather than inventing new material.'
+          : 'Resolve the whole reader task with an original worked example, figure, comparison table, FAQs and terminology. Do not paraphrase an existing owner or a reserved task.',
+      };
+}
+export function editorialSchemaFor(topic: EditorialTopic, sources: ResearchSource[]) {
+  return editorialContentContract(topic, sources).kind === 'focused_addition'
+    ? focusedDraftSchema
+    : editorialDraftSchema;
+}
 export type EditorialDraft = z.infer<typeof editorialDraftSchema>;
 export type EditorialEdition = EditorialDraft['en'];
 export type ResearchSource = {
@@ -176,15 +243,24 @@ function unfinishedArticleCopy(value: string) {
     )
   );
 }
-export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], topic: EditorialTopic) {
+export function draftIssues(
+  draft: EditorialDraft,
+  sources: ResearchSource[],
+  topic: EditorialTopic,
+  options: { correction?: boolean } = {},
+) {
   const issues: string[] = [];
   const allowed = new Set(sources.map((s) => s.id));
+  const contract = editorialContentContract(topic, sources, options);
+  const { minimumDepth } = contract;
   for (const locale of ['zh', 'en'] as const) {
     const e = draft[locale],
       parts = editionTextParts(e),
       full = parts.join('\n\n');
     if (
-      locale === 'zh' ? (full.match(/[\u3400-\u9fff]/g) ?? []).length < 1500 : full.split(/\s+/).length < 850
+      locale === 'zh'
+        ? (full.match(/[\u3400-\u9fff]/g) ?? []).length < minimumDepth.zhCharacters
+        : full.split(/\s+/).length < minimumDepth.enWords
     )
       issues.push(`${locale}:insufficient_depth`);
     if (e.table.rows.some((row) => row.length !== e.table.columns.length))
@@ -220,6 +296,14 @@ export function draftIssues(draft: EditorialDraft, sources: ResearchSource[], to
       issues.push(`${locale}:unsupported_claim`);
     const paras = e.sections.flatMap((s) => s.paragraphs);
     if (new Set(paras).size !== paras.length) issues.push(`${locale}:repeated_paragraph`);
+    const original = sources.find((s) => s.id === `current-${locale}`);
+    if (
+      contract.kind === 'focused_addition' &&
+      !options.correction &&
+      original &&
+      paras.some((p) => normalize(p).length >= 100 && normalize(original.excerpt).includes(normalize(p)))
+    )
+      issues.push(`${locale}:repeated_owner_paragraph`);
   }
   if (
     draft.zh.sections.length !== draft.en.sections.length ||
