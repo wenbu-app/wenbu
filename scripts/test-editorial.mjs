@@ -66,6 +66,9 @@ let planningFeedbackSeen = false,
   malformedNext = false,
   syntaxRepairSeen = false,
   indexnowCalls = 0,
+  providerModelUnavailable = false,
+  providerBalanceAvailable = false,
+  balanceCalls = 0,
   diagnosticHeads = 0,
   calls = 0,
   checks = 0;
@@ -125,7 +128,18 @@ const mf = new Miniflare({
             return new Response('ip=2001:db8::1\ncolo=NRT\n');
           if (request.url === 'https://checkip.amazonaws.com/') return new Response('192.0.2.100\n');
           if (new URL(request.url).hostname !== 'api.deepseek.com') return new Response('', { status: 503 });
+          if (new URL(request.url).pathname === '/user/balance') {
+            assert.equal(request.method, 'GET');
+            assert.equal(new URL(request.url).search, '');
+            balanceCalls++;
+            return Response.json({
+              is_available: providerBalanceAvailable,
+              balance_infos: [{ total_balance: 'synthetic-not-retained' }],
+            });
+          }
           calls++;
+          if (providerModelUnavailable)
+            return Response.json({ error: { code: 'insufficient_balance' } }, { status: 402 });
           if (calls === 1) return new Response('Synthetic transient provider failure', { status: 503 });
           const input = await request.json(),
             review = input.messages[0].content.startsWith('You are a strict');
@@ -1056,6 +1070,90 @@ try {
         .prepare('SELECT revision FROM editorial_revisions WHERE revision=?')
         .bind(staticOwnerOriginal.revision)
         .first()),
+  );
+  const staticOwnerSources = await mf
+    .dispatchFetch('https://wenbu.app/__test/static-owner')
+    .then((r) => r.json());
+  check(
+    'static comparison sources fall back from missing machine files to their real canonical HTML',
+    staticOwnerSources.length === 2 &&
+      staticOwnerSources[0].url === 'https://wenbu.app/compare/fatetell/' &&
+      staticOwnerSources[1].url === 'https://wenbu.app/en/compare/fatetell/' &&
+      staticOwnerSources.every((s) => s.excerpt.length > 150 && s.truncated === false),
+  );
+  const outageTopic = {
+    ...originalDoc.topic,
+    id: 'synthetic-provider-outage',
+    slug: 'synthetic-provider-outage',
+    mode: 'new',
+    sources: ['daily', 'methods'],
+  };
+  await db
+    .prepare(
+      'INSERT INTO editorial_topics(id,slug,category,definition_json,priority,created_at) VALUES(?,?,?,?,?,?)',
+    )
+    .bind(outageTopic.id, outageTopic.slug, outageTopic.category, JSON.stringify(outageTopic), 90, Date.now())
+    .run();
+  await db
+    .prepare(
+      "INSERT INTO editorial_runs(id,slot,topic_id,status,created_at,updated_at) VALUES('synthetic-provider-outage','2026-10-16-15',?,'queued',?,?)",
+    )
+    .bind(outageTopic.id, Date.now(), Date.now())
+    .run();
+  const callsBeforeOutage = calls;
+  providerModelUnavailable = true;
+  await mf.dispatchFetch('https://wenbu.app/__test/dispatch', {
+    method: 'POST',
+    body: JSON.stringify({ time: Date.parse('2026-10-16T07:00:00Z') }),
+  });
+  let outageRun;
+  for (let n = 0; n < 100; n++) {
+    outageRun = await db
+      .prepare(
+        "SELECT status,error_code,model_calls FROM editorial_runs WHERE id='synthetic-provider-outage'",
+      )
+      .first();
+    if (outageRun.status === 'blocked') break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  check(
+    'a native 402 fails its Workflow step once without transport replay ' +
+      JSON.stringify({ outageRun, callsDelta: calls - callsBeforeOutage }),
+    outageRun.status === 'blocked' &&
+      outageRun.error_code === 'editorial_model_http_402' &&
+      outageRun.model_calls === 1 &&
+      calls === callsBeforeOutage + 1,
+  );
+  const outageRows = (await db.prepare('SELECT COUNT(*) n FROM editorial_runs').first()).n;
+  const paused = await mf
+    .dispatchFetch('https://wenbu.app/__test/dispatch', {
+      method: 'POST',
+      body: JSON.stringify({ time: Date.parse('2026-10-16T13:00:00Z') }),
+    })
+    .then((r) => r.json());
+  check(
+    'a shared billing failure does not consume another topic attempt',
+    paused.status === 'provider_unavailable' &&
+      (await db.prepare('SELECT COUNT(*) n FROM editorial_runs').first()).n === outageRows &&
+      calls === callsBeforeOutage + 1,
+  );
+  await db.prepare('UPDATE editorial_model_provider SET next_check_at=0').run();
+  const unavailable = await mf.dispatchFetch('https://wenbu.app/__test/provider').then((r) => r.json());
+  check(
+    'the existing runtime checks balance with GET while keeping generation paused',
+    unavailable.status === 'blocked' && balanceCalls === 1 && calls === callsBeforeOutage + 1,
+  );
+  providerModelUnavailable = false;
+  providerBalanceAvailable = true;
+  await db.prepare('UPDATE editorial_model_provider SET next_check_at=0').run();
+  const providerResumed = await mf.dispatchFetch('https://wenbu.app/__test/provider').then((r) => r.json());
+  check(
+    'positive availability resumes without rewriting failed history or generating a probe article',
+    providerResumed.status === 'available' &&
+      balanceCalls === 2 &&
+      calls === callsBeforeOutage + 1 &&
+      (await db.prepare("SELECT error_code FROM editorial_runs WHERE id='synthetic-provider-outage'").first())
+        .error_code === 'editorial_model_http_402',
   );
   await db.prepare('UPDATE editorial_daily_budgets SET model_calls=119,planning_calls=0').run();
   const reservations = await Promise.all(

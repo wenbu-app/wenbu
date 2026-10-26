@@ -1,4 +1,5 @@
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workers';
+import { NonRetryableError } from 'cloudflare:workflows';
 import { z } from 'zod';
 import { editorialSources, type EditorialTopic } from '../src/data/editorial-topics';
 import {
@@ -53,6 +54,11 @@ import { editorialSignalSummary } from './editorial-signals';
 import type { Env } from './types';
 import { EDITORIAL_POLICY, nextEditorialAttempt, reserveEditorialModelCall } from './editorial-policy';
 import { editorialDemandLanes, defaultSearchBrief } from '../src/data/editorial-demand';
+import {
+  ensureEditorialProvider,
+  permanentEditorialModelError,
+  editorialModelFailureCode,
+} from './editorial-provider';
 
 export const EDITORIAL_CRON = '0 1,7,13 * * *';
 export const EDITORIAL_RECONCILE_CRON = '*/15 * * * *';
@@ -78,7 +84,18 @@ async function archive(env: Env, runId: string, kind: string, data: unknown) {
 }
 async function countCall(env: Env, runId: string) {
   await renewEditorialLease(env, runId);
+  if ((await ensureEditorialProvider(env)).status !== 'available')
+    throw new NonRetryableError('editorial_provider_paused');
   await reserveEditorialModelCall(env, runId);
+}
+async function modelStep<T>(action: () => Promise<T>): Promise<T> {
+  try {
+    return await action();
+  } catch (cause) {
+    if (cause instanceof Error && permanentEditorialModelError(cause.message))
+      throw new NonRetryableError(cause.message);
+    throw cause;
+  }
 }
 export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
   async run(event: Readonly<WorkflowEvent<Parameters>>, step: WorkflowStep) {
@@ -194,7 +211,9 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         await editorialStage(this.env, runId, 'reviewing', 'draft_key', key);
         return { draft, raw, issues };
       };
-      let produced = await step.do('write-complete-bilingual-editions', stepConfig, () => produce());
+      let produced = await step.do('write-complete-bilingual-editions', stepConfig, () =>
+        modelStep(() => produce()),
+      );
       const review = async (pass: number) => {
         if (!produced.draft)
           return {
@@ -247,7 +266,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         await editorialStage(this.env, runId, 'reviewed', 'review_key', key);
         return checked;
       };
-      let checked = await step.do('independent-editorial-pass', stepConfig, () => review(1));
+      let checked = await step.do('independent-editorial-pass', stepConfig, () => modelStep(() => review(1)));
       const pass = () =>
         produced.issues.length === 0 &&
         checked.issues.length === 0 &&
@@ -259,9 +278,11 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
         checked.natural;
       for (let round = 2; !pass() && round <= EDITORIAL_POLICY.reviewRounds; round++) {
         produced = await step.do(`repair-editorial-issues-${round}`, stepConfig, () =>
-          produce({ deterministic: produced.issues, review: checked }, produced.raw, round),
+          modelStep(() => produce({ deterministic: produced.issues, review: checked }, produced.raw, round)),
         );
-        checked = await step.do(`review-repaired-editions-${round}`, stepConfig, () => review(round));
+        checked = await step.do(`review-repaired-editions-${round}`, stepConfig, () =>
+          modelStep(() => review(round)),
+        );
       }
       if (!pass()) {
         await step.do('record-quality-block', async () =>
@@ -330,11 +351,12 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
       });
       return { status: 'published', ...receipt, deliveryCheck };
     } catch (cause) {
+      const message = cause instanceof Error ? editorialModelFailureCode(cause.message) : null;
       const code =
         cause instanceof z.ZodError
           ? 'editorial_schema_failed'
-          : cause instanceof Error && /^[a-z_0-9: -]{1,160}$/i.test(cause.message)
-            ? cause.message
+          : message && /^[a-z_0-9: -]{1,160}$/i.test(message)
+            ? message
             : 'editorial_execution_failed';
       await step.do('retain-failure', async () => failEditorial(this.env, runId, code));
       throw new Error(code);
@@ -405,6 +427,8 @@ export async function dispatchEditorial(env: Env, time = Date.now()) {
     return { status: 'busy' };
   const next = nextEditorialAttempt(slots, existing, Date.now());
   if (!next) return { status: 'no_due_slot' };
+  const provider = await ensureEditorialProvider(env);
+  if (provider.status !== 'available') return { status: 'provider_unavailable', provider };
   const budget = await env.ANALYTICS.prepare('SELECT model_calls FROM editorial_daily_budgets WHERE day=?')
     .bind(date)
     .first<{ model_calls: number }>();
@@ -432,6 +456,8 @@ export async function dispatchTopicPlanning(env: Env, time = Date.now()) {
     .prepare('SELECT lease_until FROM editorial_state WHERE id=1')
     .first<{ lease_until: number }>();
   if (active || (lease?.lease_until ?? 0) > Date.now()) return { status: 'busy' };
+  const provider = await ensureEditorialProvider(env);
+  if (provider.status !== 'available') return { status: 'provider_unavailable', provider };
   const readyRows = (
     await db
       .prepare("SELECT definition_json FROM editorial_topics WHERE status='ready'")
@@ -494,6 +520,8 @@ export async function reviseEditorial(env: Env, revision: NonNullable<Parameters
     return { status: 'disabled' };
   const doc = await publishedDocument(env, revision.path);
   if (!doc || doc.revision !== revision.expectedRevision) return { status: 'stale_revision' };
+  const provider = await ensureEditorialProvider(env);
+  if (provider.status !== 'available') return { status: 'provider_unavailable', provider };
   const db = env.ANALYTICS,
     now = Date.now();
   const active = await db
@@ -600,7 +628,7 @@ export async function replenishTopics(env: Env, runId: string) {
     const code =
       cause instanceof z.ZodError
         ? 'editorial_commissioning_schema'
-        : cause instanceof Error && /^[a-z_]{1,100}$/.test(cause.message)
+        : cause instanceof Error && /^[a-z_0-9]{1,100}$/.test(cause.message)
           ? cause.message
           : 'editorial_commissioning_execution';
     if (!leaseAcquired && code === 'editorial_busy') {
@@ -818,6 +846,8 @@ async function commissionTopics(env: Env, runId: string, leaseOwner: string) {
   if (pending.length) await checkpoint(retained);
   const planningModel = async (system: string, data: unknown, tokens: number, stage: string) => {
     await renewEditorialLease(env, leaseOwner);
+    if ((await ensureEditorialProvider(env)).status !== 'available')
+      throw new Error('editorial_provider_paused');
     await reserveEditorialModelCall(env, runId, true);
     return editorialModel(env, system, JSON.stringify(data), tokens, (record) =>
       archive(env, runId, `${stage}-${crypto.randomUUID()}`, record).then(() => {}),
