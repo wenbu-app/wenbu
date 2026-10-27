@@ -19,6 +19,8 @@ Shared model-account failures are separate from editorial quality failures. A 40
 
 Public Agent and interpretation requests consult the same enabled circuit before reserving account or anonymous-network allowance. A blocked or unreadable state returns a localized 503 without using a turn or probing the provider; ordinary calculations, public MCP and saved results remain available. Recovery is still owned by the existing balance-check lease. This does not retroactively refund historical attempts or prove a real conversation succeeded. See [the turn-protection boundary](plans/2026-10-27-shared-model-turn-protection.md).
 
+The existing technical-health Workflow also refreshes allowlisted source availability while the model is paused, retaining the original six-hour source cache and per-source timestamps. Missing/stale checks remain visible in status. Candidate counts mean no recent known source block, not that every source has been verified or an article published. The private health observation records source metadata separately from page checks. See [the independent source-check design](plans/2026-10-27-independent-source-health.md).
+
 Manual `content:check` creates a fresh technical-health Workflow with a unique `editorial-health-manual-<uuid>` ID, so a release check cannot accidentally return the already-completed daily instance. The 07:30 scheduled check keeps its date-based deduplication. A queued receipt still requires reading that exact instance to confirm its terminal result.
 
 ## Google priority request queue

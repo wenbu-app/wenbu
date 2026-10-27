@@ -4,7 +4,11 @@ import { indexNowStatus } from './indexnow';
 import { searchConsoleAction, searchConsoleStatus } from './search-console';
 import type { Env } from './types';
 import { recordEditorialGrowthReview } from './editorial-growth';
+import { refreshEditorialSources } from './editorial-research';
 export async function checkEditorialHealth(env: Env) {
+  // Source availability is an independent read-only check. It must continue
+  // while the shared model account is paused, under the existing six-hour cache.
+  const sourceAvailability = await refreshEditorialSources(env);
   const docs = await publishedDocuments(env),
     checks: { path: string; status: number; issues: string[] }[] = [];
   const routes = new Set([
@@ -95,6 +99,11 @@ export async function checkEditorialHealth(env: Env) {
   const evidence = {
     at: new Date().toISOString(),
     checks,
+    sourceHealth: {
+      cacheHours: 6,
+      records: sourceAvailability,
+      note: 'Allowlisted source GETs only; per-source checked_at records actual freshness. No model or balance probe.',
+    },
     indexnow: await indexNowStatus(env),
     searchConsole: {
       reconciled,

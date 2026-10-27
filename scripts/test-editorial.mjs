@@ -1169,6 +1169,22 @@ try {
       (await db.prepare('SELECT COUNT(*) n FROM editorial_runs').first()).n === outageRows &&
       calls === callsBeforeOutage + 1,
   );
+  const pausedBeforeHealth = await db.prepare('SELECT * FROM editorial_model_provider').first();
+  const searchPauseBeforeHealth = await db.prepare('SELECT * FROM indexnow_state').first();
+  const callsBeforeHealth = calls;
+  await db.prepare('UPDATE editorial_source_health SET checked_at=0').run();
+  const pausedHealth = await mf.dispatchFetch('https://wenbu.app/__test/health').then((r) => r.json());
+  check(
+    'technical health refreshes source records while the model is paused without probing or changing pauses',
+    pausedHealth.status === 'passed' &&
+      (await db.prepare('SELECT COUNT(*) AS n FROM editorial_source_health WHERE checked_at=0').first()).n ===
+        0 &&
+      calls === callsBeforeHealth &&
+      JSON.stringify(await db.prepare('SELECT * FROM editorial_model_provider').first()) ===
+        JSON.stringify(pausedBeforeHealth) &&
+      JSON.stringify(await db.prepare('SELECT * FROM indexnow_state').first()) ===
+        JSON.stringify(searchPauseBeforeHealth),
+  );
   await db.prepare('UPDATE editorial_model_provider SET next_check_at=0').run();
   const unavailable = await mf.dispatchFetch('https://wenbu.app/__test/provider').then((r) => r.json());
   check(

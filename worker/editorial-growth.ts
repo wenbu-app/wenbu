@@ -1,7 +1,7 @@
 import { EDITORIAL_POLICY } from './editorial-policy';
 import { contentHash, shanghaiDay, type EditorialDocument } from './editorial-schema';
 import { editorialDemandLanes, defaultSearchBrief } from '../src/data/editorial-demand';
-import type { EditorialTopic } from '../src/data/editorial-topics';
+import { editorialSources, type EditorialTopic } from '../src/data/editorial-topics';
 import type { Env } from './types';
 import { sourceViable } from './editorial-commissioning';
 
@@ -90,6 +90,8 @@ export async function editorialGrowthStatus(env: Env, now = Date.now()) {
     failureCounts,
     readyTasks: ready.length,
     viableReadyTasks,
+    sourceEligibilityBasis:
+      'Candidates exclude recently unavailable sources; missing or stale records are not verified availability. Every publication rereads its sources.',
     reserveTarget: 42,
     sourceHealth: {
       available: sources.results.filter((s) => s.status === 'available' && s.checked_at > now - 86400_000)
@@ -98,6 +100,7 @@ export async function editorialGrowthStatus(env: Env, now = Date.now()) {
         .filter((s) => s.status !== 'available' && s.checked_at > now - 86400_000)
         .map((s) => s.id),
       stale: sources.results.filter((s) => s.checked_at <= now - 86400_000).length,
+      missing: Object.keys(editorialSources).filter((id) => !sources.results.some((s) => s.id === id)).length,
     },
     keywordCoverage,
     coverageBasis: 'Editorial briefs and research hypotheses, not measured rankings or keyword volumes.',

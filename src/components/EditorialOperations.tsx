@@ -25,6 +25,7 @@ type Status = {
     readyTasks: number;
     viableReadyTasks: number;
     reserveTarget: number;
+    sourceHealth?: { available: number; unavailable: string[]; stale: number; missing?: number };
     keywordCoverage: {
       pillar: string;
       readyTasks: number;
@@ -42,6 +43,8 @@ export default function EditorialOperations({ token }: { token: string }) {
   const [data, setData] = useState<Status | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const sourceChecksNeeded =
+    (data?.production?.sourceHealth?.stale ?? 0) + (data?.production?.sourceHealth?.missing ?? 0);
   async function load() {
     if (busy) return;
     setBusy(true);
@@ -101,13 +104,21 @@ export default function EditorialOperations({ token }: { token: string }) {
               <p style={{ fontSize: 13, lineHeight: 1.9 }}>
                 今日发布 / Published today: <strong>{data.production.days.at(-1)?.published} / 3</strong>
                 {' · '}已到期 / Due: {data.production.days.at(-1)?.due}
-                {' · '}来源可用的待写任务 / Source-viable tasks: {data.production.viableReadyTasks} /{' '}
+                {' · '}无近期来源阻断 / No recent source block: {data.production.viableReadyTasks} /{' '}
                 {data.production.reserveTarget}
                 {' · '}模型请求 / Model requests:{' '}
                 {data.modelBudgets?.find((b) => b.day === data.production?.days.at(-1)?.day)?.model_calls ??
                   '—'}{' '}
                 / {data.productionPolicy?.modelCallsPerDay ?? '—'}
               </p>
+              {sourceChecksNeeded > 0 && (
+                <p style={{ fontSize: 13, lineHeight: 1.9, color: '#6b7464', margin: '12px 0 20px' }}>
+                  来源记录待核验 / Source checks needed: {sourceChecksNeeded}。
+                  上方数量包含可用性尚未重新核实的候选，每篇发布前仍需读取来源。/ The count includes
+                  candidates whose source availability has not been rechecked. Sources must be read again
+                  before publication.
+                </p>
+              )}
               <div
                 className="editorial-table"
                 tabIndex={0}
