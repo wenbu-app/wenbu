@@ -11,7 +11,12 @@ import {
   toolTrace,
 } from './agent-tools';
 import { readReference } from './agent-library';
-import { completeLibraryDocuments, completeLibrarySnapshot, readCompleteLibrary } from './editorial-library';
+import {
+  completeLibraryDocuments,
+  completeLibrarySnapshot,
+  readCompleteLibrary,
+  SupersededLibraryCitation,
+} from './editorial-library';
 import { reportConclusion } from '../src/lib/agent-outcome';
 import { reportSourceIds } from '../src/lib/agent-report';
 import { allowsClarification, writtenQuestion } from './agent-guidance-policy';
@@ -460,9 +465,13 @@ export async function agentResponse(
               id: traceId,
               status: 'error',
               detail:
-                input.locale === 'zh'
-                  ? '这份引用暂时无法核验，不能作为本回合已读依据。'
-                  : 'This source could not be reverified and is not read evidence for this turn.',
+                error instanceof SupersededLibraryCitation
+                  ? input.locale === 'zh'
+                    ? '旧引用的版本已修订，接下来需要核对当前正文。'
+                    : 'The cited edition was revised. Its current document needs to be read.'
+                  : input.locale === 'zh'
+                    ? '这份引用暂时无法核验，不能作为本回合已读依据。'
+                    : 'This source could not be reverified and is not read evidence for this turn.',
             });
           }
         };
@@ -722,6 +731,7 @@ export async function agentResponse(
                 tool_call_id: call.id,
                 content: JSON.stringify({
                   error: detail,
+                  ...(error instanceof SupersededLibraryCitation ? { recovery: error.recovery } : {}),
                   ...(error instanceof z.ZodError
                     ? {
                         validationErrors: error.issues
@@ -752,15 +762,20 @@ export async function agentResponse(
                 id: traceId,
                 status: 'error',
                 ...(issue ? { issue } : {}),
-                detail: citationError
-                  ? input.locale === 'zh'
-                    ? '报告引用了尚未核验的资料，这一稿暂未保存。正在尝试补齐依据并重新核对。'
-                    : 'This draft cited a source that has not been verified, so it was not saved. The agent will try to check the evidence and revise it.'
-                  : invalidReport
+                detail:
+                  error instanceof SupersededLibraryCitation
                     ? input.locale === 'zh'
-                      ? '报告格式或篇幅未通过检查，这一稿暂未保存。'
-                      : 'This draft did not meet the report structure or length requirements and was not saved.'
-                    : detail,
+                      ? '这处引用的版本已修订，需要重新读取当前正文后继续。'
+                      : 'This citation was revised. Read the current document before continuing.'
+                    : citationError
+                      ? input.locale === 'zh'
+                        ? '报告引用了尚未核验的资料，这一稿暂未保存。正在尝试补齐依据并重新核对。'
+                        : 'This draft cited a source that has not been verified, so it was not saved. The agent will try to check the evidence and revise it.'
+                      : invalidReport
+                        ? input.locale === 'zh'
+                          ? '报告格式或篇幅未通过检查，这一稿暂未保存。'
+                          : 'This draft did not meet the report structure or length requirements and was not saved.'
+                        : detail,
               });
             }
           }

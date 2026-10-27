@@ -1,6 +1,29 @@
 import { libraryDocuments, readLibrary } from './agent-library';
 import { editorialLibraryDocuments } from './editorial-discovery';
 import type { Env } from './types';
+
+// A corrected edition stays in the private audit history, not the public library.
+// A stale citation can recover by reading the current owner, without reading or
+// silently substituting the withdrawn text under the old source ID.
+export class SupersededLibraryCitation extends Error {
+  readonly recovery;
+  constructor(documentId: string, section: string, url: string, revision: string, locale: 'zh' | 'en') {
+    super(
+      `This cited section has been superseded. Read the current document with read_library id="${documentId}" before citing it again.`,
+    );
+    this.name = 'SupersededLibraryCitation';
+    this.recovery = {
+      code: 'source_superseded' as const,
+      recoverable: true,
+      message: this.message,
+      documentId,
+      requestedSection: section,
+      current: { id: documentId, url, revision },
+      nextAction: { tool: 'read_library' as const, arguments: { id: documentId, locale } },
+    };
+  }
+}
+
 export async function completeLibraryDocuments(locale: 'zh' | 'en', env?: Env) {
   const original = libraryDocuments(locale);
   if (!env || env.EDITORIAL_ENABLED !== 'true') return original;
@@ -58,7 +81,25 @@ export async function readCompleteLibrary(id: string, locale: 'zh' | 'en', secti
           ('aliases' in part && Array.isArray(part.aliases) && part.aliases.includes(section!)),
       )
     : null;
-  if (section && !part) throw new Error('Unknown document section. Use a section ID from the outline.');
+  if (section && !part) {
+    const pinned = /^editorial-([a-f0-9]{24})-section-(0|[1-9][0-9]{0,3})$/.exec(section);
+    if (pinned && env?.ANALYTICS && env.EDITORIAL_ENABLED === 'true') {
+      // Read only existence and section-count metadata for this exact public
+      // owner. An ambiguous prefix, wrong owner or invented ordinal is invalid.
+      const retained = await env.ANALYTICS.prepare(
+        'SELECT revision,json_array_length(document_json,?) AS section_count FROM editorial_revisions WHERE path=? AND revision LIKE ? LIMIT 2',
+      )
+        .bind(`$.${locale}.sections`, doc.path, `${pinned[1]}%`)
+        .all<{ revision: string; section_count: number | null }>();
+      if (
+        retained.results.length === 1 &&
+        retained.results[0].revision !== doc.revision &&
+        Number(pinned[2]) < (retained.results[0].section_count ?? 0)
+      )
+        throw new SupersededLibraryCitation(doc.id, section, doc.url, doc.revision, locale);
+    }
+    throw new Error('Unknown document section. Use a section ID from the outline.');
+  }
   const content = part?.content ?? doc.content;
   return {
     source: {

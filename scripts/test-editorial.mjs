@@ -1071,6 +1071,38 @@ try {
         .bind(staticOwnerOriginal.revision)
         .first()),
   );
+  const supersededRead = await mf
+    .dispatchFetch('https://wenbu.app/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        'X-Wenbu-Test': 'true',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 92,
+        method: 'tools/call',
+        params: {
+          name: 'read_library',
+          arguments: {
+            id: 'guide-first-reading',
+            locale: 'en',
+            section: `editorial-${staticOwnerOriginal.revision.slice(0, 24)}-section-0`,
+          },
+        },
+      }),
+    })
+    .then((r) => r.json());
+  check(
+    'a corrected pinned MCP citation returns only a current-owner recovery pointer',
+    supersededRead.result?.isError === true &&
+      supersededRead.result.structuredContent.error.code === 'source_superseded' &&
+      supersededRead.result.structuredContent.error.current.revision === correctedAddition.revision &&
+      supersededRead.result.structuredContent.error.nextAction.arguments.id === 'guide-first-reading' &&
+      !('source' in supersededRead.result.structuredContent) &&
+      !JSON.stringify(supersededRead).includes(staticOwnerOriginal.en.sections[0].paragraphs[0]),
+  );
   const staticOwnerSources = await mf
     .dispatchFetch('https://wenbu.app/__test/static-owner')
     .then((r) => r.json());

@@ -7,7 +7,7 @@ import { castIching } from '../src/lib/iching';
 import { drawTarot } from '../src/lib/tarot';
 import { calculateZiwei } from '../src/lib/ziwei';
 import { knowledgeIndex } from '../src/lib/knowledge';
-import { searchCompleteLibrary, readCompleteLibrary } from './editorial-library';
+import { searchCompleteLibrary, readCompleteLibrary, SupersededLibraryCitation } from './editorial-library';
 import type { Env } from './types';
 import { editorialDiscovery } from './editorial-discovery';
 import { InputError, type ToolKind } from '../src/lib/schema';
@@ -78,6 +78,12 @@ export function createMcpServer(receipt?: ToolReceipt, env?: Env) {
           if (kind !== 'mcp') receipt?.(kind, true, Date.now() - started);
           return pack(result);
         } catch (error) {
+          if (error instanceof SupersededLibraryCitation)
+            return {
+              isError: true,
+              structuredContent: { error: error.recovery },
+              content: [{ type: 'text' as const, text: JSON.stringify(error.recovery) }],
+            };
           const invalid =
             error instanceof z.ZodError ||
             error instanceof InputError ||
@@ -180,7 +186,7 @@ export function createMcpServer(receipt?: ToolReceipt, env?: Env) {
   );
   register(
     'read_library',
-    'Read a complete Wenbu guide or symbol by search_library ID. Handbook guides return Markdown, outline and export links without truncation. Optionally provide a section ID from the outline; the returned scope makes partial reads explicit. External reference entries are metadata only; use your host browsing capability to verify them.',
+    'Read a complete Wenbu guide or symbol by search_library ID. Handbook guides return Markdown, outline and export links without truncation. Optionally provide a section ID from the outline; the returned scope makes partial reads explicit. A corrected stale citation returns source_superseded with a current-document read action, not withdrawn content or read evidence. External reference entries are metadata only; use your host browsing capability to verify them.',
     { id: z.string().min(1).max(100), locale: language, section: z.string().min(1).max(80).optional() },
     (a) => {
       const { id, locale, section } = a as { id: string; locale: 'zh' | 'en'; section?: string };
