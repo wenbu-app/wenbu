@@ -152,6 +152,8 @@ export async function editorialLibraryDocuments(env: Env, locale: 'zh' | 'en') {
         ? 'guide-' + doc.topic.slug
         : `editorial-${doc.topic.id}`,
     alias: `editorial-${doc.topic.id}`,
+    path: pathForTopic(doc.topic),
+    revision: doc.revision,
     title: editorialIdentity(doc, locale).title,
     url: `${env.SITE_URL}/${locale === 'en' ? 'en/' : ''}${pathForTopic(doc.topic)}/`,
     kind: 'guide' as const,
