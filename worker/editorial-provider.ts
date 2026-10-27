@@ -18,6 +18,19 @@ export async function editorialProviderStatus(env: Env): Promise<ProviderState> 
   if (!row) throw new Error('editorial_provider_state_unavailable');
   return row;
 }
+
+// Public conversations share this account with editorial generation. A known
+// outage must be checked before a personal/network turn is reserved. This is a
+// read of the existing circuit, never another balance or model request.
+export async function sharedModelAvailable(env: Env): Promise<boolean> {
+  if (env.EDITORIAL_ENABLED !== 'true') return true;
+  if (!env.ANALYTICS) return false;
+  try {
+    return (await editorialProviderStatus(env)).status === 'available';
+  } catch {
+    return false;
+  }
+}
 async function retainState(
   env: Env,
   status: ProviderState['status'],
@@ -36,7 +49,8 @@ async function retainState(
     method,
     checkedAt: new Date(now).toISOString(),
     nextCheckAt: next ? new Date(next).toISOString() : null,
-    scope: 'Editorial availability only; no credential, account identifier or monetary balance retained.',
+    scope:
+      'Shared model-account availability; no credential, account identifier or monetary balance retained.',
   });
   const id = 'model_provider-' + (await contentHash(evidence));
   await env.ANALYTICS!.batch([
