@@ -11,6 +11,7 @@ import {
   toolTrace,
 } from './agent-tools';
 import { readReference } from './agent-library';
+import { sharedModelAvailable } from './editorial-provider';
 import {
   completeLibraryDocuments,
   completeLibrarySnapshot,
@@ -237,6 +238,14 @@ export async function agentResponse(
       503,
       'agent_unavailable',
       'Agent is temporarily unavailable. The original tools remain available. / Agent 暂不可用，原有工具仍可使用。',
+    );
+  if (!(await sharedModelAvailable(env)))
+    throw new ApiError(
+      503,
+      'agent_unavailable',
+      input.locale === 'zh'
+        ? '对话暂时不可用，本次未使用回合；工具与已保存的结果仍可使用。'
+        : 'Conversation is temporarily unavailable. No turn was used; your tools and saved results remain available.',
     );
   const identity = await identityHash(
     request.headers.get('CF-Connecting-IP') ?? 'local-development',

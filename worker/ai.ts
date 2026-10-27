@@ -4,6 +4,7 @@ import { tarotDeck } from '../src/data/tarot';
 import { z } from 'zod';
 import type { Env } from './types';
 import { reserveActor, type Actor } from './account-operations';
+import { sharedModelAvailable } from './editorial-provider';
 
 export class ApiError extends Error {
   constructor(
@@ -86,6 +87,14 @@ export async function interpret(raw: unknown, request: Request, env: Env, actor?
       503,
       'ai_unavailable',
       'AI reading is temporarily unavailable. Your chart and saved notes still work. / 解读暂不可用，排盘与手记仍可使用。',
+    );
+  if (!(await sharedModelAvailable(env)))
+    throw new ApiError(
+      503,
+      'ai_unavailable',
+      input.locale === 'zh'
+        ? '解读暂时不可用，本次未使用解读额度；排盘与手记仍可使用。'
+        : 'Interpretation is temporarily unavailable. No reading allowance was used; your chart and saved notes remain available.',
     );
   const identity = await identityHash(
     request.headers.get('CF-Connecting-IP') ?? 'local-development',
