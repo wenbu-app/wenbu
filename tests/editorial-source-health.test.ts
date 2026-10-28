@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { database } from './helpers/analytics-db';
 import { editorialSources } from '../src/data/editorial-topics';
-import { refreshEditorialSources } from '../worker/editorial-research';
+import { readApprovedEditorialSource, refreshEditorialSources } from '../worker/editorial-research';
 import { recordEditorialProviderFailure } from '../worker/editorial-provider';
 import { editorialGrowthStatus } from '../worker/editorial-growth';
 import type { Env } from '../worker/types';
@@ -31,6 +31,30 @@ function setup() {
 }
 
 describe('source checks remain independent from model availability', () => {
+  it('does not reject a complete official page because its first feature card is short', async () => {
+    const { env, sql, external } = setup();
+    external.mockResolvedValue(
+      new Response(
+        '<main><article>First feature card.</article><p>' +
+          text +
+          '</p><p>Final storage and export limitations.</p></main>',
+        { headers: { 'Content-Type': 'text/html' } },
+      ),
+    );
+    const source = await readApprovedEditorialSource(env, 'nttarot');
+    expect(source?.excerpt).toContain('First feature card.');
+    expect(source?.excerpt).toContain('Final storage and export limitations.');
+    expect(source?.excerpt.length).toBeGreaterThan(150);
+    expect(
+      sql.prepare("SELECT status,error_code FROM editorial_source_health WHERE id='nttarot'").get(),
+    ).toEqual({
+      status: 'available',
+      error_code: null,
+    });
+    expect(external).toHaveBeenCalledTimes(1);
+    expect(new URL((external.mock.calls[0][0] as Request).url).hostname).toBe('nttarot.net');
+  });
+
   it('refreshes expired allowlisted sources during a known model pause without changing any generation or search state', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(now);
     const { env, sql, external } = setup();
