@@ -84,7 +84,7 @@ describe('complete illustrated knowledge editions', () => {
   });
   it('supplies only public guide links in a complete bilingual catalogue', () => {
     const index = knowledgeIndex();
-    expect(index.guides.length).toBe(21);
+    expect(index.guides.length).toBe(24);
     for (const guide of index.guides) {
       expect(guide.translations.map((t) => t.locale)).toEqual(['zh', 'en']);
       for (const edition of guide.translations) {
@@ -122,7 +122,7 @@ describe('complete illustrated knowledge editions', () => {
         };
       }>;
     const index = await call('resources/read', { uri: 'wenbu://knowledge' });
-    expect(JSON.parse(index.result.contents[0].text).guides).toHaveLength(21);
+    expect(JSON.parse(index.result.contents[0].text).guides).toHaveLength(24);
     const example = await call('tools/call', {
       name: 'read_library',
       arguments: { id: 'guide-iching-three-coins', locale: 'zh', section: 'worked-example' },

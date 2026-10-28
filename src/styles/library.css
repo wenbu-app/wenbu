@@ -649,3 +649,24 @@
     transform: none;
   }
 }
+.comparison-downloads {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 24px;
+  row-gap: 12px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.comparison-downloads > span {
+  width: 100%;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.comparison-downloads a {
+  white-space: nowrap;
+}

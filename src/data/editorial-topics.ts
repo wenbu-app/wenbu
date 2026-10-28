@@ -110,6 +110,16 @@ export const editorialSources: Record<string, { title: string; url: string; role
     url: 'https://labyrinthos.co/pages/learn-tarot-for-beginners-with-our-online-tarot-classes',
     role: 'Vendor learning offering; do not reproduce its lessons',
   },
+  knowtarot: {
+    title: 'KnowTarot · official learning and journal overview',
+    url: 'https://www.knowtarot.com/',
+    role: 'Vendor descriptions of flashcards, journal and backup; not an account test or proof of predictive accuracy',
+  },
+  nttarot: {
+    title: 'NTTarot · official features and storage guide',
+    url: 'https://nttarot.net/en/features',
+    role: 'Vendor documentation for local or supported cloud storage and prompt handoff; no account or integration test claimed',
+  },
   chani: {
     title: 'CHANI · official app',
     url: 'https://www.chani.com/app',
@@ -258,6 +268,10 @@ const compare = (
           'Add a fresh decision matrix around BaZi calculators, report products, daily practice and actual agent integrations. Keep existing comparison evidence; do not claim that a missing API description proves an API does not exist.',
         labyrinthos:
           'A serious tarot-learning and spread practice versus a simple multi-tradition browser session. Compare documented journal access and course scope without inventing paid limits.',
+        knowtarot:
+          'Help a beginner choose between a structured flashcard-and-practice-calendar routine and a question-led multi-tradition workspace. Compare the documented draw, note, revisit and backup steps in three reader scenarios. Credit the learning and deck options; distinguish public documentation from an actual account or restore test.',
+        nttarot:
+          'Help a reader with a physical deck choose how to customize meanings, preserve notes and hand context to an assistant. Draw a data-flow comparison of device-only storage, supported third-party sync and user-selected AI prompts versus Wenbu optional account saving and public agent tools. Do not infer that either vendor has undocumented integrations or that local storage is always safer.',
         'trusted-tarot':
           'Compare multiple manually selected spreads and configurable reversals with simple upright daily practice and an optional sourced conversation. Give the user a reproducible selection checklist; vendor predictive claims remain vendor claims.',
         'sage-tarot':
@@ -275,6 +289,8 @@ const compare = (
 
 // Stable intent ownership, not automatically generated keyword permutations.
 export const editorialTopics: EditorialTopic[] = [
+  compare('knowtarot', 'KnowTarot', ['knowtarot']),
+  compare('nttarot', 'NTTarot', ['nttarot']),
   compare('chani', 'CHANI', ['chani']),
   compare('costar', 'Co–Star', ['costar']),
   compare('astro-com', 'Astrodienst / Astro.com', ['astro']),

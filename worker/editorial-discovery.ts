@@ -11,6 +11,8 @@ import {
 import { publishedDocuments } from './editorial-store';
 import type { Env } from './types';
 import { readLibrary } from './agent-library';
+import { comparisons } from '../src/data/comparisons';
+import { comparisonSections } from '../src/lib/comparison-knowledge';
 const xml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 export async function mergePublishedManifest<
   T extends { version: number; origin: string; revision: string; pages: { url: string; hash: string }[] },
@@ -152,6 +154,12 @@ export async function editorialLibraryDocuments(env: Env, locale: 'zh' | 'en') {
         ? 'guide-' + doc.topic.slug
         : `editorial-${doc.topic.id}`,
     alias: `editorial-${doc.topic.id}`,
+    baseId:
+      doc.topic.mode === 'extend' &&
+      doc.topic.category === 'compare' &&
+      comparisons.some((c) => c.slug === doc.topic.slug)
+        ? `guide-compare-${doc.topic.slug}`
+        : undefined,
     path: pathForTopic(doc.topic),
     revision: doc.revision,
     title: editorialIdentity(doc, locale).title,
@@ -174,7 +182,17 @@ export async function editorialLibraryDocuments(env: Env, locale: 'zh' | 'en') {
               content: guideMarkdown(original, locale, part.id),
             }));
           })()
-        : []),
+        : doc.topic.mode === 'extend' && doc.topic.category === 'compare'
+          ? (() => {
+              const original = comparisons.find((c) => c.slug === doc.topic.slug);
+              return original
+                ? comparisonSections(original, locale).map((part) => ({
+                    ...part,
+                    content: `## ${part.title}\n\n${part.content}`,
+                  }))
+                : [];
+            })()
+          : []),
       ...(doc.previousAdditions ?? []).flatMap((addition, history) =>
         addition[locale].sections.map((section, index) => ({
           id: editorialSectionId(addition, index),

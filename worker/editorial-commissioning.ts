@@ -5,6 +5,7 @@ import { editorialSources, type EditorialTopic } from '../src/data/editorial-top
 import { pathForTopic, type EditorialDocument } from './editorial-schema';
 import type { Env } from './types';
 import { defaultSearchBrief } from '../src/data/editorial-demand';
+import { knowledgeDocument, guideOutline } from '../src/lib/knowledge';
 
 export const COMMISSIONING_POLICY = 4;
 export const EDITORIAL_RESERVE_TARGET = 42;
@@ -220,8 +221,15 @@ export function editorialOwners(
       path: `${a.category}/${a.slug}`,
       title: a.en.title,
       description: `${a.zh.description}\n${a.en.description}`,
-      headings: [...a.zh.sections, ...a.en.sections].map((s) => s.heading),
-      coverage: JSON.stringify({ zh: a.zh.sections, en: a.en.sections }),
+      headings:
+        a.category === 'learn'
+          ? [...guideOutline(a, 'zh'), ...guideOutline(a, 'en')].map((s) => s.title)
+          : [...a.zh.sections, ...a.en.sections].map((s) => s.heading),
+      coverage: JSON.stringify(
+        a.category === 'learn'
+          ? { zh: knowledgeDocument(a, 'zh'), en: knowledgeDocument(a, 'en') }
+          : { zh: a.zh.sections, en: a.en.sections },
+      ),
       plannedTasks: [],
     });
   for (const c of comparisons)

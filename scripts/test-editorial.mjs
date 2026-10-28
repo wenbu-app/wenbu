@@ -1107,12 +1107,41 @@ try {
     .dispatchFetch('https://wenbu.app/__test/static-owner')
     .then((r) => r.json());
   check(
-    'static comparison sources fall back from missing machine files to their real canonical HTML',
+    'static comparison research reads complete built machine editions before the HTML fallback',
     staticOwnerSources.length === 2 &&
-      staticOwnerSources[0].url === 'https://wenbu.app/compare/fatetell/' &&
-      staticOwnerSources[1].url === 'https://wenbu.app/en/compare/fatetell/' &&
+      staticOwnerSources[0].url === 'https://wenbu.app/knowledge/zh/compare-fatetell.md' &&
+      staticOwnerSources[1].url === 'https://wenbu.app/knowledge/en/compare-fatetell.md' &&
       staticOwnerSources.every((s) => s.excerpt.length > 150 && s.truncated === false),
   );
+  for (const locale of ['zh', 'en']) {
+    const table = await mf
+      .dispatchFetch('https://wenbu.app/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          'X-Wenbu-Test': 'true',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 93,
+          method: 'tools/call',
+          params: {
+            name: 'read_library',
+            arguments: { id: 'guide-compare-fatetell', locale, section: 'comparison-table' },
+          },
+        }),
+      })
+      .then((r) => r.json());
+    check(
+      `native MCP supplies the complete static comparison table in ${locale}`,
+      table.result?.structuredContent?.scope === 'section' &&
+        table.result.structuredContent.source.url ===
+          `https://wenbu.app/${locale === 'en' ? 'en/' : ''}compare/fatetell/#comparison-table` &&
+        table.result.structuredContent.content.includes('FateBook') &&
+        !table.result.isError,
+    );
+  }
   const outageTopic = {
     ...originalDoc.topic,
     id: 'synthetic-provider-outage',

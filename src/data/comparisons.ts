@@ -237,3 +237,5 @@ export const comparisons = [
     },
   },
 ];
+
+export type Comparison = (typeof comparisons)[number];

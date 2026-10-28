@@ -5,6 +5,8 @@ description: Calculate BaZi and Zi Wei charts, cast the I Ching, draw tarot, and
 
 # Wenbu · 问卜
 
+The public knowledge catalogue also includes complete bilingual product comparisons. For example, use CLI `node wenbu.mjs guide compare-fatetell en --json`, or MCP `read_library` with `id: "guide-compare-fatetell"`, `locale: "en"` and optional `section: "comparison-table"`. Keep the returned current-owner identity, review date and limitations. Listed external sources are not source-read receipts.
+
 Use this skill when a person asks to explore one of these traditions, understand a chart or research a related concept. Match the person's language. Preserve traditional terms when useful, then explain them in ordinary words. Calculation facts, traditional interpretations and the person's own reflections are different kinds of information.
 
 ## Choose a connection

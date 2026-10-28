@@ -1,6 +1,7 @@
 import { articles, type Article } from '../data/articles';
 import { guideDepth, handbookUpdated } from '../data/guide-depth';
 import type { Locale } from './schema';
+import { comparisonIndex } from './comparison-knowledge';
 
 export const knowledgeOrigin = 'https://wenbu.app';
 export function knowledgeLinks(slug: string, locale: Locale) {
@@ -127,19 +128,22 @@ export function knowledgeIndex() {
       .filter((a) => a.category === 'learn')
       .reduce((latest, a) => (a.updated && a.updated > latest ? a.updated : latest), handbookUpdated),
     description:
-      'Public editorial guides, not personal context. Each translation has complete Markdown and JSON. Sources distinguish calculation, tradition and editorial guidance.',
-    guides: articles
-      .filter((a) => a.category === 'learn')
-      .map((a) => ({
-        id: `guide-${a.slug}`,
-        slug: a.slug,
-        tool: a.tool,
-        translations: (['zh', 'en'] as const).map((locale) => ({
-          locale,
-          title: a[locale].title,
-          description: a[locale].description,
-          ...knowledgeLinks(a.slug, locale),
+      'Public editorial guides and product comparisons, not personal context. Each translation has complete Markdown and JSON. Sources distinguish calculation, tradition and editorial guidance.',
+    guides: [
+      ...articles
+        .filter((a) => a.category === 'learn')
+        .map((a) => ({
+          id: `guide-${a.slug}`,
+          slug: a.slug,
+          tool: a.tool,
+          translations: (['zh', 'en'] as const).map((locale) => ({
+            locale,
+            title: a[locale].title,
+            description: a[locale].description,
+            ...knowledgeLinks(a.slug, locale),
+          })),
         })),
-      })),
+      ...comparisonIndex(),
+    ],
   };
 }
