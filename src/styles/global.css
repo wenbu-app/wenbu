@@ -922,6 +922,42 @@ html[lang='en'] .section-heading h2 {
 .footer-links a:hover {
   color: var(--red);
 }
+.footer-featured {
+  border-top: 1px solid var(--line);
+  padding: 21px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.footer-featured > span {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+.footer-featured-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+}
+.footer-featured-badges a {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+.footer-featured-badges img {
+  display: block;
+  height: 54px;
+  width: auto;
+}
+.footer-featured-badges a[href='https://doforai.tools'] img {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.footer-featured-badges a:hover img {
+  opacity: 0.82;
+}
 .footer-bottom {
   border-top: 1px solid var(--line);
   padding-top: 21px;
@@ -2430,6 +2466,10 @@ html[lang='en'] .section-heading h2 {
     grid-template-columns: 1fr;
     gap: 30px;
   }
+  .footer-featured {
+    padding: 18px 0;
+    gap: 12px;
+  }
   .footer-bottom {
     flex-direction: column;
     gap: 10px;
@@ -2713,6 +2753,12 @@ html[lang='en'] .section-heading h2 {
   }
   .site-footer {
     padding-top: 40px;
+  }
+  .footer-featured-badges {
+    gap: 12px;
+  }
+  .footer-featured-badges img {
+    height: 44px;
   }
   .footer-links {
     gap: 18px;
