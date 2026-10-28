@@ -25,6 +25,7 @@ import Agents from '../components/Agents.astro';
 import { articles } from '../data/articles';
 import { pages } from '../data/pages';
 import { comparisons } from '../data/comparisons';
+import { comparisonLinks, comparisonCheckedNote } from '../lib/comparison-knowledge';
 import { sources } from '../data/sources';
 import { choose, href, toolInfo } from '../lib/i18n';
 import type { Locale, ToolKind } from '../lib/schema';
@@ -153,7 +154,12 @@ const depth = article ? guideDepth[article.slug]?.[locale] : undefined;
 const outline = article ? guideOutline(article, locale) : [];
 const articleUpdated = article?.updated ?? (depth ? handbookUpdated : '2026-09-29');
 const articleSources = article ? knowledgeDocument(article, locale).sources : [];
-const exports = article && depth ? knowledgeLinks(article.slug, locale) : undefined;
+const exports =
+  article && depth
+    ? knowledgeLinks(article.slug, locale)
+    : comparison
+      ? comparisonLinks(comparison.slug, locale)
+      : undefined;
 const articleTopic = article ? topicForGuide(article.slug) : undefined;
 const nextArticles = article
   ? articleTopic
@@ -629,14 +635,9 @@ const ctaLabels: Record<string, [string, string]> = {
       {comparison && (
         <div class="prose-grid">
           <article class="prose">
-            <h2>{t('先比较使用方式', 'Compare the workflow first')}</h2>
+            <h2 id="comparison-workflow">{t('先比较使用方式', 'Compare the workflow first')}</h2>
             <p>{comparison[locale].intro}</p>
-            <p class="form-note">
-              {t(
-                `公开资料核验：${comparison.reviewed}。根据官方公开页面比较，未测试登录后或付费体验。`,
-                `Public pages checked ${comparison.reviewed}. This comparison uses official sources; paid and signed-in features have not been tested.`,
-              )}
-            </p>
+            <p class="form-note">{comparisonCheckedNote(comparison, locale)}</p>
             <p class="table-scroll-hint">
               {t(
                 '左右滑动查看完整对比；使用键盘时，可聚焦表格后按方向键。',
@@ -644,6 +645,7 @@ const ctaLabels: Record<string, [string, string]> = {
               )}
             </p>
             <div
+              id="comparison-table"
               class="table-scroll"
               role="region"
               aria-label={t('产品功能对比', 'Product comparison')}
@@ -664,9 +666,9 @@ const ctaLabels: Record<string, [string, string]> = {
                 </tbody>
               </table>
             </div>
-            <h2>{t('怎样选', 'Making a choice')}</h2>
+            <h2 id="comparison-choice">{t('怎样选', 'Making a choice')}</h2>
             <p>{comparison[locale].conclusion}</p>
-            <div class="source-list">
+            <div class="source-list" id="comparison-sources">
               {comparison.sources.map((source) => (
                 <a href={source.url} target="_blank" rel="noreferrer" data-track="source">
                   {source.title} ↗
@@ -678,6 +680,15 @@ const ctaLabels: Record<string, [string, string]> = {
             <a class="button primary" href={href(locale, 'learn/choose-a-tool')} data-track="library-start">
               {t('选一个适合的工具', 'Find your starting point')} ↗
             </a>
+            <nav class="comparison-downloads" aria-label={t('完整对比内容', 'Complete comparison formats')}>
+              <span>{t('给你的 Agent', 'For your agent')}</span>
+              <a href={comparisonLinks(comparison.slug, locale).markdown} data-track="guide-markdown">
+                {t('完整 Markdown', 'Full Markdown')} ↗
+              </a>
+              <a href={comparisonLinks(comparison.slug, locale).json} data-track="guide-json">
+                {t('结构化 JSON', 'Structured JSON')} ↗
+              </a>
+            </nav>
           </article>
           <aside class="article-aside">
             <span>{t('继续比较', 'KEEP EXPLORING')}</span>

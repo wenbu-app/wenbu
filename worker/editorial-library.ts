@@ -29,7 +29,8 @@ export async function completeLibraryDocuments(locale: 'zh' | 'en', env?: Env) {
   if (!env || env.EDITORIAL_ENABLED !== 'true') return original;
   const additions = await editorialLibraryDocuments(env, locale);
   const replaced = new Set(additions.map((d) => d.id));
-  return [...original.filter((d) => !replaced.has(d.id)), ...additions];
+  const replacedUrls = new Set(additions.map((d) => d.url));
+  return [...original.filter((d) => !replaced.has(d.id) && !replacedUrls.has(d.url)), ...additions];
 }
 export async function searchCompleteLibrary(query: string, locale: 'zh' | 'en', limit = 6, env?: Env) {
   const docs = await completeLibraryDocuments(locale, env),
@@ -72,7 +73,7 @@ export async function readCompleteLibrary(id: string, locale: 'zh' | 'en', secti
     throw new Error('Conflicting or invalid section citation ID.');
   section ??= savedSection;
   const docs = env ? await editorialLibraryDocuments(env, locale) : [];
-  const doc = docs.find((d) => d.id === documentId || d.alias === documentId);
+  const doc = docs.find((d) => d.id === documentId || d.alias === documentId || d.baseId === documentId);
   if (!doc) return readLibrary(id, locale, section);
   const part = section
     ? doc.sections.find(

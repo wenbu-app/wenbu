@@ -6,6 +6,8 @@ import { hexagrams } from '../src/data/hexagrams';
 import { tarotDeck } from '../src/data/tarot';
 import type { Locale } from '../src/lib/schema';
 import type { AgentSource } from '../src/lib/agent-protocol';
+import { comparisons } from '../src/data/comparisons';
+import { comparisonLinks, comparisonMarkdown, comparisonOutline } from '../src/lib/comparison-knowledge';
 
 type Document = Omit<AgentSource, 'excerpt' | 'readAt'> & { content: string; keywords: string };
 function referenceId(url: string) {
@@ -38,6 +40,17 @@ export function libraryDocuments(locale: Locale): Document[] {
     content: a.category === 'learn' ? guideMarkdown(a, locale) : copyText(a[locale]),
     keywords: `${a.tool} ${a.slug} ${a.zh.title} ${a.en.title}`,
   }));
+  guideDocs.push(
+    ...comparisons.map((c) => ({
+      id: 'guide-compare-' + c.slug,
+      title: c[locale].title,
+      url: comparisonLinks(c.slug, locale).html,
+      kind: 'guide' as const,
+      level: 'editorial',
+      content: comparisonMarkdown(c, locale),
+      keywords: `compare ${c.name} ${c.slug} ${c.zh.title} ${c.en.title}`,
+    })),
+  );
   for (const key of ['methodology', 'free']) {
     const p = pages[key]?.[locale];
     if (p)
@@ -122,26 +135,40 @@ export function readLibrary(id: string, locale: Locale, section?: string) {
     throw new Error('Unknown library document. Search the library first; references use read_reference.');
   const { content: fullContent, keywords: _, ...rest } = doc;
   const guide = articles.find((a) => 'guide-' + a.slug === documentId && a.category === 'learn');
-  if (section && !guide) throw new Error('Section reads are available for handbook guides only.');
-  const content = guide && section ? guideMarkdown(guide, locale, section) : fullContent;
+  const comparison = comparisons.find((c) => 'guide-compare-' + c.slug === documentId);
+  if (section && !guide && !comparison)
+    throw new Error('Section reads are available for guides and comparisons only.');
+  const outline = guide
+    ? guideOutline(guide, locale)
+    : comparison
+      ? comparisonOutline(comparison, locale)
+      : undefined;
+  const content = section
+    ? guide
+      ? guideMarkdown(guide, locale, section)
+      : comparisonMarkdown(comparison!, locale, section)
+    : fullContent;
   return {
     source: {
       ...rest,
       id: section ? `${documentId}#${section}` : documentId,
-      title:
-        rest.title +
-        (section && guide ? ' · ' + guideOutline(guide, locale).find((s) => s.id === section)!.title : ''),
+      title: rest.title + (section && outline ? ' · ' + outline.find((s) => s.id === section)!.title : ''),
       url: rest.url + (section ? '#' + section : ''),
       excerpt: content.slice(0, 280),
       readAt: new Date().toISOString(),
     },
     documentId,
     content,
-    format: guide ? 'text/markdown' : 'text/plain',
+    format: guide || comparison ? 'text/markdown' : 'text/plain',
     scope: section ? 'section' : 'full',
     section: section ?? null,
     truncated: false,
-    ...(guide ? { outline: guideOutline(guide, locale), links: knowledgeLinks(guide.slug, locale) } : {}),
+    ...(outline
+      ? {
+          outline,
+          links: guide ? knowledgeLinks(guide.slug, locale) : comparisonLinks(comparison!.slug, locale),
+        }
+      : {}),
   };
 }
 // Restore focused receipts exactly. Full-guide previews carry no citation authority

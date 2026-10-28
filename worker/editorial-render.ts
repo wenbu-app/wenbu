@@ -5,6 +5,7 @@ import { pathForTopic } from './editorial-schema';
 import { publishedDocument, publishedDocuments } from './editorial-store';
 import type { Env } from './types';
 import { comparisons } from '../src/data/comparisons';
+import { comparisonMarkdown } from '../src/lib/comparison-knowledge';
 import { articles } from '../src/data/articles';
 import { learningTopics, topicForGuide } from '../src/data/learning-paths';
 import { titleParts } from '../src/lib/reading-type';
@@ -38,18 +39,7 @@ const machineSlug = (doc: EditorialDocument) =>
 export function originalComparisonMarkdown(slug: string, locale: 'zh' | 'en') {
   const comparison = comparisons.find((c) => c.slug === slug);
   if (!comparison) throw new Error('original_comparison_unavailable');
-  const e = comparison[locale];
-  return [
-    `# ${e.title}`,
-    e.description,
-    e.intro,
-    '| Dimension | Wenbu | ' + comparison.name + ' |',
-    '| --- | --- | --- |',
-    ...e.rows.map((row) => '| ' + row.join(' | ') + ' |'),
-    e.conclusion,
-    '## Sources',
-    ...comparison.sources.map((s) => `- [${s.title}](${s.url})`),
-  ].join('\n\n');
+  return comparisonMarkdown(comparison, locale);
 }
 export function assetRequest(request: Request) {
   const headers = new Headers(request.headers);

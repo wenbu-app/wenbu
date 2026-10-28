@@ -17,6 +17,8 @@ import {
 } from '../worker/editorial-commissioning';
 import { editorialTopics, editorialSources } from '../src/data/editorial-topics';
 import { fixtureDraft } from './helpers/editorial-fixture';
+import { articles } from '../src/data/articles';
+import { knowledgeDocument, guideOutline } from '../src/lib/knowledge';
 
 const candidate = (overrides: Partial<CommissioningCandidate> = {}): CommissioningCandidate => ({
   id: 'api-result-integrity',
@@ -194,6 +196,20 @@ describe('editorial canonical commissioning', () => {
     expect(coins.coverage.length).toBeGreaterThan(100);
     expect(coins.plannedTasks.some((t) => t.task.includes('line-order'))).toBe(true);
     expect(owners.find((o) => o.path === 'compare/fatetell')!.coverage).toBeTruthy();
+  });
+  it('includes the actual illustrated guide examples, tables and FAQs in ownership decisions', () => {
+    const owners = editorialOwners(editorialTopics);
+    for (const article of articles.filter((a) => a.category === 'learn')) {
+      const owner = owners.find((o) => o.path === `learn/${article.slug}`)!;
+      const coverage = JSON.parse(owner.coverage);
+      for (const locale of ['zh', 'en'] as const) {
+        const document = knowledgeDocument(article, locale);
+        expect(coverage[locale]).toEqual(document);
+        for (const part of guideOutline(article, locale)) expect(owner.headings).toContain(part.title);
+      }
+    }
+    const fiveElements = owners.find((o) => o.path === 'learn/five-elements')!;
+    expect(JSON.parse(fiveElements.coverage).zh.example.steps[2]).toContain('辰的藏干戊、乙、癸');
   });
   it('admits a supported new outcome and strips commissioning-only fields', () => {
     const result = commissionCandidates([candidate()], [review()], editorialTopics);

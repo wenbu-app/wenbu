@@ -60,6 +60,14 @@ const schema = {
       description,
       inLanguage: locale === 'zh' ? 'zh-Hans' : 'en',
       isPartOf: { '@id': `${site}/#website` },
+      ...(knowledge
+        ? {
+            encoding: [
+              { '@type': 'MediaObject', encodingFormat: 'text/markdown', contentUrl: knowledge.markdown },
+              { '@type': 'MediaObject', encodingFormat: 'application/json', contentUrl: knowledge.json },
+            ],
+          }
+        : {}),
       ...(collection
         ? {
             mainEntity: {
@@ -81,22 +89,6 @@ const schema = {
             author: { '@type': 'Organization', name: 'Wenbu', url: `${site}/about/` },
             image: `${site}/og.png`,
             ...(citations?.length ? { citation: citations } : {}),
-            ...(knowledge
-              ? {
-                  encoding: [
-                    {
-                      '@type': 'MediaObject',
-                      encodingFormat: 'text/markdown',
-                      contentUrl: knowledge.markdown,
-                    },
-                    {
-                      '@type': 'MediaObject',
-                      encodingFormat: 'application/json',
-                      contentUrl: knowledge.json,
-                    },
-                  ],
-                }
-              : {}),
           }
         : {}),
     },
