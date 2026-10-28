@@ -191,11 +191,33 @@ export function referenceMetadata(id: string) {
   if (!ref) throw new Error('Unknown reference ID. Search the library first.');
   return ref;
 }
+function documentContainer(html: string, tag: 'main' | 'article') {
+  const tags = new RegExp(`<\\/?${tag}(?=[\\s>])(?:[^"'>]|"[^"]*"|'[^']*')*>`, 'gi');
+  let start = -1,
+    depth = 0;
+  for (const match of html.matchAll(tags)) {
+    const closing = match[0].startsWith('</');
+    if (start < 0) {
+      if (!closing) {
+        start = match.index + match[0].length;
+        depth = 1;
+      }
+    } else {
+      depth += closing ? -1 : 1;
+      if (depth === 0) return html.slice(start, match.index);
+    }
+  }
+  return null;
+}
 export function stripDocumentHtml(html: string) {
-  const article = html.match(/<(?:article|main)\b[^>]*>([\s\S]*?)<\/(?:article|main)>/i)?.[1] ?? html;
-  return article
-    .replace(/<(script|style|nav|header|footer|noscript|svg)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ')
+  // Remove inert content before looking for containers: script/comment text can
+  // contain tag-shaped strings. A child article must never close its parent main.
+  const safe = html
+    .replace(/<(script|style|noscript|svg)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ');
+  const content = documentContainer(safe, 'main') ?? documentContainer(safe, 'article') ?? safe;
+  return content
+    .replace(/<(nav|header|footer)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]*>/g, ' ')
     .replace(/&(?:nbsp|#160);/g, ' ')
     .replace(/&amp;/g, '&')

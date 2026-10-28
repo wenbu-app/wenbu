@@ -900,6 +900,47 @@ describe('source retrieval and tool boundaries', () => {
   });
 });
 
+describe('public source container extraction', () => {
+  it('reads every feature card and later source text inside main', () => {
+    const html =
+      '<main><h1>Features</h1><article>First feature</article><article>Second feature</article><p>Storage limitations and export instructions.</p></main><footer>Site navigation</footer>';
+    expect(stripDocumentHtml(html)).toBe(
+      'Features First feature Second feature Storage limitations and export instructions.',
+    );
+  });
+  it('retains nested article content and the enclosing article conclusion', () => {
+    expect(
+      stripDocumentHtml(
+        '<article><p>Introduction.</p><article>Worked example.</article><p>Conclusion and source limitations.</p></article>',
+      ),
+    ).toBe('Introduction. Worked example. Conclusion and source limitations.');
+  });
+  it('prefers the main content over an earlier incidental article', () => {
+    expect(
+      stripDocumentHtml(
+        '<aside><article>Preview card</article></aside><main>Actual source and evidence.</main>',
+      ),
+    ).toBe('Actual source and evidence.');
+  });
+  it('ignores container-shaped script and comment text and quoted angle brackets', () => {
+    expect(
+      stripDocumentHtml(
+        '<script>const template = "<main>Fake source</main>";</script><!-- <main>Comment</main> --><main data-label="a > b"><article>Real &amp; complete.</article><p>After the card.</p></main>',
+      ),
+    ).toBe('Real & complete. After the card.');
+  });
+  it('does not silently truncate an unclosed content container', () => {
+    expect(stripDocumentHtml('<main><p>Retained beginning.</p><p>Retained ending.</p>')).toBe(
+      'Retained beginning. Retained ending.',
+    );
+  });
+  it('does not mistake custom-element prefixes for content containers', () => {
+    expect(stripDocumentHtml('<main-note>Context.</main-note><main>Primary evidence.</main>')).toBe(
+      'Primary evidence.',
+    );
+  });
+});
+
 describe('stream protocol', () => {
   it('handles split UTF-8 and CRLF without corrupting text', async () => {
     const bytes = new TextEncoder().encode('data: {"text":"问卜"}\r\n\r\ndata: [DONE]\r\n\r\n');
