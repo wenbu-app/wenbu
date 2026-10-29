@@ -59,6 +59,7 @@ let planningFeedbackSeen = false,
   focusedDraftSeen = false,
   focusedReviewSeen = false,
   focusedCorrectionSeen = false,
+  correctionSourceSeen = false,
   repairPlanning = false,
   remainingReviewFailures = 0,
   draftMarker = '',
@@ -107,6 +108,13 @@ const mf = new Miniflare({
         outboundService: async (request) => {
           if (new URL(request.url).hostname === 'wenbu.app')
             return mf.dispatchFetch(request.url, { headers: request.headers });
+          if (request.url === 'https://www.hko.gov.hk/en/gts/time/calendar/text/files/T2023e.txt')
+            return new Response(
+              'Synthetic official-year-table fixture for native source propagation.\n' +
+                '2023/2/20 2nd Lunar Month\n2023/3/22 2nd Lunar Month\n2023/4/5 15 Wednesday Bright & Clear\n' +
+                'This fixture tests source propagation, not astronomical accuracy.',
+              { headers: { 'Content-Type': 'text/plain' } },
+            );
           if (new URL(request.url).hostname === 'api.indexnow.org') {
             if (request.method === 'HEAD') {
               diagnosticHeads++;
@@ -276,6 +284,8 @@ const mf = new Miniflare({
             const packet = JSON.parse(input.messages[1].content),
               source = packet.sources[0];
             if (packet.operatorCorrections) {
+              if (packet.sources.some((s) => s.id === 'hko2023' && s.excerpt.includes('2023/4/5')))
+                correctionSourceSeen = true;
               draft.zh.sections[0].paragraphs[0] +=
                 ' 本次修订进一步区分随机抽取与可复算的命盘，保留原始记录供复盘。';
               draft.en.sections[0].paragraphs[0] +=
@@ -493,7 +503,24 @@ try {
     expectedRevision: original.revision,
     instructions:
       'Clarify random draws versus deterministic calculation, preserving the original publication date.',
+    additionalSourceIds: ['hko2023'],
   };
+  const beforeInvalidCorrection = calls;
+  for (const ids of [['https://example.test/'], ['toString'], ['hko2023', 'hko2023']]) {
+    const rejected = await mf.dispatchFetch('https://wenbu.app/api/admin/editorial/revise', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer local-editorial-test',
+        Origin: 'https://wenbu.app',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ...revisionBody, additionalSourceIds: ids }),
+    });
+    check(
+      'invalid correction sources are rejected before enqueue or model usage',
+      rejected.status === 422 && calls === beforeInvalidCorrection,
+    );
+  }
   const revise = () =>
     mf
       .dispatchFetch('https://wenbu.app/api/admin/editorial/revise', {
@@ -528,6 +555,21 @@ try {
   check(
     'syntax-invalid completed JSON uses bounded repair rather than a blind transport replay',
     state.runs.find((r) => r.id === revisionRun.id)?.model_calls === 3 && syntaxRepairSeen,
+  );
+  check(
+    'correction reads its approved supporting source and preserves it in the publication',
+    correctionSourceSeen &&
+      revised.sources.some(
+        (s) =>
+          s.id === 'hko2023' && s.url === 'https://www.hko.gov.hk/en/gts/time/calendar/text/files/T2023e.txt',
+      ),
+  );
+  const queuedCorrectionRequest = await (
+    await (await mf.getR2Bucket('ANALYTICS_ARCHIVE')).get(`editorial/${revisionRun.id}/request.json`)
+  ).json();
+  check(
+    'durable correction recovery retains the exact additional source IDs',
+    queuedCorrectionRequest.revision.additionalSourceIds.join(',') === 'hko2023',
   );
   check(
     'the old immutable revision remains available after correction',

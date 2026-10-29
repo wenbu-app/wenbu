@@ -6,6 +6,7 @@ import { editorialResponse } from './editorial-render';
 import { comparisonPartners, distinctEditorialSourceUrls } from './editorial-commissioning';
 import { pathForTopic } from './editorial-schema';
 import { recordEditorialProviderFailure } from './editorial-provider';
+import { additionalEditorialSourcesSchema } from './editorial-corrections';
 
 async function boundedText(response: Response, max = 2_000_000) {
   const reader = response.body?.getReader();
@@ -107,7 +108,7 @@ export async function readApprovedEditorialSource(
       await sourceHealth(env, id, 'unavailable', text.length, 'unusable_source_text');
       return null;
     }
-    const limit = own ? 18000 : 6500;
+    const limit = own ? 18000 : Math.min(source.excerptLimit ?? 6500, 30000);
     let excerpt = text.slice(0, limit);
     if (text.length > limit && terms.length) {
       const needle = terms.find((term) => text.toLowerCase().indexOf(term, limit) > 0);
@@ -119,9 +120,10 @@ export async function readApprovedEditorialSource(
           text.slice(Math.max(0, offset - 300), offset + Math.floor(limit / 2));
     }
     await sourceHealth(env, id, 'available', text.length);
+    const { excerptLimit: _, ...metadata } = source;
     return {
       id,
-      ...source,
+      ...metadata,
       fetchedAt: new Date().toISOString(),
       hash: await contentHash(raw),
       excerpt,
@@ -186,17 +188,25 @@ export async function readEditorialOwner(env: Env, topic: EditorialTopic): Promi
   }
   return sources;
 }
-export async function researchEditorial(env: Env, topic: EditorialTopic): Promise<ResearchSource[]> {
+export async function researchEditorial(
+  env: Env,
+  topic: EditorialTopic,
+  additionalSourceIds: string[] = [],
+): Promise<ResearchSource[]> {
+  additionalEditorialSourcesSchema.parse(additionalSourceIds);
   const sources = await readEditorialOwner(env, topic);
   const ids = [
     ...new Set([
       ...topic.sources,
+      ...additionalSourceIds,
       ...(topic.category === 'compare' ? ['daily'] : []),
       ...(topic.category === 'compare' || topic.tool === 'agent' ? ['capabilities'] : []),
     ]),
   ];
   const terms = topic.en.toLowerCase().match(/[a-z]{5,}/g) ?? [];
   const read = await Promise.all(ids.map((id) => readApprovedEditorialSource(env, id, terms)));
+  if (additionalSourceIds.some((id) => !read.some((source) => source?.id === id)))
+    throw new Error('additional_source_unavailable');
   sources.push(...read.filter((s): s is ResearchSource => s !== null));
   // Existing zh/en copies do not masquerade as two newly read supporting sources.
   if (distinctEditorialSourceUrls(read.flatMap((s) => (s ? [s.id] : []))).size < 2)
