@@ -52,6 +52,7 @@ import { checkEditorialHealth } from './editorial-health';
 import { recordEditorialGrowthReview } from './editorial-growth';
 import { editorialSignalSummary } from './editorial-signals';
 import { editorialRevisionSchema, type EditorialRevision } from './editorial-corrections';
+import { recoverEditorialDraftJson } from './editorial-json-recovery';
 import {
   readEditorialReview,
   reviewProtocolInstruction,
@@ -201,22 +202,26 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
             );
           },
         );
-        const parsed = draftSchema.safeParse(raw);
+        const recovery = recoverEditorialDraftJson(raw),
+          candidate = recovery?.value ?? raw,
+          parsed = draftSchema.safeParse(candidate);
         const draft = parsed.success ? parsed.data : null;
-        const syntaxIssue = editorialJsonIssue(raw);
+        const syntaxIssue = editorialJsonIssue(candidate);
         const issues = syntaxIssue
           ? [syntaxIssue]
           : parsed.success
             ? draftIssues(parsed.data, packet, topic, { correction: !!event.payload.revision })
             : parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
-        const key = await archive(this.env, runId, feedback ? 'revised-draft' : 'draft', {
+        const record = {
           raw,
           draft,
           issues,
-        });
-        await archive(this.env, runId, `draft-round-${round}`, { raw, draft, issues });
+          ...(recovery ? { deterministicSyntaxRecovery: recovery.repair, recoveredRaw: candidate } : {}),
+        };
+        const key = await archive(this.env, runId, feedback ? 'revised-draft' : 'draft', record);
+        await archive(this.env, runId, `draft-round-${round}`, record);
         await editorialStage(this.env, runId, 'reviewing', 'draft_key', key);
-        return { draft, raw, issues };
+        return { draft, raw: candidate, issues };
       };
       let produced = await step.do('write-complete-bilingual-editions', stepConfig, () =>
         modelStep(() => produce()),
