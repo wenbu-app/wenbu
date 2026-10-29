@@ -65,6 +65,7 @@ let planningFeedbackSeen = false,
   draftMarker = '',
   failReview = false,
   malformedNext = false,
+  recoverableDraftFraming = true,
   syntaxRepairSeen = false,
   indexnowCalls = 0,
   providerModelUnavailable = false,
@@ -301,25 +302,28 @@ const mf = new Miniflare({
               }
             }
           }
+          let content = JSON.stringify(
+            review
+              ? {
+                  factual: !rejectThisReview,
+                  bilingual: true,
+                  useful: true,
+                  original: true,
+                  natural: true,
+                  issues: rejectThisReview
+                    ? ['Unverified example; repair its scope using the cited source.']
+                    : [],
+                }
+              : draft,
+          );
+          if (!review && recoverableDraftFraming)
+            content = content.replace('}],"figure":', '},"figure":') + '}';
           return Response.json({
             choices: [
               {
                 finish_reason: 'stop',
                 message: {
-                  content: JSON.stringify(
-                    review
-                      ? {
-                          factual: !rejectThisReview,
-                          bilingual: true,
-                          useful: true,
-                          original: true,
-                          natural: true,
-                          issues: rejectThisReview
-                            ? ['Unverified example; repair its scope using the cited source.']
-                            : [],
-                        }
-                      : draft,
-                  ),
+                  content,
                 },
               },
             ],
@@ -366,6 +370,17 @@ try {
   check(
     'native model budget allows one transport retry before writing and review',
     state.runs[0].model_calls === 3 && calls === 3,
+  );
+  const firstDraftRecord = await (
+    await mf.getR2Bucket('ANALYTICS_ARCHIVE')
+  ).get(`editorial/${state.runs[0].id}/draft-round-1.json`);
+  const firstDraftEvidence = firstDraftRecord ? JSON.parse(await firstDraftRecord.text()) : null;
+  check(
+    'native structural recovery preserves original rejection and passes a separate review without another model call',
+    firstDraftEvidence?.raw?.parseError === 'invalid_json_syntax' &&
+      firstDraftEvidence?.deterministicSyntaxRecovery?.insertedSectionClosers.length === 1 &&
+      firstDraftEvidence?.deterministicSyntaxRecovery?.removedTrailingClosers === 1 &&
+      firstDraftEvidence?.draft?.zh?.sections.length === 4,
   );
   for (const prefix of ['', 'en/']) {
     response = await mf.dispatchFetch(`https://wenbu.app/${prefix}learn/daily-card-reflection/`);
@@ -468,6 +483,12 @@ try {
     'quality failure uses all three writing and review rounds',
     state.runs.find((r) => r.slot === '2026-10-15-15').model_calls === 6,
   );
+  check(
+    'recovering draft framing never overrides a substantive independent rejection',
+    (await db.prepare('SELECT COUNT(*) AS n FROM editorial_publications').first()).n === 1 &&
+      state.runs.find((r) => r.slot === '2026-10-15-15').status === 'blocked',
+  );
+  recoverableDraftFraming = false;
   failReview = false;
   malformedNext = true;
   // Keep this fixture on a first-party learning task; real vendor HTTP is not mocked here.
