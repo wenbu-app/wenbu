@@ -51,6 +51,7 @@ import {
 import { checkEditorialHealth } from './editorial-health';
 import { recordEditorialGrowthReview } from './editorial-growth';
 import { editorialSignalSummary } from './editorial-signals';
+import { editorialRevisionSchema, type EditorialRevision } from './editorial-corrections';
 import {
   readEditorialReview,
   reviewProtocolInstruction,
@@ -73,7 +74,7 @@ export const EDITORIAL_PLANNING_CRON = '30 22 * * *';
 type Parameters = {
   kind: 'content' | 'health' | 'planning';
   slot?: string;
-  revision?: { path: string; expectedRevision: string; instructions: string };
+  revision?: EditorialRevision;
 };
 const stepConfig = {
   retries: { limit: 1, delay: '30 seconds' as const, backoff: 'exponential' as const },
@@ -152,7 +153,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
             })
           : null;
       const packet = await step.do('read-approved-sources', stepConfig, async () => {
-        const sources = await researchEditorial(this.env, topic);
+        const sources = await researchEditorial(this.env, topic, event.payload.revision?.additionalSourceIds);
         const key = await archive(this.env, runId, 'research', { topic, sources, canonicalOwners });
         await editorialStage(this.env, runId, 'drafting', 'research_key', key);
         return sources;
@@ -535,6 +536,7 @@ export async function dispatchEditorialCycle(env: Env, time = Date.now()) {
 }
 
 export async function reviseEditorial(env: Env, revision: NonNullable<Parameters['revision']>) {
+  if (!editorialRevisionSchema.safeParse(revision).success) return { status: 'invalid_revision' };
   if (env.EDITORIAL_ENABLED !== 'true' || !env.EDITORIAL_WORKFLOW || !env.ANALYTICS || !env.ANALYTICS_ARCHIVE)
     return { status: 'disabled' };
   const doc = await publishedDocument(env, revision.path);

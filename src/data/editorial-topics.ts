@@ -14,7 +14,10 @@ export type EditorialTopic = {
   search?: SearchBrief;
 };
 
-export const editorialSources: Record<string, { title: string; url: string; role: string }> = {
+export const editorialSources: Record<
+  string,
+  { title: string; url: string; role: string; excerptLimit?: 30000 }
+> = {
   capabilities: {
     title: 'Wenbu · versioned public capabilities',
     url: 'https://wenbu.app/capabilities.json',
@@ -74,6 +77,12 @@ export const editorialSources: Record<string, { title: string; url: string; role
     title: 'Hong Kong Observatory · calendar conversion',
     url: 'https://www.hko.gov.hk/en/gts/time/conversion.htm',
     role: 'Official calendar reference; not evidence of fortune-telling',
+  },
+  hko2023: {
+    title: 'Hong Kong Observatory · exact 2023 Gregorian-lunar conversion table',
+    url: 'https://www.hko.gov.hk/en/gts/time/calendar/text/files/T2023e.txt',
+    role: 'Official 2023 date rows only; the repeated second lunar month is visible in the table. Not other years, a precision ephemeris, or predictive validation.',
+    excerptLimit: 30000,
   },
   waite: {
     title: 'A. E. Waite · The Pictorial Key to the Tarot, Part III',
