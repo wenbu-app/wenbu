@@ -22,14 +22,15 @@
     "format": "prettier --write .",
     "audit:site": "node scripts/audit-site.mjs",
     "audit:art": "node scripts/audit-art.mjs",
-    "verify": "npm run check && npm test && npm run test:accounts && npm run build && npm run test:editorial && npm run audit:site && npm run audit:art && npm run audit:knowledge && npm run audit:indexnow",
+    "verify": "npm run check && npm test && npm run test:accounts && npm run build && npm run test:editorial && npm run test:editorial-review && npm run audit:site && npm run audit:art && npm run audit:knowledge && npm run audit:indexnow",
     "audit:indexnow": "node scripts/audit-indexnow.mjs",
     "smoke": "node scripts/smoke.mjs",
     "audit:knowledge": "node scripts/audit-knowledge.mjs",
     "test:accounts": "node scripts/test-accounts.mjs",
     "test:editorial": "node scripts/test-editorial.mjs",
     "content:recover": "node scripts/editorial.mjs recover",
-    "content:revise": "node scripts/editorial.mjs revise"
+    "content:revise": "node scripts/editorial.mjs revise",
+    "test:editorial-review": "node scripts/test-editorial-review.mjs"
   },
   "dependencies": {
     "@astrojs/react": "7.0.0",
