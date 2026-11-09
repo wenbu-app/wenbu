@@ -61,6 +61,9 @@ let planningFeedbackSeen = false,
   focusedCorrectionSeen = false,
   correctionSourceSeen = false,
   repairPlanning = false,
+  checkPlanningOwner = false,
+  requestedPlanningOwner = '',
+  planningOwnerRead = false,
   remainingReviewFailures = 0,
   draftMarker = '',
   failReview = false,
@@ -163,16 +166,12 @@ const mf = new Miniflare({
               )
             )
               planningFeedbackSeen = true;
+            assert.ok(packet.canonicalOwners.some((o) => o.path === 'learn/bazi-basics' && o.published));
             assert.ok(
-              packet.canonicalOwners.some((o) => o.path === 'learn/bazi-basics' && o.coverage.length > 100),
+              packet.canonicalOwners.some((o) => o.path === 'learn/daily-card-reflection' && o.published),
             );
-            assert.ok(
-              packet.canonicalOwners.some(
-                (o) =>
-                  o.path === 'learn/daily-card-reflection' &&
-                  o.coverage.includes('This revision distinguishes random draws'),
-              ),
-            );
+            assert.ok(packet.canonicalOwners.every((owner) => !('coverage' in owner)));
+            assert.equal(packet.ownerEvidence, undefined);
             return Response.json({
               choices: [
                 {
@@ -194,24 +193,43 @@ const mf = new Miniflare({
             });
           }
           if (input.messages[0].content.includes('adversarial demand and canonical-ownership editor')) {
-            assert.ok(JSON.parse(input.messages[1].content).candidates.length <= 24);
+            const packet = JSON.parse(input.messages[1].content);
+            assert.ok(packet.candidates.length <= 24);
+            assert.ok(Buffer.byteLength(JSON.stringify(packet.ownerEvidence)) <= 360000);
+            assert.ok(
+              packet.ownerEvidence.length > 0 &&
+                packet.ownerEvidence.every((owner) => owner.coverage.length > 100),
+            );
+            if (checkPlanningOwner) {
+              if (!requestedPlanningOwner)
+                requestedPlanningOwner = packet.canonicalOwners.find(
+                  (owner) =>
+                    owner.published && !packet.ownerEvidence.some((item) => item.path === owner.path),
+                ).path;
+              else
+                planningOwnerRead = packet.ownerEvidence.some(
+                  (item) => item.path === requestedPlanningOwner && item.coverage.length > 100,
+                );
+            }
             return Response.json({
               choices: [
                 {
                   finish_reason: 'stop',
                   message: {
                     content: JSON.stringify({
-                      reviews: JSON.parse(input.messages[1].content).candidates.map((t) => ({
+                      reviews: packet.candidates.map((t) => ({
                         id: t.id,
                         decision:
-                          repairPlanning && !t.task.startsWith('A corrected')
+                          checkPlanningOwner || (repairPlanning && !t.task.startsWith('A corrected'))
                             ? 'reject'
                             : t.id === 'synthetic-coin-sheet'
                               ? 'merge'
                               : 'new',
-                        closestOwner: 'learn/iching-three-coins',
-                        sameReaderOutcome: t.id === 'synthetic-coin-sheet',
-                        formatOnlyDifference: t.id === 'synthetic-coin-sheet',
+                        closestOwner: checkPlanningOwner
+                          ? requestedPlanningOwner
+                          : packet.ownerEvidence[0].path,
+                        sameReaderOutcome: checkPlanningOwner || t.id === 'synthetic-coin-sheet',
+                        formatOnlyDifference: checkPlanningOwner || t.id === 'synthetic-coin-sheet',
                         requiresNewCanonical: t.id !== 'synthetic-coin-sheet',
                         existingOutcome: 'Check line order and moving lines against a six-row worksheet.',
                         newOutcome: 'Check the serialized version contract of an exported structured record.',
@@ -668,7 +686,7 @@ try {
   );
   check(
     'commissioning records its policy, per-candidate review and actual accepted reserve',
-    planningAudit.policyVersion === 4 &&
+    planningAudit.policyVersion === 5 &&
       planningAudit.reviews.length === 3 &&
       planningAudit.rejections.length === 2,
   );
@@ -827,6 +845,38 @@ try {
           .first()
       ).definition_json.includes('A corrected serialization audit'),
   );
+  const freshPlanningPass = async (id) => {
+    await db
+      .prepare('UPDATE editorial_commissioning_runs SET started_at=started_at-?')
+      .bind(7 * 86400_000)
+      .run();
+    return mf
+      .dispatchFetch('https://wenbu.app/__test/planning', { method: 'POST', body: JSON.stringify({ id }) })
+      .then((r) => r.json());
+  };
+  await db.prepare('UPDATE editorial_daily_budgets SET planning_calls=0').run();
+  planningCandidates.splice(0, planningCandidates.length, {
+    ...planningCandidate,
+    id: 'synthetic-late-owner',
+    slug: 'synthetic-late-owner',
+  });
+  checkPlanningOwner = true;
+  const firstOwnership = await freshPlanningPass('synthetic-ownership-reread');
+  check(
+    'a topic critic naming an unread owner causes original-text review before a decision',
+    firstOwnership.status === 'unfilled' &&
+      firstOwnership.reviewed === 2 &&
+      firstOwnership.accepted === 0 &&
+      planningOwnerRead,
+  );
+  const cachedOwnership = await freshPlanningPass('synthetic-ownership-cached');
+  check(
+    'an unchanged duplicate reuses its proven rejection without another critic call',
+    cachedOwnership.status === 'unfilled' &&
+      cachedOwnership.reviewed === 0 &&
+      cachedOwnership.reusedRejections === 1,
+  );
+  checkPlanningOwner = false;
   const health = await mf.dispatchFetch('https://wenbu.app/__test/health').then((r) => r.json());
   check(
     'native public delivery health verifies bilingual HTML, Markdown, JSON, sitemap, directory and CTA',

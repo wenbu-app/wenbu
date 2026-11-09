@@ -12,6 +12,7 @@ import {
 } from './agent-tools';
 import { readReference } from './agent-library';
 import { sharedModelAvailable } from './editorial-provider';
+import { trackDeepSeekCall, type ModelAttribution } from './model-usage';
 import {
   completeLibraryDocuments,
   completeLibrarySnapshot,
@@ -73,17 +74,16 @@ export async function streamDeepSeek(
   finalOnly = false,
   forceReport = false,
   allowQuestion = true,
+  attribution: ModelAttribution = { scene: 'agent' },
 ): Promise<{ message: ModelMessage; model: string }> {
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    signal,
-    headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  return trackDeepSeekCall(env, attribution, async (receipt) => {
+    const body = JSON.stringify({
       model: env.DEEPSEEK_MODEL,
       thinking: { type: 'disabled' },
       max_tokens: 1800,
       temperature: 0.5,
       stream: true,
+      stream_options: { include_usage: true },
       messages,
       tools: allowQuestion ? agentTools : agentTools.filter((tool) => tool.function.name !== 'ask_user'),
       tool_choice: finalOnly
@@ -91,108 +91,121 @@ export async function streamDeepSeek(
         : forceReport
           ? { type: 'function', function: { name: 'write_report' } }
           : 'auto',
-    }),
-  });
-  if (!response.ok || !response.body) {
-    await response.body?.cancel();
-    throw new ApiError(
-      response.status === 429 ? 503 : 502,
-      'agent_upstream',
-      'The AI service is temporarily unavailable. Completed results are retained. / AI 解读服务暂时不可用，已完成的结果会保留。',
-    );
-  }
-  let text = '';
-  let reasoning = '';
-  let model = 'not-reported';
-  let finish = '';
-  let ended = false;
-  let total = 0;
-  const calls = new Map<number, ToolCall>();
-  await consumeSse(
-    response.body,
-    (data) => {
-      if (data === '[DONE]') {
-        ended = true;
-        return;
-      }
-      if (ended) throw new Error('Unexpected data after stream end');
-      total += data.length;
-      if (total > 1024 * 1024) throw new Error('Upstream stream exceeded its budget');
-      const part = JSON.parse(data) as {
-        model?: string;
-        error?: unknown;
-        choices?: {
-          index?: number;
-          finish_reason?: string | null;
-          delta?: {
-            content?: string;
-            reasoning_content?: string;
-            tool_calls?: {
-              index: number;
-              id?: string;
-              type?: string;
-              function?: { name?: string; arguments?: string };
-            }[];
-          };
-        }[];
-      };
-      if (part.error) throw new Error('Upstream stream error');
-      if (part.model) model = part.model;
-      const choice = part.choices?.find((c) => (c.index ?? 0) === 0);
-      if (choice?.finish_reason) finish = choice.finish_reason;
-      const delta = choice?.delta;
-      if (delta?.content) {
-        if (typeof delta.content !== 'string' || text.length + delta.content.length > 24000)
-          throw new Error('Answer exceeds output limit');
-        text += delta.content;
-        // Tool rounds use actual tool-status events for progress, not model
-        // preambles. A final text-only round can stream tokens immediately.
-        if (finalOnly) onText(delta.content);
-      }
-      if (delta?.reasoning_content) {
-        reasoning += delta.reasoning_content;
-        if (reasoning.length > 32000) throw new Error('Unexpected reasoning output exceeds limit');
-      }
-      for (const call of delta?.tool_calls ?? []) {
-        if (!Number.isInteger(call.index) || call.index < 0 || call.index >= AGENT_TOOL_CALLS)
-          throw new Error('Invalid tool call index');
-        const current = calls.get(call.index) ?? {
-          id: '',
-          type: 'function' as const,
-          function: { name: '', arguments: '' },
+    });
+    receipt.requestBytes = new TextEncoder().encode(body).byteLength;
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      signal,
+      headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
+      body,
+    });
+    receipt.httpStatus = response.status;
+    if (!response.ok || !response.body) {
+      await response.body?.cancel();
+      throw new ApiError(
+        response.status === 429 ? 503 : 502,
+        'agent_upstream',
+        'The AI service is temporarily unavailable. Completed results are retained. / AI 解读服务暂时不可用，已完成的结果会保留。',
+      );
+    }
+    let text = '';
+    let reasoning = '';
+    let model = 'not-reported';
+    let finish = '';
+    let ended = false;
+    let total = 0;
+    const calls = new Map<number, ToolCall>();
+    await consumeSse(
+      response.body,
+      (data) => {
+        if (data === '[DONE]') {
+          ended = true;
+          return;
+        }
+        if (ended) throw new Error('Unexpected data after stream end');
+        total += data.length;
+        if (total > 1024 * 1024) throw new Error('Upstream stream exceeded its budget');
+        const part = JSON.parse(data) as {
+          model?: string;
+          usage?: unknown;
+          error?: unknown;
+          choices?: {
+            index?: number;
+            finish_reason?: string | null;
+            delta?: {
+              content?: string;
+              reasoning_content?: string;
+              tool_calls?: {
+                index: number;
+                id?: string;
+                type?: string;
+                function?: { name?: string; arguments?: string };
+              }[];
+            };
+          }[];
         };
-        if (call.id) current.id += call.id;
-        if (call.type && call.type !== 'function') throw new Error('Unsupported tool call');
-        current.function.name += call.function?.name ?? '';
-        current.function.arguments += call.function?.arguments ?? '';
-        if (
-          current.function.arguments.length > 16000 ||
-          current.function.name.length > 80 ||
-          current.id.length > 160
-        )
-          throw new Error('Tool call exceeds its budget');
-        calls.set(call.index, current);
-      }
-    },
-    signal,
-    true,
-  );
-  if (!finalOnly && !calls.size && text) onText(text);
-  if (!ended || !finish || finish === 'length' || finish === 'content_filter')
-    throw new Error('DeepSeek response was incomplete');
-  const toolCalls = [...calls.values()].map((c) => callSchema.parse(c));
-  if (new Set(toolCalls.map((c) => c.id)).size !== toolCalls.length)
-    throw new Error('Duplicate tool call IDs');
-  if (!text && !toolCalls.length) throw new Error('Empty DeepSeek response');
-  return {
-    message: {
-      role: 'assistant',
-      content: text || null,
-      ...(reasoning ? { reasoning_content: reasoning } : {}),
-      ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
-    },
-    model,
-  };
+        if (part.error) throw new Error('Upstream stream error');
+        if (part.model) {
+          model = part.model;
+          receipt.model = part.model;
+        }
+        if (part.usage != null) receipt.usage = part.usage;
+        const choice = part.choices?.find((c) => (c.index ?? 0) === 0);
+        if (choice?.finish_reason) finish = choice.finish_reason;
+        const delta = choice?.delta;
+        if (delta?.content) {
+          if (typeof delta.content !== 'string' || text.length + delta.content.length > 24000)
+            throw new Error('Answer exceeds output limit');
+          text += delta.content;
+          // Tool rounds use actual tool-status events for progress, not model
+          // preambles. A final text-only round can stream tokens immediately.
+          if (finalOnly) onText(delta.content);
+        }
+        if (delta?.reasoning_content) {
+          reasoning += delta.reasoning_content;
+          if (reasoning.length > 32000) throw new Error('Unexpected reasoning output exceeds limit');
+        }
+        for (const call of delta?.tool_calls ?? []) {
+          if (!Number.isInteger(call.index) || call.index < 0 || call.index >= AGENT_TOOL_CALLS)
+            throw new Error('Invalid tool call index');
+          const current = calls.get(call.index) ?? {
+            id: '',
+            type: 'function' as const,
+            function: { name: '', arguments: '' },
+          };
+          if (call.id) current.id += call.id;
+          if (call.type && call.type !== 'function') throw new Error('Unsupported tool call');
+          current.function.name += call.function?.name ?? '';
+          current.function.arguments += call.function?.arguments ?? '';
+          if (
+            current.function.arguments.length > 16000 ||
+            current.function.name.length > 80 ||
+            current.id.length > 160
+          )
+            throw new Error('Tool call exceeds its budget');
+          calls.set(call.index, current);
+        }
+      },
+      signal,
+      true,
+    );
+    if (!finalOnly && !calls.size && text) onText(text);
+    if (!ended || !finish || finish === 'length' || finish === 'content_filter')
+      throw new Error('DeepSeek response was incomplete');
+    const toolCalls = [...calls.values()].map((c) => callSchema.parse(c));
+    if (new Set(toolCalls.map((c) => c.id)).size !== toolCalls.length)
+      throw new Error('Duplicate tool call IDs');
+    if (!text && !toolCalls.length) throw new Error('Empty DeepSeek response');
+    return {
+      message: {
+        role: 'assistant',
+        content: text || null,
+        ...(reasoning ? { reasoning_content: reasoning } : {}),
+        ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
+      },
+      model,
+    };
+  });
 }
 
 export function requestsNewDraw(message: string) {
@@ -220,6 +233,7 @@ export async function agentResponse(
   onFinish?: (metric: ServiceMetric) => void,
   onActivity?: (metric: ServiceMetric) => void,
   actor?: import('./account-operations').Actor,
+  hold?: (work: Promise<unknown>) => void,
 ) {
   const input = agentRequestSchema.parse(raw);
   // Rebuild charts and validate original random results BEFORE reserving a paid turn.
@@ -309,6 +323,7 @@ export async function agentResponse(
     { role: 'user', content: input.message },
   ];
   const abort = new AbortController();
+  const usageRunId = crypto.randomUUID();
   const onRequestAbort = () => abort.abort('client_disconnect');
   request.signal.addEventListener('abort', onRequestAbort, { once: true });
   if (request.signal.aborted) abort.abort();
@@ -570,7 +585,7 @@ export async function agentResponse(
           }
           modelCalls++;
           metrics.modelCalls = modelCalls;
-          const result = await streamDeepSeek(
+          const call = streamDeepSeek(
             messages,
             env,
             abort.signal,
@@ -580,7 +595,10 @@ export async function agentResponse(
             finalOnly,
             forceReport,
             allowQuestion,
+            { scene: 'agent', runId: usageRunId, round: modelCalls },
           );
+          hold?.(call.catch(() => undefined));
+          const result = await call;
           servedModel = result.model;
           messages.push(result.message);
           const calls = result.message.tool_calls ?? [];

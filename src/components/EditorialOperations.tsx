@@ -1,4 +1,118 @@
 import { useState } from 'react';
+import type { ModelScene, ModelUsageReport } from '../../worker/model-usage';
+const sceneNames: Record<ModelScene, string> = {
+  editorial_draft: '初稿 / Draft',
+  editorial_repair: '改稿 / Revision',
+  editorial_review: '独立审稿 / Editorial review',
+  commissioning_proposal: '补充选题 / Topic proposals',
+  commissioning_review: '选题审核 / Topic review',
+  agent: '问卜对话 / Agent',
+  interpretation: '普通解读 / Interpretation',
+};
+const number = new Intl.NumberFormat('zh-CN');
+const yuan = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 4 });
+
+function ModelUsage({ report }: { report: ModelUsageReport | { status: 'unavailable' } }) {
+  const [day, setDay] = useState('all');
+  if (report.status === 'unavailable') return <p role="status">用量账本暂不可用 / Usage data unavailable</p>;
+  const rows = report.rows.filter((row) => day === 'all' || row.day === day);
+  const days = [...new Set(report.rows.map((row) => row.day))];
+  const shown = Object.entries(sceneNames).flatMap(([scene, label]) => {
+    const group = rows.filter((row) => row.scene === scene);
+    if (!group.length) return [];
+    const sum = (
+      field:
+        | 'calls'
+        | 'failed_calls'
+        | 'measured_calls'
+        | 'priced_calls'
+        | 'prompt_tokens'
+        | 'completion_tokens'
+        | 'cache_hit_tokens'
+        | 'cache_miss_tokens'
+        | 'reasoning_tokens'
+        | 'cost_cny_nanos',
+    ) => group.reduce((total, row) => total + (row[field] ?? 0), 0);
+    const measured = sum('measured_calls'),
+      priced = sum('priced_calls');
+    const count = (
+      field:
+        'prompt_tokens' | 'completion_tokens' | 'cache_hit_tokens' | 'cache_miss_tokens' | 'reasoning_tokens',
+    ) => (group.some((row) => row[field] !== null) ? number.format(sum(field)) : '—');
+    return [
+      <tr key={scene}>
+        <th scope="row">{label}</th>
+        <td>
+          {number.format(sum('calls'))} ({number.format(sum('failed_calls'))} 失败 / failed)
+        </td>
+        <td>
+          {number.format(measured)} / {number.format(sum('calls'))}
+        </td>
+        <td>{count('prompt_tokens')}</td>
+        <td>{count('completion_tokens')}</td>
+        <td>
+          {count('cache_hit_tokens')} / {count('cache_miss_tokens')}
+        </td>
+        <td>{count('reasoning_tokens')}</td>
+        <td>
+          {priced ? yuan.format(sum('cost_cny_nanos') / 1e9) : '—'} ({priced} / {sum('calls')})
+        </td>
+      </tr>,
+    ];
+  });
+  return (
+    <div style={{ margin: '24px 0' }}>
+      <h3>模型用量与费用 / Model usage and cost</h3>
+      <p style={{ fontSize: 13 }}>
+        {report.startDay} – {report.endDay} · 北京时间 / Shanghai time。
+        根据已收到的用量和调用时段估算人民币费用，括号内为有计价数据的调用数。/ CNY estimates use received
+        usage and request time. Parentheses show priced calls.
+      </p>
+      {days.length > 0 && (
+        <label>
+          日期 / Day{' '}
+          <select value={day} onChange={(event) => setDay(event.currentTarget.value)}>
+            <option value="all">全部记录 / All recorded days</option>
+            {days.map((date) => (
+              <option key={date} value={date}>
+                {date}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {shown.length ? (
+        <div className="editorial-table" tabIndex={0} role="region" aria-label="模型用量 / Model usage">
+          <table>
+            <thead>
+              <tr>
+                <th>场景 / Scene</th>
+                <th>请求 / Calls</th>
+                <th>有回执 / Measured</th>
+                <th>输入 / Input</th>
+                <th>输出 / Output</th>
+                <th>缓存命中 / 未命中 · Hit / miss</th>
+                <th>推理 / Reasoning</th>
+                <th>估算费用 / Estimated cost</th>
+              </tr>
+            </thead>
+            <tbody>{shown}</tbody>
+          </table>
+        </div>
+      ) : (
+        <p>该时段暂无用量记录 / No usage records for this period.</p>
+      )}
+      <p style={{ fontSize: 12 }}>
+        推理 token 已包含在输出中。缺失的用量和费用显示为“—”。/ Output includes reasoning tokens. Missing
+        figures are shown as “—”.{' '}
+        <a href={report.pricing.source} target="_blank" rel="noreferrer">
+          计价来源 / Pricing source ↗
+        </a>
+      </p>
+    </div>
+  );
+}
+
 type Status = {
   enabled: boolean;
   autopublish: boolean;
@@ -37,6 +151,7 @@ type Status = {
   };
   productionPolicy?: { reviewRounds: number; attemptsPerSlot: number; modelCallsPerDay: number };
   modelBudgets?: { day: string; model_calls: number; planning_calls: number }[];
+  modelUsage?: ModelUsageReport | { status: 'unavailable' };
   state: { last_content_at: number | null; last_health_at: number | null };
 };
 export default function EditorialOperations({ token }: { token: string }) {
@@ -169,6 +284,7 @@ export default function EditorialOperations({ token }: { token: string }) {
               </details>
             </div>
           )}
+          {data.modelUsage && <ModelUsage report={data.modelUsage} />}
           <div
             className="editorial-table"
             tabIndex={0}

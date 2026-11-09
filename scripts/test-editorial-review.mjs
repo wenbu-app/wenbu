@@ -31,7 +31,7 @@ try {
       logLevel: 'warning',
     });
   const { fixtureDraft } = await import(pathToFileURL(path.join(temp, 'draft.mjs')).href);
-  for (const scenario of ['criticism', 'exhausted', 'malformed-approval']) {
+  for (const scenario of ['criticism', 'exhausted', 'malformed-approval', 'owner-request']) {
     const inputs = [],
       draftInputs = [];
     let mf;
@@ -95,7 +95,17 @@ try {
                       ]
                     : [],
                 };
-                if (invalid && !reject) content.invalidRepresentation = true;
+                if (scenario === 'owner-request') {
+                  assert.ok(packet.canonicalOwners.every((owner) => !('coverage' in owner)));
+                  if (inputs.length === 1) {
+                    const requested = packet.canonicalOwners.find(
+                      (owner) =>
+                        owner.published && !packet.ownerEvidence.some((item) => item.path === owner.path),
+                    );
+                    assert.ok(requested);
+                    content.needsOwners = [requested.path];
+                  }
+                } else if (invalid && !reject) content.invalidRepresentation = true;
               } else {
                 draftInputs.push(packet);
                 content = fixtureDraft();
@@ -113,6 +123,14 @@ try {
                 }
               }
               return Response.json({
+                model: 'deepseek-v4-flash',
+                usage: {
+                  prompt_tokens: 1200,
+                  completion_tokens: 300,
+                  prompt_cache_hit_tokens: 200,
+                  prompt_cache_miss_tokens: 1000,
+                  completion_tokens_details: { reasoning_tokens: 50 },
+                },
                 choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }],
               });
             },
@@ -142,6 +160,33 @@ try {
         run = await db.prepare('SELECT * FROM editorial_runs ORDER BY created_at DESC LIMIT 1').first();
         if (run && ['published', 'blocked'].includes(run.status)) break;
         await new Promise((r) => setTimeout(r, 100));
+      }
+      if (scenario === 'owner-request') {
+        check(
+          'a request for missing original text forces independent rereview of the same draft',
+          run.status === 'published' &&
+            run.model_calls === 3 &&
+            draftInputs.length === 1 &&
+            inputs.length === 2 &&
+            JSON.stringify(inputs[0].draft) === JSON.stringify(inputs[1].draft) &&
+            inputs[1].ownerEvidence.some(
+              (owner) =>
+                owner.coverage.length > 1000 &&
+                !inputs[0].ownerEvidence.some((seen) => seen.path === owner.path),
+            ),
+        );
+        const usage = await db
+          .prepare(
+            `SELECT COUNT(*) AS calls,SUM(prompt_tokens) AS input,SUM(reasoning_tokens) AS reasoning
+           FROM model_usage WHERE run_id=? AND scene='editorial_review' AND context_version='targeted-v1'`,
+          )
+          .bind(run.id)
+          .first();
+        check(
+          'editorial ledger records each measured review',
+          usage.calls === 2 && usage.input === 2400 && usage.reasoning === 100,
+        );
+        continue;
       }
       check(
         scenario + ': all protocol retries see the exact same draft',

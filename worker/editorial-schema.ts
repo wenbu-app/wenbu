@@ -183,6 +183,10 @@ export const editorialReviewSchema = z
     original: z.boolean(),
     natural: z.boolean(),
     issues: z.array(z.string().max(2000)).max(30),
+    needsOwners: z
+      .array(z.string().regex(/^(learn|compare|blog)\/[a-z0-9-]{2,95}$/))
+      .max(3)
+      .optional(),
     corrections: z
       .array(
         z

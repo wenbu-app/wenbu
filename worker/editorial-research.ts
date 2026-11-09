@@ -7,6 +7,7 @@ import { comparisonPartners, distinctEditorialSourceUrls } from './editorial-com
 import { pathForTopic } from './editorial-schema';
 import { recordEditorialProviderFailure } from './editorial-provider';
 import { additionalEditorialSourcesSchema } from './editorial-corrections';
+import { trackDeepSeekCall, type ModelAttribution } from './model-usage';
 
 async function boundedText(response: Response, max = 2_000_000) {
   const reader = response.body?.getReader();
@@ -226,13 +227,11 @@ export async function editorialModel(
   maxTokens: number,
   capture?: (record: unknown) => Promise<void>,
   reasoning = false,
+  attribution: ModelAttribution = { scene: 'editorial_draft' },
 ) {
   if (!env.DEEPSEEK_API_KEY) throw new Error('editorial_model_unconfigured');
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    signal: AbortSignal.timeout(240_000),
-    headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  return trackDeepSeekCall(env, attribution, async (receipt) => {
+    const body = JSON.stringify({
       model: env.DEEPSEEK_MODEL,
       messages: [
         { role: 'system', content: system },
@@ -244,40 +243,50 @@ export async function editorialModel(
       temperature: 0.35,
       max_tokens: maxTokens,
       stream: false,
-    }),
-  });
-  if (!response.ok) {
-    await response.body?.cancel();
-    await recordEditorialProviderFailure(env, response.status);
-    throw new Error(`editorial_model_http_${response.status}`);
-  }
-  const raw = await boundedText(response, 500_000);
-  const result = JSON.parse(raw) as {
-    model?: string;
-    usage?: unknown;
-    choices?: { message?: { content?: string }; finish_reason?: string }[];
-  };
-  await capture?.({
-    model: result.model,
-    usage: result.usage,
-    finishReason: result.choices?.[0]?.finish_reason,
-    content: result.choices?.[0]?.message?.content,
-  });
-  if (result.choices?.[0]?.finish_reason === 'length') throw new Error('editorial_model_truncated');
-  const output = result.choices?.[0]?.message?.content;
-  if (!output) throw new Error('editorial_model_empty');
-  try {
-    return JSON.parse(output);
-  } catch (cause) {
-    // A completed but malformed model document is a validation defect, not a transport retry.
-    // Retain it for the existing bounded editorial repair; it cannot pass either schema.
-    const position = cause instanceof Error ? /position (\d+)/.exec(cause.message)?.[1] : null;
-    return {
-      invalidJson: output,
-      parseError: 'invalid_json_syntax',
-      parsePosition: position ? Number(position) : null,
+    });
+    receipt.requestBytes = new TextEncoder().encode(body).byteLength;
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      signal: AbortSignal.timeout(240_000),
+      headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
+      body,
+    });
+    receipt.httpStatus = response.status;
+    if (!response.ok) {
+      await response.body?.cancel();
+      await recordEditorialProviderFailure(env, response.status);
+      throw new Error(`editorial_model_http_${response.status}`);
+    }
+    const raw = await boundedText(response, 500_000);
+    const result = JSON.parse(raw) as {
+      model?: string;
+      usage?: unknown;
+      choices?: { message?: { content?: string }; finish_reason?: string }[];
     };
-  }
+    receipt.model = result.model;
+    receipt.usage = result.usage;
+    await capture?.({
+      model: result.model,
+      usage: result.usage,
+      finishReason: result.choices?.[0]?.finish_reason,
+      content: result.choices?.[0]?.message?.content,
+    });
+    if (result.choices?.[0]?.finish_reason === 'length') throw new Error('editorial_model_truncated');
+    const output = result.choices?.[0]?.message?.content;
+    if (!output) throw new Error('editorial_model_empty');
+    try {
+      return JSON.parse(output);
+    } catch (cause) {
+      // A completed but malformed model document is a validation defect, not a transport retry.
+      // Retain it for the existing bounded editorial repair; it cannot pass either schema.
+      const position = cause instanceof Error ? /position (\d+)/.exec(cause.message)?.[1] : null;
+      return {
+        invalidJson: output,
+        parseError: 'invalid_json_syntax',
+        parsePosition: position ? Number(position) : null,
+      };
+    }
+  });
 }
 
 export function editorialJsonIssue(raw: unknown): string | null {
