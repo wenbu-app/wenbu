@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Env } from './types';
 import { reserveActor, type Actor } from './account-operations';
 import { sharedModelAvailable } from './editorial-provider';
+import { trackDeepSeekCall } from './model-usage';
 
 export class ApiError extends Error {
   constructor(
@@ -112,11 +113,8 @@ export async function interpret(raw: unknown, request: Request, env: Env, actor?
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 40000);
   try {
-    const res = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
+    return await trackDeepSeekCall(env, { scene: 'interpretation' }, async (receipt) => {
+      const body = JSON.stringify({
         model: env.DEEPSEEK_MODEL,
         thinking: { type: 'disabled' },
         temperature: 0.65,
@@ -136,33 +134,44 @@ export async function interpret(raw: unknown, request: Request, env: Env, actor?
             }),
           },
         ],
-      }),
+      });
+      receipt.requestBytes = new TextEncoder().encode(body).byteLength;
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body,
+      });
+      receipt.httpStatus = res.status;
+      if (!res.ok)
+        throw new ApiError(
+          res.status === 429 ? 503 : 502,
+          'upstream_unavailable',
+          'The reading service is busy. Your result is safe on this page. / 解读服务暂时繁忙，排盘结果仍保留在此页。',
+        );
+      const data = (await res.json()) as {
+        model?: string;
+        usage?: unknown;
+        choices?: { finish_reason?: string; message?: { content?: string } }[];
+      };
+      receipt.model = data.model;
+      receipt.usage = data.usage;
+      if (data.choices?.[0]?.finish_reason === 'length') throw new Error('Truncated answer');
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error('Empty answer');
+      const answer = responseSchema.parse(JSON.parse(content));
+      return {
+        answer,
+        remaining: quota.remaining,
+        provenance: {
+          provider: 'DeepSeek',
+          requestedModel: env.DEEPSEEK_MODEL,
+          servedModel: data.model ?? 'not-reported',
+          generatedAt: new Date().toISOString(),
+          type: 'AI-generated symbolic reflection',
+        },
+      };
     });
-    if (!res.ok)
-      throw new ApiError(
-        res.status === 429 ? 503 : 502,
-        'upstream_unavailable',
-        'The reading service is busy. Your result is safe on this page. / 解读服务暂时繁忙，排盘结果仍保留在此页。',
-      );
-    const data = (await res.json()) as {
-      model?: string;
-      choices?: { finish_reason?: string; message?: { content?: string } }[];
-    };
-    if (data.choices?.[0]?.finish_reason === 'length') throw new Error('Truncated answer');
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Empty answer');
-    const answer = responseSchema.parse(JSON.parse(content));
-    return {
-      answer,
-      remaining: quota.remaining,
-      provenance: {
-        provider: 'DeepSeek',
-        requestedModel: env.DEEPSEEK_MODEL,
-        servedModel: data.model ?? 'not-reported',
-        generatedAt: new Date().toISOString(),
-        type: 'AI-generated symbolic reflection',
-      },
-    };
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError(

@@ -3,13 +3,13 @@ import { articles } from '../src/data/articles';
 import { comparisons } from '../src/data/comparisons';
 import { editorialSources, type EditorialTopic } from '../src/data/editorial-topics';
 import { pathForTopic, type EditorialDocument } from './editorial-schema';
-import type { Env } from './types';
 import { defaultSearchBrief } from '../src/data/editorial-demand';
 import { knowledgeDocument, guideOutline } from '../src/lib/knowledge';
 
-export const COMMISSIONING_POLICY = 4;
+export const COMMISSIONING_POLICY = 5;
 export const EDITORIAL_RESERVE_TARGET = 42;
 export const COMMISSIONING_BATCH_SIZE = 24;
+export const EDITORIAL_EMERGENCY_RESERVE = 9;
 
 export function commissioningCoolingDown(
   lastPlanningAt: number | null,
@@ -21,9 +21,11 @@ export function commissioningCoolingDown(
   const delay =
     errorCode === 'editorial_busy'
       ? 15 * 60_000
-      : ready < EDITORIAL_RESERVE_TARGET
+      : ready < EDITORIAL_EMERGENCY_RESERVE
         ? 6 * 3600_000
-        : 6 * 86400_000;
+        : ready < EDITORIAL_RESERVE_TARGET
+          ? 86400_000
+          : 6 * 86400_000;
   return lastPlanningAt !== null && previousPolicy >= COMMISSIONING_POLICY && now - lastPlanningAt < delay;
 }
 
@@ -201,46 +203,69 @@ export const commissioningReviewSchema = z
   .strict();
 export type CommissioningReview = z.infer<typeof commissioningReviewSchema>['reviews'][number];
 
+export type EditorialOwner = {
+  path: string;
+  title: string;
+  description: string;
+  headings: string[];
+  coverage: string;
+  published: boolean;
+  revision: string | null;
+  plannedTasks: { task: string; unique: string; state?: string }[];
+};
+
+export function editorialDocumentCoverage(doc: EditorialDocument) {
+  return JSON.stringify({
+    revision: doc.revision,
+    zh: doc.zh,
+    en: doc.en,
+    previousAdditions: doc.previousAdditions,
+  });
+}
+
 export function editorialOwners(
   queued: (EditorialTopic & { state?: string })[],
   published: EditorialDocument[] = [],
+  { metadataOnly = false, onlyPath }: { metadataOnly?: boolean; onlyPath?: string } = {},
 ) {
-  const owners = new Map<
-    string,
-    {
-      path: string;
-      title: string;
-      description: string;
-      headings: string[];
-      coverage: string;
-      plannedTasks: { task: string; unique: string; state?: string }[];
-    }
-  >();
-  for (const a of articles)
-    owners.set(`${a.category}/${a.slug}`, {
-      path: `${a.category}/${a.slug}`,
+  const owners = new Map<string, EditorialOwner>();
+  for (const a of articles) {
+    const path = `${a.category}/${a.slug}`;
+    if (onlyPath && path !== onlyPath) continue;
+    owners.set(path, {
+      path,
       title: a.en.title,
       description: `${a.zh.description}\n${a.en.description}`,
       headings:
         a.category === 'learn'
           ? [...guideOutline(a, 'zh'), ...guideOutline(a, 'en')].map((s) => s.title)
           : [...a.zh.sections, ...a.en.sections].map((s) => s.heading),
-      coverage: JSON.stringify(
-        a.category === 'learn'
-          ? { zh: knowledgeDocument(a, 'zh'), en: knowledgeDocument(a, 'en') }
-          : { zh: a.zh.sections, en: a.en.sections },
-      ),
+      coverage: metadataOnly
+        ? ''
+        : JSON.stringify(
+            a.category === 'learn'
+              ? { zh: knowledgeDocument(a, 'zh'), en: knowledgeDocument(a, 'en') }
+              : { zh: a.zh.sections, en: a.en.sections },
+          ),
+      published: true,
+      revision: null,
       plannedTasks: [],
     });
-  for (const c of comparisons)
-    owners.set(`compare/${c.slug}`, {
-      path: `compare/${c.slug}`,
+  }
+  for (const c of comparisons) {
+    const path = `compare/${c.slug}`;
+    if (onlyPath && path !== onlyPath) continue;
+    owners.set(path, {
+      path,
       title: c.en.title,
       description: c.en.intro,
       headings: c.en.rows.map((row) => row[0]),
-      coverage: JSON.stringify({ zh: c.zh, en: c.en }),
+      coverage: metadataOnly ? '' : JSON.stringify({ zh: c.zh, en: c.en }),
+      published: true,
+      revision: null,
       plannedTasks: [],
     });
+  }
   for (const t of queued) {
     const path = pathForTopic(t),
       owner = owners.get(path) ?? {
@@ -249,8 +274,11 @@ export function editorialOwners(
         description: t.zh,
         headings: [],
         coverage: '',
+        published: false,
+        revision: null,
         plannedTasks: [],
       };
+    if (onlyPath && path !== onlyPath) continue;
     owner.plannedTasks.push({ task: t.task, unique: t.unique, state: t.state });
     owners.set(path, owner);
   }
@@ -262,9 +290,14 @@ export function editorialOwners(
         description: doc.zh.description,
         headings: [],
         coverage: '',
+        published: true,
+        revision: doc.revision,
         plannedTasks: [],
       };
+    if (onlyPath && path !== onlyPath) continue;
     owner.title = doc.en.title;
+    owner.published = true;
+    owner.revision = doc.revision;
     owner.headings = [
       ...new Set([
         ...owner.headings,
@@ -272,32 +305,10 @@ export function editorialOwners(
         ...doc.en.sections.map((s) => s.heading),
       ]),
     ];
-    owner.coverage +=
-      '\n' +
-      JSON.stringify({
-        revision: doc.revision,
-        zh: doc.zh,
-        en: doc.en,
-        previousAdditions: doc.previousAdditions,
-      });
+    if (!metadataOnly) owner.coverage += '\n' + editorialDocumentCoverage(doc);
     owners.set(path, owner);
   }
   return [...owners.values()];
-}
-
-export async function readEditorialOwners(env: Env) {
-  const [topics, publications] = await Promise.all([
-    env
-      .ANALYTICS!.prepare('SELECT definition_json,status FROM editorial_topics')
-      .all<{ definition_json: string; status: string }>(),
-    env
-      .ANALYTICS!.prepare('SELECT document_json FROM editorial_publications')
-      .all<{ document_json: string }>(),
-  ]);
-  return editorialOwners(
-    topics.results.map((r) => ({ ...(JSON.parse(r.definition_json) as EditorialTopic), state: r.status })),
-    publications.results.map((r) => JSON.parse(r.document_json) as EditorialDocument),
-  );
 }
 
 export function storedCommissioningPolicy(serialized?: string) {
@@ -313,7 +324,7 @@ export function commissionCandidates(
   candidates: CommissioningCandidate[],
   reviews: CommissioningReview[],
   existing: (EditorialTopic & { state?: string })[],
-  owners = editorialOwners(existing),
+  owners: Pick<EditorialOwner, 'path' | 'coverage'>[] = editorialOwners(existing),
 ) {
   const candidateIds = new Set(candidates.map((t) => t.id));
   const reviewIds = new Set(reviews.map((r) => r.id));

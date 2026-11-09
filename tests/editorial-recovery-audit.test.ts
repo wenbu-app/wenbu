@@ -64,7 +64,7 @@ describe('strategy review recovery regressions', () => {
     const resumed = await dispatchTopicPlanning(env, time);
     expect(resumed.status).toBe('queued');
     expect(resumed.id).not.toBe(first.id);
-    expect(resumed.id).toContain('-16-15-v4');
+    expect(resumed.id).toContain(`-16-15-v${COMMISSIONING_POLICY}`);
     expect(createBatch).toHaveBeenCalledTimes(2);
     expect(commissioningCoolingDown(now, COMMISSIONING_POLICY, 10, time)).toBe(true);
   });

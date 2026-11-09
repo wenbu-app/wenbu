@@ -185,6 +185,8 @@ describe('editorial canonical commissioning', () => {
   it('spaces depleted-reserve retries without suppressing the next weekly review', () => {
     const now = Date.parse('2026-10-18T02:30:00Z');
     expect(commissioningCoolingDown(now - 3 * 3600_000, COMMISSIONING_POLICY, 35, now)).toBe(true);
+    expect(commissioningCoolingDown(now - 7 * 3600_000, COMMISSIONING_POLICY, 9, now)).toBe(true);
+    expect(commissioningCoolingDown(now - 7 * 3600_000, COMMISSIONING_POLICY, 8, now)).toBe(false);
     expect(commissioningCoolingDown(now - 48 * 3600_000, COMMISSIONING_POLICY, 35, now)).toBe(false);
     expect(commissioningCoolingDown(now - 48 * 3600_000, COMMISSIONING_POLICY, 50, now)).toBe(true);
     expect(commissioningCoolingDown(now - 3600_000, 1, 35, now)).toBe(false);

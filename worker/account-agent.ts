@@ -14,6 +14,7 @@ export async function accountAgentResponse(
   actor: Actor | undefined,
   onFinish: (m: ServiceMetric) => void,
   onActivity: (m: ServiceMetric) => void,
+  hold?: (work: Promise<unknown>) => void,
 ) {
   const sessionId = request.headers.get('X-Wenbu-Conversation');
   let session: AgentSession | undefined,
@@ -37,7 +38,7 @@ export async function accountAgentResponse(
     )
       throw new AccountError(409, 'conversation_not_saved');
   }
-  const response = await agentResponse(raw, request, env, onFinish, onActivity, actor);
+  const response = await agentResponse(raw, request, env, onFinish, onActivity, actor, hold);
   if (!actor || !response.body) return response;
   let message = newMessage('assistant', '');
   message.id = actor.requestId;

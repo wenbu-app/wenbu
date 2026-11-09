@@ -52,6 +52,7 @@ import {
 } from './editorial-workflow';
 import { editorialStatus, observeEditorial, seedEditorial } from './editorial-store';
 import { editorialRevisionSchema } from './editorial-corrections';
+import { replayModelUsage } from './model-usage';
 export { EditorialWorkflow } from './editorial-workflow';
 export { IndexNowWorkflow } from './indexnow-workflow';
 
@@ -401,13 +402,17 @@ export default {
           actor,
           (metric) => record({ ...metric, locale, duration: Date.now() - started }),
           record,
+          ctx ? (work) => ctx.waitUntil(work) : undefined,
         );
       if (path === '/api/v1/interpret') {
-        const result = await interpret(raw, request, env, actor);
+        const reading = interpret(raw, request, env, actor);
+        ctx?.waitUntil(reading.catch(() => undefined));
+        const result = await reading;
         record({
           event: 'interpret_succeeded',
           tool: 'interpret',
           status: 'complete',
+          modelCalls: 1,
           locale,
           duration: Date.now() - started,
         });
@@ -486,6 +491,7 @@ export default {
     if (event.cron === '15 * * * *') {
       ctx.waitUntil(archiveAnalytics(env));
       ctx.waitUntil(pruneAccountMetadata(env));
+      ctx.waitUntil(replayModelUsage(env).catch(() => console.error('model_usage_replay_failed')));
     }
     if (event.cron === INDEXNOW_CRON) ctx.waitUntil(dispatchScheduledIndexNow(event, env));
     if ([EDITORIAL_CRON, EDITORIAL_RECONCILE_CRON].includes(event.cron))

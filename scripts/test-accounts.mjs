@@ -40,7 +40,7 @@ const mf = new Miniflare({
         modules: true,
         compatibilityDate: '2026-09-28',
         compatibilityFlags: ['nodejs_compat'],
-        d1Databases: ['USERDATA'],
+        d1Databases: ['USERDATA', 'ANALYTICS'],
         durableObjects: {
           QUOTA: { className: 'UsageGate', useSQLite: true },
           PRIVACY_LEDGER: { className: 'DeletionLedger', useSQLite: true },
@@ -60,9 +60,16 @@ const mf = new Miniflare({
         outboundService: async (request) => {
           if (new URL(request.url).hostname !== 'api.deepseek.com') return new Response('', { status: 503 });
           const input = await request.json();
+          const usage = {
+            prompt_tokens: 500,
+            completion_tokens: 90,
+            prompt_cache_hit_tokens: 200,
+            prompt_cache_miss_tokens: 300,
+          };
           if (!input.stream)
             return Response.json({
               model: 'deepseek-v4-flash',
+              usage,
               choices: [
                 {
                   message: {
@@ -77,6 +84,8 @@ const mf = new Miniflare({
                 },
               ],
             });
+          assert.equal(input.stream_options?.include_usage, true);
+          const finishUsage = `data: ${JSON.stringify({ model: 'deepseek-flash', choices: [], usage })}\n\ndata: [DONE]\n\n`;
           if (input.messages.some((m) => m.role === 'user' && m.content === 'fixture:clarification')) {
             const delta = {
               tool_calls: [
@@ -96,14 +105,14 @@ const mf = new Miniflare({
               ],
             };
             return new Response(
-              `data: ${JSON.stringify({ choices: [{ delta, finish_reason: 'tool_calls' }] })}\n\ndata: [DONE]\n\n`,
+              `data: ${JSON.stringify({ choices: [{ delta, finish_reason: 'tool_calls' }] })}\n\n${finishUsage}`,
               { headers: { 'Content-Type': 'text/event-stream' } },
             );
           }
           const content =
             'A synthetic result for account persistence testing. Take a moment to name the decision, identify what you can influence, and write down the next small step you can take.';
           return new Response(
-            `data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: null }] })}\n\ndata: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] })}\n\ndata: [DONE]\n\n`,
+            `data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: null }] })}\n\ndata: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] })}\n\n${finishUsage}`,
             { headers: { 'Content-Type': 'text/event-stream' } },
           );
         },
@@ -124,6 +133,13 @@ const mf = new Miniflare({
 });
 try {
   const db = await mf.getD1Database('USERDATA');
+  const analytics = await mf.getD1Database('ANALYTICS');
+  for (const name of (await readdir(path.join(root, 'migrations'))).filter((n) => n.endsWith('.sql')).sort())
+    await analytics.exec(
+      (await readFile(path.join(root, 'migrations', name), 'utf8'))
+        .replace(/--[^\n]*/g, '')
+        .replace(/\s+/g, ' '),
+    );
   for (const file of (await readdir(path.join(root, 'migrations-userdata')))
     .filter((f) => f.endsWith('.sql'))
     .sort()) {
@@ -823,6 +839,24 @@ try {
       clarification.data.includes('"status":"waiting"') &&
       !clarification.data.includes('"receipt":') &&
       (await db.prepare('SELECT COUNT(*) n FROM wb_trial_cohorts').first()).n === countBeforeClarification,
+  );
+  const modelUsage = (
+    await analytics
+      .prepare(
+        'SELECT scene,COUNT(*) AS n,SUM(cache_hit_tokens) AS hit,SUM(completion_tokens) AS output FROM model_usage GROUP BY scene ORDER BY scene',
+      )
+      .all()
+  ).results;
+  check(
+    'Agent final usage chunks and standalone interpretation are recorded separately',
+    modelUsage.length === 2 &&
+      modelUsage[0].scene === 'agent' &&
+      modelUsage[0].n > 1 &&
+      modelUsage[0].hit === modelUsage[0].n * 200 &&
+      modelUsage[0].output === modelUsage[0].n * 90 &&
+      modelUsage[1].scene === 'interpretation' &&
+      modelUsage[1].n === 1 &&
+      modelUsage[1].hit === 200,
   );
   const identitySnapshot = await db.prepare('SELECT * FROM user WHERE id=?').bind(a.data.user.id).first();
   const sessionSnapshot = await db

@@ -7,6 +7,7 @@ import { EDITORIAL_POLICY } from './editorial-policy';
 import { sourceViable } from './editorial-commissioning';
 import { editorialGrowthStatus } from './editorial-growth';
 import { editorialProviderStatus } from './editorial-provider';
+import { modelUsageSummary } from './model-usage';
 
 export async function seedEditorial(env: Env) {
   if (!env.ANALYTICS) throw new Error('editorial_database_unavailable');
@@ -313,6 +314,7 @@ export async function editorialStatus(env: Env) {
     modelBudgets: budgets.results,
     production: await editorialGrowthStatus(env),
     modelProvider: await editorialProviderStatus(env),
+    modelUsage: await modelUsageSummary(env).catch(() => ({ status: 'unavailable' as const })),
     state,
   };
 }
