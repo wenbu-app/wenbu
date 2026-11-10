@@ -28,6 +28,7 @@
     "AGENT_GLOBAL_DAILY_LIMIT": "600",
     "EDITORIAL_ENABLED": "true",
     "EDITORIAL_AUTOPUBLISH": "true",
+    "EDITORIAL_CODEX_FROM": "2026-11-11",
   },
   "durable_objects": {
     "bindings": [
