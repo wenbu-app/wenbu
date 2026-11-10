@@ -3,7 +3,12 @@ import { contentHash, pathForTopic, type EditorialDocument } from './editorial-s
 import type { Env } from './types';
 import { searchQueueStatements } from './search-console-queue';
 import { registerEditorialPaths } from '../src/lib/analytics-contract';
-import { CODEX_EDITORIAL_TARGET, EDITORIAL_POLICY, codexEditorialActive } from './editorial-policy';
+import {
+  CODEX_EDITORIAL_TARGET,
+  CODEX_EDITORIAL_WAVES,
+  EDITORIAL_POLICY,
+  codexEditorialActive,
+} from './editorial-policy';
 import { sourceViable } from './editorial-commissioning';
 import { editorialGrowthStatus } from './editorial-growth';
 import { editorialProviderStatus } from './editorial-provider';
@@ -311,6 +316,14 @@ export async function editorialStatus(env: Env) {
       hours: EDITORIAL_POLICY.hours,
     },
     generation: codexEditorialActive(env) ? 'codex' : 'workflow',
+    generationCutover: env.EDITORIAL_CODEX_FROM
+      ? {
+          date: env.EDITORIAL_CODEX_FROM,
+          timezone: 'Asia/Shanghai',
+          targetTopics: CODEX_EDITORIAL_TARGET,
+          waves: CODEX_EDITORIAL_WAVES,
+        }
+      : null,
     topics: topics.results,
     runs: runs.results,
     observations: observations.results,
