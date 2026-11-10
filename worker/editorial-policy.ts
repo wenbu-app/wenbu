@@ -1,6 +1,30 @@
 import { shanghaiDay } from './editorial-schema';
 import type { Env } from './types';
 
+export const CODEX_EDITORIAL_WAVES = [
+  { hour: 9, count: 4 },
+  { hour: 15, count: 3 },
+  { hour: 21, count: 3 },
+] as const;
+export const CODEX_EDITORIAL_TARGET = CODEX_EDITORIAL_WAVES.reduce((total, wave) => total + wave.count, 0);
+export function codexEditorialActive(env: Env, time = Date.now()) {
+  return (
+    !!env.EDITORIAL_CODEX_FROM &&
+    /^\d{4}-\d{2}-\d{2}$/.test(env.EDITORIAL_CODEX_FROM) &&
+    shanghaiDay(time) >= env.EDITORIAL_CODEX_FROM
+  );
+}
+
+export function codexSlots(day: string) {
+  let number = 0;
+  return CODEX_EDITORIAL_WAVES.flatMap(({ hour, count }) =>
+    Array.from({ length: count }, () => ({
+      hour,
+      slot: day + '-codex-' + String(++number).padStart(2, '0'),
+    })),
+  );
+}
+
 export const EDITORIAL_POLICY = {
   version: 4,
   dailyTopics: 3,

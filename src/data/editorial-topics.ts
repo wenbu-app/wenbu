@@ -68,6 +68,11 @@ export const editorialSources: Record<
     url: 'https://wenbu.app/agents/',
     role: 'Current first-party product documentation',
   },
+  protocol: {
+    title: 'Wenbu · agent protocol',
+    url: 'https://wenbu.app/agent-protocol.md',
+    role: 'Current first-party tool, citation recovery and completion protocol',
+  },
   daily: {
     title: 'Wenbu · daily card',
     url: 'https://wenbu.app/daily/',

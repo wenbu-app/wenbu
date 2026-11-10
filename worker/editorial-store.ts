@@ -3,7 +3,7 @@ import { contentHash, pathForTopic, type EditorialDocument } from './editorial-s
 import type { Env } from './types';
 import { searchQueueStatements } from './search-console-queue';
 import { registerEditorialPaths } from '../src/lib/analytics-contract';
-import { EDITORIAL_POLICY } from './editorial-policy';
+import { CODEX_EDITORIAL_TARGET, EDITORIAL_POLICY, codexEditorialActive } from './editorial-policy';
 import { sourceViable } from './editorial-commissioning';
 import { editorialGrowthStatus } from './editorial-growth';
 import { editorialProviderStatus } from './editorial-provider';
@@ -304,12 +304,20 @@ export async function editorialStatus(env: Env) {
   return {
     enabled: env.EDITORIAL_ENABLED === 'true',
     autopublish: env.EDITORIAL_AUTOPUBLISH === 'true',
-    cadence: { timezone: 'Asia/Shanghai', targetTopics: 3, languages: ['zh', 'en'], hours: [9, 15, 21] },
+    cadence: {
+      timezone: 'Asia/Shanghai',
+      targetTopics: codexEditorialActive(env) ? CODEX_EDITORIAL_TARGET : EDITORIAL_POLICY.dailyTopics,
+      languages: ['zh', 'en'],
+      hours: EDITORIAL_POLICY.hours,
+    },
+    generation: codexEditorialActive(env) ? 'codex' : 'workflow',
     topics: topics.results,
     runs: runs.results,
     observations: observations.results,
     commissioningRuns: commissioningRuns.results,
-    productionPolicy: EDITORIAL_POLICY,
+    productionPolicy: codexEditorialActive(env)
+      ? { ...EDITORIAL_POLICY, dailyTopics: CODEX_EDITORIAL_TARGET, generation: 'codex' }
+      : EDITORIAL_POLICY,
     sourceHealth: sourceHealth.results,
     modelBudgets: budgets.results,
     production: await editorialGrowthStatus(env),

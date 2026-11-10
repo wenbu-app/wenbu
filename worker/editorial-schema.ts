@@ -164,6 +164,7 @@ export type EditorialAddition = EditorialDraft & {
 };
 export type EditorialDocument = EditorialAddition & {
   publishedAt: string;
+  reviewOrigin?: 'codex';
   previousAdditions?: EditorialAddition[];
   review: {
     factual: boolean;
