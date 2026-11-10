@@ -71,7 +71,12 @@ import {
   type ReviewProtocolRepair,
 } from './editorial-review';
 import type { Env } from './types';
-import { EDITORIAL_POLICY, nextEditorialAttempt, reserveEditorialModelCall } from './editorial-policy';
+import {
+  EDITORIAL_POLICY,
+  codexEditorialActive,
+  nextEditorialAttempt,
+  reserveEditorialModelCall,
+} from './editorial-policy';
 import { editorialDemandLanes, defaultSearchBrief } from '../src/data/editorial-demand';
 import {
   ensureEditorialProvider,
@@ -121,6 +126,7 @@ export class EditorialWorkflow extends WorkflowEntrypoint<Env, Parameters> {
     if (this.env.EDITORIAL_ENABLED !== 'true') return { status: 'disabled' };
     if (event.payload.kind === 'health')
       return await step.do('technical-search-health', stepConfig, () => checkEditorialHealth(this.env));
+    if (codexEditorialActive(this.env)) return { status: 'editorial_owned_by_codex' };
     if (event.payload.kind === 'planning')
       return await step.do(
         'daily-topic-replenishment',

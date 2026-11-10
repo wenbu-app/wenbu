@@ -52,6 +52,9 @@ import {
 } from './editorial-workflow';
 import { editorialStatus, observeEditorial, seedEditorial } from './editorial-store';
 import { editorialRevisionSchema } from './editorial-corrections';
+import { deliverCodexEditorial, prepareCodexEditorial } from './editorial-codex';
+import { codexEditorialActive } from './editorial-policy';
+import { ensureEditorialProvider } from './editorial-provider';
 import { replayModelUsage } from './model-usage';
 export { EditorialWorkflow } from './editorial-workflow';
 export { IndexNowWorkflow } from './indexnow-workflow';
@@ -227,6 +230,12 @@ export default {
         if (request.method === 'POST' && path.startsWith('/api/admin/editorial/')) {
           if (request.headers.get('Origin') !== env.SITE_URL)
             return json({ error: { code: 'origin_denied' } }, 403);
+          if (path === '/api/admin/editorial/codex-prepare')
+            return json(await prepareCodexEditorial(env, await boundedBody(request, 10000)));
+          if (path === '/api/admin/editorial/codex-deliver')
+            return json(await deliverCodexEditorial(env, await boundedBody(request, 180000)));
+          if (codexEditorialActive(env) && /\/(run|plan|recover|revise)$/.test(path))
+            return json({ error: { code: 'editorial_owned_by_codex' } }, 409);
           if (path === '/api/admin/editorial/run') {
             await seedEditorial(env);
             return json(await dispatchEditorial(env));
@@ -488,13 +497,22 @@ export default {
   },
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
     recordCronReceived(event);
+    if (
+      codexEditorialActive(env, event.scheduledTime) &&
+      env.ANALYTICS &&
+      event.cron === EDITORIAL_RECONCILE_CRON
+    )
+      ctx.waitUntil(ensureEditorialProvider(env));
     if (event.cron === '15 * * * *') {
       ctx.waitUntil(archiveAnalytics(env));
       ctx.waitUntil(pruneAccountMetadata(env));
       ctx.waitUntil(replayModelUsage(env).catch(() => console.error('model_usage_replay_failed')));
     }
     if (event.cron === INDEXNOW_CRON) ctx.waitUntil(dispatchScheduledIndexNow(event, env));
-    if ([EDITORIAL_CRON, EDITORIAL_RECONCILE_CRON].includes(event.cron))
+    if (
+      !codexEditorialActive(env, event.scheduledTime) &&
+      [EDITORIAL_CRON, EDITORIAL_RECONCILE_CRON].includes(event.cron)
+    )
       ctx.waitUntil(dispatchEditorialCycle(env, event.scheduledTime));
     if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_HEALTH_CRON)
       ctx.waitUntil(
@@ -505,7 +523,12 @@ export default {
           },
         ]),
       );
-    if (env.EDITORIAL_ENABLED === 'true' && env.EDITORIAL_WORKFLOW && event.cron === EDITORIAL_PLANNING_CRON)
+    if (
+      !codexEditorialActive(env, event.scheduledTime) &&
+      env.EDITORIAL_ENABLED === 'true' &&
+      env.EDITORIAL_WORKFLOW &&
+      event.cron === EDITORIAL_PLANNING_CRON
+    )
       ctx.waitUntil(dispatchTopicPlanning(env, event.scheduledTime));
   },
 } satisfies ExportedHandler<Env>;

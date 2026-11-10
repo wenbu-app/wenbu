@@ -1,4 +1,4 @@
-import { EDITORIAL_POLICY } from './editorial-policy';
+import { EDITORIAL_POLICY, codexEditorialActive, codexSlots } from './editorial-policy';
 import { contentHash, shanghaiDay, type EditorialDocument } from './editorial-schema';
 import { editorialDemandLanes, defaultSearchBrief } from '../src/data/editorial-demand';
 import { editorialSources, type EditorialTopic } from '../src/data/editorial-topics';
@@ -26,20 +26,23 @@ export async function editorialGrowthStatus(env: Env, now = Date.now()) {
   ]);
   const days = Array.from({ length: 8 }, (_, i) => {
     const date = shanghaiDay(now - (7 - i) * 86400_000);
-    const slots = EDITORIAL_POLICY.hours.map((hour) => `${date}-${String(hour).padStart(2, '0')}`);
-    const due = slots.filter(
-      (slot) => date < day || Number(slot.slice(-2)) <= new Date(now + 8 * 3600_000).getUTCHours(),
+    const schedule = codexEditorialActive(env, Date.parse(date + 'T12:00:00+08:00'))
+      ? codexSlots(date)
+      : EDITORIAL_POLICY.hours.map((hour) => ({ hour, slot: `${date}-${String(hour).padStart(2, '0')}` }));
+    const slots = schedule.map(({ slot }) => slot);
+    const due = schedule.filter(
+      ({ hour }) => date < day || hour <= new Date(now + 8 * 3600_000).getUTCHours(),
     );
     const published = slots.filter((slot) =>
       runs.results.some((r) => r.slot === slot && r.status === 'published'),
     ).length;
     return {
       day: date,
-      target: EDITORIAL_POLICY.dailyTopics,
+      target: slots.length,
       due: due.length,
       published,
-      remaining: EDITORIAL_POLICY.dailyTopics - published,
-      missed: date < day ? EDITORIAL_POLICY.dailyTopics - published : null,
+      remaining: slots.length - published,
+      missed: date < day ? slots.length - published : null,
       attempts: runs.results.filter((r) => slots.includes(r.slot)).length,
     };
   });
@@ -92,7 +95,8 @@ export async function editorialGrowthStatus(env: Env, now = Date.now()) {
     viableReadyTasks,
     sourceEligibilityBasis:
       'Candidates exclude recently unavailable sources; missing or stale records are not verified availability. Every publication rereads its sources.',
-    reserveTarget: 42,
+    reserveTarget:
+      (codexEditorialActive(env, now) ? codexSlots(day).length : EDITORIAL_POLICY.dailyTopics) * 14,
     sourceHealth: {
       available: sources.results.filter((s) => s.status === 'available' && s.checked_at > now - 86400_000)
         .length,
