@@ -14,7 +14,7 @@ export async function editorialGrowthStatus(env: Env, now = Date.now()) {
       .prepare(
         'SELECT slot,status,error_code,model_calls FROM editorial_runs WHERE slot>=? AND slot<? ORDER BY created_at LIMIT 1500',
       )
-      .bind(since + '-00', day + '-99')
+      .bind(since + '-', shanghaiDay(now + 86400_000) + '-')
       .all<{ slot: string; status: string; error_code: string | null; model_calls: number }>(),
     db
       .prepare('SELECT definition_json,status,last_attempt_at FROM editorial_topics')
@@ -117,6 +117,7 @@ export async function recordEditorialGrowthReview(env: Env) {
   const day = shanghaiDay(Date.now());
   const production = await editorialGrowthStatus(env);
   const previous = production.days[production.days.length - 2];
+  const reserveGap = Math.max(0, production.reserveTarget - production.viableReadyTasks);
   const failures = (
     await env
       .ANALYTICS!.prepare(
@@ -172,7 +173,7 @@ export async function recordEditorialGrowthReview(env: Env) {
     ],
     operationalTasks: {
       previousDayMissed: previous.missed,
-      reserveGap: Math.max(0, 42 - production.viableReadyTasks),
+      reserveGap,
       failureCounts: production.failureCounts,
       unavailableSources: production.sourceHealth.unavailable,
       repairFeedback,
@@ -187,7 +188,7 @@ export async function recordEditorialGrowthReview(env: Env) {
     .bind(id)
     .first();
   if (exists) return { id, status: 'already_recorded' };
-  const status = previous.missed || production.viableReadyTasks < 42 ? 'attention' : 'observed';
+  const status = previous.missed || reserveGap > 0 ? 'attention' : 'observed';
   await env
     .ANALYTICS!.prepare(
       'INSERT OR IGNORE INTO editorial_observations(id,kind,checked_at,period_start,period_end,status,evidence_json) VALUES(?,?,?,?,?,?,?)',
@@ -198,6 +199,6 @@ export async function recordEditorialGrowthReview(env: Env) {
     id,
     status,
     previousDayMissed: previous.missed,
-    reserveGap: Math.max(0, 42 - production.viableReadyTasks),
+    reserveGap,
   };
 }

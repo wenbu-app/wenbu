@@ -1,11 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   EDITORIAL_POLICY,
   nextEditorialAttempt,
   reserveEditorialModelCall,
 } from '../worker/editorial-policy';
 import { editorialDemandLanes } from '../src/data/editorial-demand';
-import { editorialGrowthStatus } from '../worker/editorial-growth';
+import { editorialGrowthStatus, recordEditorialGrowthReview } from '../worker/editorial-growth';
+import { editorialTopics } from '../src/data/editorial-topics';
 import { database } from './helpers/analytics-db';
 
 describe('editorial production recovery', () => {
@@ -84,6 +85,60 @@ describe('editorial production recovery', () => {
     });
     expect(report.keywordCoverage).toHaveLength(6);
     expect(editorialDemandLanes.every((lane) => lane.zh.length >= 4 && lane.en.length >= 4)).toBe(true);
+  });
+  it('counts current Codex slots across the cutover without including tomorrow', async () => {
+    const { env, sql } = database();
+    env.EDITORIAL_CODEX_FROM = '2026-11-11';
+    const current = Date.parse('2026-11-11T01:05:00Z');
+    const insert = sql.prepare(
+      'INSERT INTO editorial_runs(id,slot,status,created_at,updated_at) VALUES(?,?,?,?,?)',
+    );
+    insert.run('legacy-yesterday', '2026-11-10-09', 'published', current, current);
+    insert.run('failed-first', '2026-11-11-codex-01', 'blocked', current, current);
+    for (let i = 1; i <= 4; i++)
+      insert.run('codex-' + i, '2026-11-11-codex-0' + i, 'published', current, current);
+    insert.run('legacy-today', '2026-11-11-09', 'published', current, current);
+    insert.run('tomorrow', '2026-11-12-codex-01', 'published', current, current);
+
+    const report = await editorialGrowthStatus(env, current);
+    expect(report.days.at(-1)).toEqual({
+      day: '2026-11-11',
+      target: 10,
+      due: 4,
+      published: 4,
+      remaining: 6,
+      missed: null,
+      attempts: 5,
+    });
+    expect(report.days.at(-2)).toMatchObject({ day: '2026-11-10', target: 3, published: 1 });
+    expect(report.reserveTarget).toBe(140);
+  });
+  it('uses the active reserve target in the recorded growth review', async () => {
+    const { env, sql } = database();
+    env.EDITORIAL_CODEX_FROM = '2026-11-11';
+    const current = Date.parse('2026-11-11T01:05:00Z');
+    const template = editorialTopics.find((topic) => topic.category === 'learn')!;
+    for (const hour of ['09', '15', '21'])
+      sql
+        .prepare('INSERT INTO editorial_runs(id,slot,status,created_at,updated_at) VALUES(?,?,?,?,?)')
+        .run('previous-' + hour, '2026-11-10-' + hour, 'published', current, current);
+    for (let i = 0; i < 43; i++) {
+      const topic = { ...template, id: 'reserve-' + i, slug: 'reserve-' + i };
+      sql
+        .prepare(
+          'INSERT INTO editorial_topics(id,slug,category,definition_json,created_at) VALUES(?,?,?,?,?)',
+        )
+        .run(topic.id, topic.slug, topic.category, JSON.stringify(topic), current);
+    }
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(current);
+    try {
+      const review = await recordEditorialGrowthReview(env);
+      expect(review).toMatchObject({ status: 'attention', previousDayMissed: 0, reserveGap: 97 });
+      const row = sql.prepare('SELECT evidence_json FROM editorial_observations WHERE id=?').get(review.id);
+      expect(JSON.parse(row!.evidence_json as string).operationalTasks.reserveGap).toBe(97);
+    } finally {
+      clock.mockRestore();
+    }
   });
   it('reports provider failures separately from source and quality defects', async () => {
     const { env, sql } = database();

@@ -116,7 +116,7 @@ function ModelUsage({ report }: { report: ModelUsageReport | { status: 'unavaila
 type Status = {
   enabled: boolean;
   autopublish: boolean;
-  cadence: { hours: number[] };
+  cadence: { hours: number[]; targetTopics: number };
   topics: { status: string; total: number }[];
   runs: {
     id: string;
@@ -210,14 +210,20 @@ export default function EditorialOperations({ token }: { token: string }) {
             <span>
               Asia/Shanghai · {data.cadence.hours.map((h) => `${String(h).padStart(2, '0')}:00`).join(' / ')}
             </span>
-            <span>每天 3 个双语主题 / 3 bilingual topics per day</span>
+            <span>
+              每天 {data.cadence.targetTopics} 个双语主题 / {data.cadence.targetTopics} bilingual topics per
+              day
+            </span>
             <span>待生产 / Ready: {data.topics.find((t) => t.status === 'ready')?.total ?? 0}</span>
           </div>
           {data.production && (
             <div style={{ margin: '24px 0' }}>
               <h3>产量与覆盖 / Delivery and coverage</h3>
               <p style={{ fontSize: 13, lineHeight: 1.9 }}>
-                今日发布 / Published today: <strong>{data.production.days.at(-1)?.published} / 3</strong>
+                今日发布 / Published today:{' '}
+                <strong>
+                  {data.production.days.at(-1)?.published} / {data.production.days.at(-1)?.target}
+                </strong>
                 {' · '}已到期 / Due: {data.production.days.at(-1)?.due}
                 {' · '}无近期来源阻断 / No recent source block: {data.production.viableReadyTasks} /{' '}
                 {data.production.reserveTarget}
