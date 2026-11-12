@@ -235,6 +235,27 @@ describe('discovery and telemetry boundaries', () => {
     expect(text).toContain('A bounded practice');
     expect(text).toContain('excerpt');
   });
+  it('exports a contiguous Markdown table with embedded separators kept in their cells', () => {
+    const document = doc();
+    document.en.table = {
+      title: 'Check the two groups',
+      columns: ['Record', 'Lower | upper', 'Finding'],
+      rows: [
+        ['A', '8, 8, 6 | 8, 8, 8', 'Upper stays Earth'],
+        ['B', 'Earth | Thunder', 'Line one\nremains the same'],
+      ],
+      sourceIds: ['daily'],
+    };
+    const text = editorialMarkdown(document, 'en');
+    expect(text).toContain(
+      [
+        '| Record | Lower \\| upper | Finding |',
+        '| --- | --- | --- |',
+        '| A | 8, 8, 6 \\| 8, 8, 8 | Upper stays Earth |',
+        '| B | Earth \\| Thunder | Line one remains the same |',
+      ].join('\n'),
+    );
+  });
 });
 describe('editorial model serialization failures', () => {
   it('archives a malformed completed response and hands a validation defect to the bounded repair path', async () => {

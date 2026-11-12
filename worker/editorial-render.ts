@@ -90,6 +90,10 @@ export async function preserveExtendedMetadata(
 }
 export function editorialMarkdown(doc: EditorialDocument, locale: 'zh' | 'en'): string {
   const e = doc[locale];
+  const markdownRow = (cells: string[]) =>
+    '| ' +
+    cells.map((cell) => cell.replace(/[\\|]/g, '\\$&').replace(/\s*[\r\n]+\s*/g, ' ')).join(' | ') +
+    ' |';
   const refs = (ids: string[]) =>
     ids
       .map((id) => doc.sources.find((s) => s.id === id))
@@ -112,9 +116,11 @@ export function editorialMarkdown(doc: EditorialDocument, locale: 'zh' | 'en'): 
     refs(e.figure.sourceIds),
     ...e.sections.flatMap((s) => [`## ${s.heading}`, ...s.paragraphs, refs(s.sourceIds)]),
     `## ${e.table.title}`,
-    '| ' + e.table.columns.join(' | ') + ' |',
-    '| ' + e.table.columns.map(() => '---').join(' | ') + ' |',
-    ...e.table.rows.map((row) => '| ' + row.join(' | ') + ' |'),
+    [
+      markdownRow(e.table.columns),
+      markdownRow(e.table.columns.map(() => '---')),
+      ...e.table.rows.map(markdownRow),
+    ].join('\n'),
     refs(e.table.sourceIds),
     `## ${e.example.title}`,
     e.example.intro,
