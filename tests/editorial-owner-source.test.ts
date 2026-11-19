@@ -38,3 +38,36 @@ it('does not mask a machine-format server failure with a fallback page', async (
   await expect(readEditorialOwner(env, topic)).rejects.toThrow('original_article_unavailable');
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+it('keeps the complete owner on request while preserving bounded legacy excerpts and hashes', async () => {
+  const { env } = database();
+  env.EDITORIAL_ENABLED = 'true';
+  env.SITE_URL = 'https://wenbu.app';
+  const owner = { ...topic, category: 'learn' as const, slug: 'owner-source-fixture' };
+  const original = 'Earlier published coverage. '.repeat(1500) + ' Verified final historical example.';
+  env.ASSETS = {
+    fetch: async () => new Response(original, { headers: { 'Content-Type': 'text/markdown' } }),
+  } as unknown as typeof env.ASSETS;
+
+  const bounded = await readEditorialOwner(env, owner);
+  const complete = await readEditorialOwner(env, owner, { completeOwner: true });
+  expect(bounded.every((source) => source.excerpt.length === 30000 && source.truncated)).toBe(true);
+  expect(
+    complete.every(
+      (source) => source.excerpt.endsWith('Verified final historical example.') && !source.truncated,
+    ),
+  ).toBe(true);
+  expect(complete.map((source) => source.hash)).toEqual(bounded.map((source) => source.hash));
+  expect(editorialContentContract(owner, bounded).kind).toBe('complete_guide');
+  expect(editorialContentContract(owner, complete).kind).toBe('focused_addition');
+});
+
+it('rejects an oversized complete source instead of treating a partial read as complete', async () => {
+  const { env } = database();
+  env.EDITORIAL_ENABLED = 'true';
+  env.SITE_URL = 'https://wenbu.app';
+  env.ASSETS = {
+    fetch: async () => new Response('x'.repeat(2_000_001)),
+  } as unknown as typeof env.ASSETS;
+  await expect(readEditorialOwner(env, topic, { completeOwner: true })).rejects.toThrow('source_too_large');
+});
