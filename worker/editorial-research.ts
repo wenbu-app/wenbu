@@ -160,7 +160,11 @@ export async function refreshEditorialSources(env: Env) {
       .all()
   ).results;
 }
-export async function readEditorialOwner(env: Env, topic: EditorialTopic): Promise<ResearchSource[]> {
+export async function readEditorialOwner(
+  env: Env,
+  topic: EditorialTopic,
+  options: { completeOwner?: boolean } = {},
+): Promise<ResearchSource[]> {
   const sources: ResearchSource[] = [];
   if (topic.mode === 'extend') {
     for (const locale of ['zh', 'en']) {
@@ -174,7 +178,8 @@ export async function readEditorialOwner(env: Env, topic: EditorialTopic): Promi
       }
       if (!response.ok) throw new Error('original_article_unavailable');
       const raw = await boundedText(response),
-        content = stripDocumentHtml(raw);
+        content = stripDocumentHtml(raw),
+        excerpt = options.completeOwner ? content : content.slice(0, 30000);
       sources.push({
         id: 'current-' + locale,
         title: `Current complete ${locale} canonical article`,
@@ -182,8 +187,8 @@ export async function readEditorialOwner(env: Env, topic: EditorialTopic): Promi
         role: 'Current public original and earlier additions; add substantial coverage without repeating or replacing them.',
         fetchedAt: new Date().toISOString(),
         hash: await contentHash(raw),
-        excerpt: content.slice(0, 30000),
-        truncated: content.length > 30000,
+        excerpt,
+        truncated: content.length > excerpt.length,
       });
     }
   }
@@ -193,9 +198,10 @@ export async function researchEditorial(
   env: Env,
   topic: EditorialTopic,
   additionalSourceIds: string[] = [],
+  options: { completeOwner?: boolean } = {},
 ): Promise<ResearchSource[]> {
   additionalEditorialSourcesSchema.parse(additionalSourceIds);
-  const sources = await readEditorialOwner(env, topic);
+  const sources = await readEditorialOwner(env, topic, options);
   const ids = [
     ...new Set([
       ...topic.sources,

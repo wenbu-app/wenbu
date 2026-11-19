@@ -96,7 +96,7 @@ export async function prepareCodexEditorial(env: Env, raw: unknown) {
   const expectedRevision = owner?.revision ?? null;
   if ((await publishedDocument(env, path))?.revision !== (expectedRevision ?? undefined))
     throw error('codex_owner_changed');
-  const sources = await researchEditorial(env, topic).catch(() => {
+  const sources = await researchEditorial(env, topic, [], { completeOwner: true }).catch(() => {
     throw error('codex_sources_unavailable', 422);
   });
   if (topic.mode === 'extend' && editorialContentContract(topic, sources).kind !== 'focused_addition')
@@ -168,7 +168,7 @@ export async function deliverCodexEditorial(env: Env, raw: unknown) {
   if (packet.createdAt + packetLifetime < Date.now()) throw error('codex_packet_expired');
   const original = await publishedDocument(env, path);
   if ((original?.revision ?? null) !== expectedRevision) throw error('codex_owner_changed');
-  const currentSources = await readEditorialOwner(env, topic).catch(() => {
+  const currentSources = await readEditorialOwner(env, topic, { completeOwner: true }).catch(() => {
     throw error('codex_original_unavailable', 422);
   });
   if (

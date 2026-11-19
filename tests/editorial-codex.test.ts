@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { deliverCodexEditorial, prepareCodexEditorial } from '../worker/editorial-codex';
 import { codexEditorialActive } from '../worker/editorial-policy';
-import { contentHash } from '../worker/editorial-schema';
+import { contentHash, type EditorialDocument } from '../worker/editorial-schema';
+import { readEditorialOwner } from '../worker/editorial-research';
 import { database } from './helpers/analytics-db';
-import { fixtureDraft } from './helpers/editorial-fixture';
+import { fixtureDraft, fixtureFocusedDraft } from './helpers/editorial-fixture';
 
 const topic = {
   id: 'codex-shadow-fixture',
@@ -55,10 +56,64 @@ async function fixture() {
       natural: 'Read both language editions from start to finish.',
     },
   };
-  return { env, sql, input };
+  return { env, sql, input, packet };
 }
 
 describe('Codex editorial delivery', () => {
+  it('prepares and validates long bilingual originals including their retained additions', async () => {
+    const { env, sql, input, packet: initial } = await fixture();
+    const revision = 'a'.repeat(64);
+    const sources = initial.sources.map(({ excerpt: _, ...source }) => source);
+    const date = '2026-11-01T00:00:00.000Z';
+    const original: EditorialDocument = {
+      ...fixtureDraft(),
+      topic: initial.topic,
+      sources,
+      revision,
+      publishedAt: date,
+      updatedAt: date,
+      review: input.review,
+      previousAdditions: Array.from({ length: 4 }, (_, index) => ({
+        ...fixtureDraft(),
+        sources,
+        revision: String(index + 1).repeat(64),
+        publishedAt: date,
+        updatedAt: date,
+      })),
+    };
+    const path = 'learn/' + topic.slug;
+    sql
+      .prepare('INSERT INTO editorial_publications VALUES(?,?,?,?,?,?,?)')
+      .run(path, topic.id, revision, JSON.stringify(original), 1, 1, 'synthetic-owner');
+    const extension = { ...topic, id: 'codex-long-owner-extension', mode: 'extend' as const };
+    expect((await readEditorialOwner(env, extension)).find((s) => s.id === 'current-en')?.truncated).toBe(
+      true,
+    );
+
+    const prepared = await prepareCodexEditorial(env, { topic: extension });
+    const owner = prepared.sources.find((s) => s.id === 'current-en')!;
+    expect(owner.excerpt.length).toBeGreaterThan(30000);
+    expect(owner.truncated).toBe(false);
+    expect(prepared.contract.kind).toBe('focused_addition');
+    expect(prepared.expectedRevision).toBe(revision);
+    expect(prepared.reviewedOwners.find((o) => o.path === path)?.coverage).toContain('previousAdditions');
+    const draft = fixtureFocusedDraft();
+    const reviewed = {
+      ...input,
+      packet: prepared.packet,
+      draft,
+      draftHash: await contentHash(JSON.stringify(draft)),
+    };
+    await expect(deliverCodexEditorial(env, reviewed)).resolves.toMatchObject({ status: 'validated' });
+    original.en.answer += ' A source changed after preparation.';
+    sql
+      .prepare('UPDATE editorial_publications SET document_json=? WHERE path=?')
+      .run(JSON.stringify(original), path);
+    await expect(deliverCodexEditorial(env, reviewed)).rejects.toMatchObject({ code: 'codex_owner_changed' });
+    expect(sql.prepare('SELECT COUNT(*) n FROM editorial_runs').get()?.n).toBe(0);
+    expect(sql.prepare('SELECT COUNT(*) n FROM model_usage').get()?.n).toBe(0);
+  });
+
   it('validates a reviewed pair without public rows and refuses a changed draft or inactive publish', async () => {
     const { env, sql, input } = await fixture();
     await expect(deliverCodexEditorial(env, input)).resolves.toMatchObject({ status: 'validated' });
